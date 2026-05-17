@@ -17,6 +17,7 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.example
 
 # Debug
 npm-debug.log*
@@ -35,6 +36,12 @@ Thumbs.db
 
 # Testing
 coverage/
+
+# PWA generated files
+public/sw.js
+public/workbox-*.js
+public/sw.js.map
+public/workbox-*.js.map
 
 # Misc
 *.tsbuildinfo

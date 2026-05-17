@@ -1,0 +1,29 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bolao-frontend
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    profiles:
+      - prod
+
+  app-dev:
+    image: node:22-alpine
+    container_name: bolao-frontend-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+    command: sh -c "npm run dev -- -p 3003"
+    profiles:
+      - dev
