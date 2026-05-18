@@ -30,13 +30,13 @@ const mockGrupos = [
 ];
 
 const mockRanking = [
-  { posicao: 1, nome: 'Lucas', pontos: 42 },
+  { posicao: 1, nome: 'Menta', pontos: 42 },
   { posicao: 2, nome: 'Cristiano', pontos: 38, destaque: true },
-  { posicao: 3, nome: 'Mestre', pontos: 35 },
+  { posicao: 3, nome: 'Davi', pontos: 35 },
 ];
 
 const mockProximosJogos = [
-  { id: '1', timeCasa: 'Flamengo', timeFora: 'Palmeiras', dataHora: proximaData(3), countdown: '21h' },
+  { id: '1', timeCasa: 'Flamengo', timeFora: 'Corinthians', dataHora: proximaData(3), countdown: '21h' },
   { id: '2', timeCasa: 'Brasil', timeFora: 'Argentina', dataHora: proximaData(48) },
 ];
 
@@ -96,9 +96,9 @@ export default function InicioPage() {
             escudo: 'https://s.sde.globo.com/media/organizations/2018/04/10/Flamengo-2018.svg',
           }}
           timeFora={{
-            nome: 'Palmeiras',
-            sigla: 'PAL',
-            escudo: 'https://s.sde.globo.com/media/organizations/2019/07/06/Palmeiras.svg',
+            nome: 'Corinthians',
+            sigla: 'COR',
+            escudo: 'https://s.sde.globo.com/media/organizations/2024/10/09/Corinthians_2024_Q4ahot4.svg',
           }}
           dataHora={proximaData(3)}
           totalPalpites={14}

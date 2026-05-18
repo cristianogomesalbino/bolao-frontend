@@ -55,7 +55,7 @@ export default function CriarGrupoPage() {
             right: '-20px',
             width: '200px',
             opacity: 1,
-            filter: 'brightness(1.2) saturate(1.1)',
+            filter: 'brightness(1.2) saturate(1.5) hue-rotate(55deg)',
             mixBlendMode: 'lighten',
           }}
         />

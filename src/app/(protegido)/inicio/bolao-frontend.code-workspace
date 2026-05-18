@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"path": "../../../../../bolao-backend"
+		}
+	],
+	"settings": {
+		"typescript.autoClosingTags": false
+	}
+}
