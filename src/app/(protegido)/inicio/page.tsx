@@ -3,10 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { CardProximoJogo } from '@/components/home/card-proximo-jogo';
 import { CardMeusGrupos } from '@/components/home/card-meus-grupos';
 import { CardRanking } from '@/components/home/card-ranking';
+import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -17,7 +18,6 @@ function obterIniciais(nome: string): string {
     .toUpperCase();
 }
 
-// Mock data — será substituído por dados reais via TanStack Query
 function proximaData(horas: number): string {
   const data = new Date();
   data.setHours(data.getHours() + horas);
@@ -35,6 +35,11 @@ const mockRanking = [
   { posicao: 3, nome: 'Mestre', pontos: 35 },
 ];
 
+const mockProximosJogos = [
+  { id: '1', timeCasa: 'Flamengo', timeFora: 'Palmeiras', dataHora: proximaData(3), countdown: '21h' },
+  { id: '2', timeCasa: 'Brasil', timeFora: 'Argentina', dataHora: proximaData(48) },
+];
+
 export default function InicioPage() {
   const router = useRouter();
   const usuario = useAuthStore((state) => state.usuario);
@@ -48,41 +53,42 @@ export default function InicioPage() {
   const primeiroNome = usuario?.nome?.split(' ')[0] || '';
 
   return (
-    <div className="min-h-screen bg-fundo">
+    <div className="min-h-screen bg-fundo" data-testid="home-page">
       {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 bg-fundo/80 backdrop-blur-lg border-b border-white/[0.05]">
-        <div>
-          <p className="text-base font-semibold text-texto">
-            Olá, {primeiroNome} 👋
-          </p>
-          <p className="text-[11px] text-texto/35 uppercase tracking-wider">Brasileirão 2026</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push('/minha-conta')}
-            aria-label="Minha conta"
-            className="text-texto/60 hover:text-texto"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primaria/15 text-primaria text-xs font-bold">
-              {usuario ? obterIniciais(usuario.nome) : <User size={16} />}
-            </div>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={aoSair}
-            aria-label="Sair"
-            className="text-texto/40 hover:text-texto/70"
-          >
-            <LogOut size={18} />
-          </Button>
+      <header className="sticky top-0 z-20 px-5 pt-5 pb-4 bg-fundo/80 backdrop-blur-xl border-b border-white/[0.04]" data-testid="home-header">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-texto">
+              Olá, {primeiroNome} 👋
+            </h1>
+            <p className="text-[10px] text-texto/30 uppercase tracking-[0.15em] mt-0.5">Brasileirão 2026</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/minha-conta')}
+              aria-label="Minha conta"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-primaria/15 text-primaria text-sm font-bold shadow-[0_0_12px_rgba(22,163,74,0.15)] hover:shadow-[0_0_18px_rgba(22,163,74,0.25)] transition-all"
+              data-testid="home-btn-conta"
+            >
+              {usuario ? obterIniciais(usuario.nome) : 'U'}
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={aoSair}
+              aria-label="Sair"
+              className="text-texto/30 hover:text-texto/60 h-9 w-9"
+              data-testid="home-btn-logout"
+            >
+              <LogOut size={16} />
+            </Button>
+          </div>
         </div>
       </header>
 
-      {/* Feed de cards */}
-      <div className="mx-auto max-w-[480px] px-4 py-5 space-y-4">
+      {/* Feed */}
+      <div className="mx-auto max-w-[480px] px-4 pt-4 pb-6 space-y-4">
+        {/* Card principal — Próximo jogo */}
         <CardProximoJogo
           timeCasa={{
             nome: 'Flamengo',
@@ -90,27 +96,23 @@ export default function InicioPage() {
             escudo: 'https://s.sde.globo.com/media/organizations/2018/04/10/Flamengo-2018.svg',
           }}
           timeFora={{
-            nome: 'Corinthians',
-            sigla: 'COR',
-            escudo: 'https://s.sde.globo.com/media/organizations/2024/10/09/Corinthians_2024_Q4ahot4.svg',
+            nome: 'Palmeiras',
+            sigla: 'PAL',
+            escudo: 'https://s.sde.globo.com/media/organizations/2019/07/06/Palmeiras.svg',
           }}
           dataHora={proximaData(3)}
           totalPalpites={14}
           jaPalpitou={false}
         />
 
+        {/* Meus grupos */}
         <CardMeusGrupos grupos={mockGrupos} />
 
+        {/* Ranking */}
         <CardRanking ranking={mockRanking} />
 
-        {/* Botão temporário de admin */}
-        <Button
-          variant="outline"
-          className="w-full border-destaque/30 text-destaque/70 hover:bg-destaque/10 hover:text-destaque text-xs"
-          onClick={() => router.push('/admin/importar')}
-        >
-          ⚙️ Importar jogos (admin temp)
-        </Button>
+        {/* Próximos jogos (lista compacta) */}
+        <CardProximosJogos jogos={mockProximosJogos} />
       </div>
     </div>
   );
