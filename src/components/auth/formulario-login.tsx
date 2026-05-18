@@ -42,11 +42,11 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
   }
 
   return (
-    <Card className={shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}>
+    <Card className={shake ? 'animate-[shake_0.5s_ease-in-out]' : ''} data-testid="login-card">
       <CardContent className="pt-5 pb-4">
-        <form onSubmit={handleSubmit(aoEnviar)} noValidate className="space-y-3.5">
+        <form onSubmit={handleSubmit(aoEnviar)} noValidate className="space-y-3.5" data-testid="login-form">
           {erroServidor && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" data-testid="login-alert-erro">
               <AlertDescription>{erroServidor}</AlertDescription>
             </Alert>
           )}
@@ -62,6 +62,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
               className={errors.email ? 'border-erro' : ''}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
+              data-testid="login-input-email"
               {...register('email')}
             />
             {errors.email && (
@@ -82,6 +83,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
                 className={`pr-11 ${errors.senha ? 'border-erro' : ''}`}
                 aria-invalid={!!errors.senha}
                 aria-describedby={errors.senha ? 'senha-error' : undefined}
+                data-testid="login-input-senha"
                 {...register('senha')}
               />
               <button
@@ -90,6 +92,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-texto/40 hover:text-texto/70 transition-colors"
                 aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
                 tabIndex={-1}
+                data-testid="login-btn-toggle-senha"
               >
                 {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -123,7 +126,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
             </label>
           </div>
 
-          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || !isValid}>
+          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || !isValid} data-testid="login-btn-entrar">
             {isSubmitting ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />{' '}
@@ -150,6 +153,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
             className="w-full gap-3 border-white/10 hover:bg-white/5 hover:border-white/20 text-texto/80 hover:text-texto transition-all"
             size="lg"
             disabled
+            data-testid="login-btn-google"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -163,12 +167,12 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
       </CardContent>
 
       <CardFooter className="flex flex-col gap-2.5 pb-5">
-        <Link href="/esqueci-senha" className="text-sm text-link/80 hover:text-link hover:underline underline-offset-4 transition-all duration-200">
+        <Link href="/esqueci-senha" className="text-sm text-link/80 hover:text-link hover:underline underline-offset-4 transition-all duration-200" data-testid="login-link-esqueci-senha">
           Esqueci minha senha
         </Link>
         <p className="text-sm text-texto/50">
           Não tem conta?{' '}
-          <Link href="/cadastro" className="text-link/80 hover:text-link hover:underline underline-offset-4 transition-all duration-200">
+          <Link href="/cadastro" className="text-link/80 hover:text-link hover:underline underline-offset-4 transition-all duration-200" data-testid="login-link-cadastro">
             Criar conta
           </Link>
         </p>
