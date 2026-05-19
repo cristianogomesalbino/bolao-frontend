@@ -47,3 +47,18 @@ export async function sairDoGrupo(grupoId: string): Promise<void> {
 export async function removerMembro(grupoId: string, usuarioId: string): Promise<void> {
   await apiClient.delete(`/grupos/${grupoId}/usuarios/${usuarioId}`);
 }
+
+export async function gerarNovoConvite(grupoId: string): Promise<Grupo> {
+  const response = await apiClient.patch<Grupo>(`/grupos/${grupoId}/regenerar-convite`);
+  return response.data;
+}
+
+export async function promoverAdmin(grupoId: string, usuarioId: string): Promise<MembroGrupo> {
+  const response = await apiClient.patch<MembroGrupo>(`/grupos/${grupoId}/usuarios/${usuarioId}/cargo`, { role: 'ADMIN' });
+  return response.data;
+}
+
+export async function rebaixarMembro(grupoId: string, usuarioId: string): Promise<MembroGrupo> {
+  const response = await apiClient.patch<MembroGrupo>(`/grupos/${grupoId}/usuarios/${usuarioId}/cargo`, { role: 'MEMBER' });
+  return response.data;
+}

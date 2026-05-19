@@ -10,6 +10,12 @@ export interface Grupo {
   ativo: boolean;
   dataCriacao: string;
   criadoPor: string;
+  /** Dados extras retornados na listagem */
+  totalParticipantes?: number;
+  palpitesRestantes?: number;
+  minhaColocacao?: number;
+  rodadaAtual?: number;
+  rodadaAberta?: boolean;
 }
 
 export interface MembroGrupo {
