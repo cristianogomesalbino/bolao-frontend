@@ -1,40 +1,65 @@
 import apiClient from '@/lib/api-client';
-import { JogoProximo } from '@/types/jogo.types';
+import { Fase, JogosResponse } from '@/types/jogo.types';
 
-// Por enquanto retorna dados mock até o backend ter endpoint de próximos jogos
-// Futuramente: GET /jogos/proximos?limit=2
-export async function buscarProximosJogos(): Promise<JogoProximo[]> {
+export async function listarFases(temporadaId: string): Promise<Fase[]> {
+  const response = await apiClient.get<Fase[]>(`/temporadas/${temporadaId}/fases`);
+  return response.data;
+}
+
+export async function listarJogosFase(faseId: string, rodada?: number): Promise<JogosResponse> {
+  const params = rodada ? { rodada } : undefined;
+  const response = await apiClient.get<JogosResponse>(`/fases/${faseId}/jogos`, { params });
+  return response.data;
+}
+
+export async function buscarProximoJogo(temporadaId: string): Promise<{ fase: Fase; jogo: JogosResponse['jogos'][0] } | null> {
+  try {
+    const fases = await listarFases(temporadaId);
+    const agora = new Date().getTime();
+    
+    let melhorJogo: { fase: Fase; jogo: JogosResponse['jogos'][0] } | null = null;
+    let menorDiff = Infinity;
+
+    for (const fase of fases) {
+      const { jogos } = await listarJogosFase(fase.id);
+      for (const jogo of jogos) {
+        if (jogo.status !== 'AGENDADO') continue;
+        const diff = new Date(jogo.dataHora).getTime() - agora;
+        if (diff > 0 && diff < menorDiff) {
+          menorDiff = diff;
+          melhorJogo = { fase, jogo };
+        }
+      }
+    }
+
+    return melhorJogo;
+  } catch {
+    return null;
+  }
+}
+
+export async function buscarProximosJogos(): Promise<import('@/types/jogo.types').JogoProximo[]> {
   try {
     // TODO: substituir por endpoint real quando disponível
-    // const response = await apiClient.get<JogoProximo[]>('/jogos/proximos?limit=2');
-    // return response.data;
-
-    // Mock data para desenvolvimento
     await new Promise((resolve) => setTimeout(resolve, 800));
+    const agora = new Date();
     return [
       {
         id: '1',
         timeCasa: 'Flamengo',
         timeFora: 'Palmeiras',
-        dataHora: proximaData(0, 21, 30),
+        dataHora: new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 21, 30).toISOString(),
         status: 'AGENDADO',
       },
       {
         id: '2',
         timeCasa: 'Brasil',
         timeFora: 'Argentina',
-        dataHora: proximaData(3, 22, 0),
+        dataHora: new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 3, 22, 0).toISOString(),
         status: 'AGENDADO',
       },
     ];
   } catch {
     return [];
   }
-}
-
-function proximaData(diasAFrente: number, hora: number, minuto: number): string {
-  const data = new Date();
-  data.setDate(data.getDate() + diasAFrente);
-  data.setHours(hora, minuto, 0, 0);
-  return data.toISOString();
 }

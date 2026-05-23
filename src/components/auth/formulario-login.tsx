@@ -35,7 +35,13 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
     try {
       await onSubmit(dados);
     } catch (error: any) {
-      setErroServidor('Email ou senha inválidos');
+      if (error?.statusCode === 0) {
+        setErroServidor('Servidor indisponível. Tente novamente em instantes.');
+      } else if (error?.statusCode === 401) {
+        setErroServidor('Email ou senha inválidos');
+      } else {
+        setErroServidor(error?.mensagem || 'Ocorreu um erro. Tente novamente.');
+      }
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }

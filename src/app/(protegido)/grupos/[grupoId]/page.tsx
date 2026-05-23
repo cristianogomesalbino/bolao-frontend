@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Users, Copy, Check, Share2, Settings,
-  Lock, Globe, ChevronRight, Trophy, Calendar, Activity
+  ArrowLeft, Settings, Copy, Check,
+  Lock, Globe, ChevronRight, Trophy, Calendar, Activity, ChevronDown, Minus, Target, User
 } from 'lucide-react';
-import { buscarGrupo, listarMembros, sairDoGrupo } from '@/services/grupo.service';
+import { buscarGrupo, sairDoGrupo, obterRankingGeral } from '@/services/grupo.service';
+import { buscarProximoJogo } from '@/services/jogo.service';
+import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ModalConfirmacao } from '@/components/ui/modal-confirmacao';
@@ -17,10 +19,11 @@ export default function DetalhesGrupoPage() {
   const params = useParams();
   const grupoId = params.grupoId as string;
   const queryClient = useQueryClient();
+  const usuario = useAuthStore((state) => state.usuario);
 
-  const [copiado, setCopiado] = useState(false);
   const [modalSair, setModalSair] = useState(false);
   const [processando, setProcessando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
 
   const { data: grupo, isLoading: carregandoGrupo } = useQuery({
     queryKey: ['grupo', grupoId],
@@ -28,10 +31,16 @@ export default function DetalhesGrupoPage() {
     enabled: !!grupoId,
   });
 
-  const { data: membros } = useQuery({
-    queryKey: ['grupo', grupoId, 'membros'],
-    queryFn: () => listarMembros(grupoId),
+  const { data: rankingGeral } = useQuery({
+    queryKey: ['grupo', grupoId, 'ranking', 'geral'],
+    queryFn: () => obterRankingGeral(grupoId),
     enabled: !!grupoId,
+  });
+
+  const { data: proximoJogo } = useQuery({
+    queryKey: ['grupo', grupoId, 'proximo-jogo'],
+    queryFn: () => buscarProximoJogo(grupo!.temporadaId),
+    enabled: !!grupo?.temporadaId,
   });
 
   async function aoSair() {
@@ -46,38 +55,22 @@ export default function DetalhesGrupoPage() {
     }
   }
 
-  function copiarCodigo() {
-    if (grupo?.codigoConvite) {
-      navigator.clipboard.writeText(grupo.codigoConvite);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    }
-  }
+  // Minha posição no ranking
+  const minhaPosicao = rankingGeral?.find((r) => r.usuarioId === usuario?.id);
+  const lider = rankingGeral?.[0];
+  const ptsAtrasDoLider = lider && minhaPosicao ? lider.pontuacaoTotal - minhaPosicao.pontuacaoTotal : 0;
 
-  function compartilhar() {
-    if (grupo?.codigoConvite) {
-      if (navigator.share) {
-        navigator.share({
-          title: `Bolão - ${grupo.nome}`,
-          text: `Entre no meu bolão! Código: ${grupo.codigoConvite}`,
-        });
-      } else {
-        copiarCodigo();
-      }
-    }
-  }
+  // Top 3 para o pódio
+  const top3 = rankingGeral?.slice(0, 3) ?? [];
+  // Restante do ranking (4+)
+  const restoRanking = rankingGeral?.slice(3) ?? [];
 
-  // Mock data para ranking e atividade (será substituído por dados reais)
-  const mockRanking = [
-    { posicao: 1, nome: 'Cristiano', pontos: 32, admin: true },
-    { posicao: 2, nome: 'Lucas', pontos: 28, admin: false },
-    { posicao: 3, nome: 'Mestre', pontos: 26, admin: false },
-  ];
-
+  // Mock atividade (será substituído por dados reais)
   const mockAtividade = [
     { nome: 'Cristiano', acao: 'fez 5 palpites', tempo: 'Há 2h', inicial: 'C' },
     { nome: 'Lucas', acao: 'fez 3 palpites', tempo: 'Há 2h', inicial: 'L' },
     { nome: 'Mestre', acao: 'fez 4 palpites', tempo: 'Há 5h', inicial: 'M' },
+    { nome: 'Lucas', acao: 'assumiu a liderança', tempo: 'Há 2h', inicial: 'L' },
   ];
 
   if (carregandoGrupo) {
@@ -97,25 +90,52 @@ export default function DetalhesGrupoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-fundo">
+    <div className="min-h-screen bg-fundo pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 bg-fundo/80 backdrop-blur-lg border-b border-white/[0.05]">
+      <header className="sticky top-0 z-20 flex items-center gap-0 px-1 py-4 bg-fundo/80 backdrop-blur-lg border-b border-white/[0.05]">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => router.back()}
           aria-label="Voltar"
-          className="text-texto/70 hover:text-texto"
+          className="text-texto/70 hover:text-texto shrink-0"
         >
           <ArrowLeft size={20} />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-lg font-semibold text-texto" data-testid="grupo-detalhe-nome">{grupo.nome}</h1>
-          <p className="text-[11px] text-texto/35 flex items-center gap-1">
-            {grupo.privado ? <Lock size={10} /> : <Globe size={10} />}
-            {grupo.privado ? 'Privado' : 'Público'} • {membros?.length ?? 0} membros
-          </p>
+        <div className="flex items-center gap-2.5 flex-1">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primaria/15 text-primaria text-sm font-bold">
+            {grupo.nome.charAt(0)}
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-base font-semibold text-texto" data-testid="grupo-detalhe-nome">{grupo.nome}</h1>
+              <span className="text-destaque text-xs">👑</span>
+            </div>
+            <p className="text-[10px] text-texto/35 flex items-center gap-1">
+              {grupo.privado ? <Lock size={9} /> : <Globe size={9} />}
+              {grupo.privado ? 'Privado' : 'Público'} • {grupo.totalParticipantes ?? 0} membros
+            </p>
+          </div>
         </div>
+        {/* Código de convite */}
+        {grupo.codigoConvite && (
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(grupo.codigoConvite!);
+              setCopiado(true);
+              setTimeout(() => setCopiado(false), 2000);
+            }}
+            className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-md hover:bg-white/[0.04] transition-all"
+            aria-label="Copiar código de convite"
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[13px] font-mono text-primaria-claro font-bold tracking-wider">{grupo.codigoConvite}</span>
+              {copiado ? <Check size={12} className="text-sucesso" /> : <Copy size={12} className="text-primaria-claro/50" />}
+            </div>
+            <span className="text-[8px] text-texto/30">{copiado ? 'Copiado!' : 'Copiar código'}</span>
+          </button>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -128,187 +148,238 @@ export default function DetalhesGrupoPage() {
         </Button>
       </header>
 
-      <div className="mx-auto max-w-[480px] px-4 py-5 space-y-4">
-        {/* Card Código de Convite */}
-        {grupo.codigoConvite && (
-          <Card className="border-primaria-claro/30 bg-primaria/[0.03]" data-testid="grupo-card-convite">
+      <div className="mx-auto max-w-[480px] px-4 py-3 space-y-3">
+        {/* Próximo Jogo */}
+        {proximoJogo && (
+          <Card data-testid="grupo-card-proximo-jogo">
             <CardContent className="p-4">
-              <p className="text-[10px] text-primaria-claro font-semibold uppercase tracking-wider mb-1">Código de convite</p>
-              <div className="flex items-center justify-between">
-                <p className="text-xl font-mono font-bold text-texto tracking-[0.2em]" data-testid="grupo-codigo-convite">
-                  {grupo.codigoConvite}
-                </p>
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={copiarCodigo}
-                    aria-label="Copiar código"
-                    className="h-9 w-9 text-primaria-claro drop-shadow-[0_0_8px_rgba(34,211,94,0.6)] [&_svg]:size-5"
-                    data-testid="grupo-btn-copiar-codigo"
-                  >
-                    {copiado ? <Check size={20} /> : <Copy size={20} />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={compartilhar}
-                    aria-label="Compartilhar"
-                    className="h-9 w-9 text-primaria-claro drop-shadow-[0_0_8px_rgba(34,211,94,0.6)] [&_svg]:size-5"
-                    data-testid="grupo-btn-compartilhar"
-                  >
-                    <Share2 size={20} />
-                  </Button>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-primaria-claro" />
+                  <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
+                    Próximo Jogo {proximoJogo.jogo.rodada ? `— Rodada ${proximoJogo.jogo.rodada}` : ''}
+                  </span>
+                </div>
+                <button className="text-[10px] text-primaria-claro/70 hover:text-primaria-claro flex items-center gap-0.5">
+                  Ver todos <ChevronRight size={10} />
+                </button>
+              </div>
+              <div className="flex items-center justify-center py-3 gap-5">
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center border border-white/[0.08] overflow-hidden">
+                    {proximoJogo.jogo.timeCasa?.escudo ? (
+                      <img src={proximoJogo.jogo.timeCasa.escudo} alt={proximoJogo.jogo.timeCasa.nome} className="h-10 w-10 object-contain" />
+                    ) : (
+                      <span className="text-sm font-bold text-texto/50">{proximoJogo.jogo.timeCasa?.sigla || '?'}</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-texto/60 font-medium truncate max-w-[80px]">
+                    {proximoJogo.jogo.timeCasa?.nome || 'Time Casa'}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-[12px] text-primaria-claro font-bold">
+                    {(() => {
+                      const jogoDate = new Date(proximoJogo.jogo.dataHora);
+                      const hoje = new Date();
+                      const amanha = new Date();
+                      amanha.setDate(amanha.getDate() + 1);
+
+                      if (jogoDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) === hoje.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })) {
+                        return 'Hoje';
+                      }
+                      if (jogoDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) === amanha.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })) {
+                        return 'Amanhã';
+                      }
+                      return jogoDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' });
+                    })()}
+                  </span>
+                  <span className="text-2xl font-bold text-texto">
+                    {new Date(proximoJogo.jogo.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}
+                  </span>
+                  <span className="text-[9px] text-texto/30">
+                    {proximoJogo.jogo.rodada
+                      ? `Rodada ${proximoJogo.jogo.rodada}`
+                      : proximoJogo.fase.nome.toLowerCase().includes('rodada')
+                        ? proximoJogo.fase.nome
+                        : ''}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center border border-white/[0.08] overflow-hidden">
+                    {proximoJogo.jogo.timeFora?.escudo ? (
+                      <img src={proximoJogo.jogo.timeFora.escudo} alt={proximoJogo.jogo.timeFora.nome} className="h-10 w-10 object-contain" />
+                    ) : (
+                      <span className="text-sm font-bold text-texto/50">{proximoJogo.jogo.timeFora?.sigla || '?'}</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-texto/60 font-medium truncate max-w-[80px]">
+                    {proximoJogo.jogo.timeFora?.nome || 'Time Fora'}
+                  </span>
                 </div>
               </div>
-              <p className="text-[10px] text-texto/30 mt-1">Compartilhe este código para convidar novos membros.</p>
+              {/* Aviso de palpite */}
+              <p className="text-[11px] text-destaque/80 text-center mt-3">⚠️ Você ainda não palpitou para este jogo!</p>
+              {/* Botão fazer palpite */}
+              <button
+                type="button"
+                className="w-full mt-3 h-11 rounded-xl bg-gradient-to-r from-[#16a34a] to-[#22c55e] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_0_16px_rgba(30,215,96,0.25)] hover:shadow-[0_0_24px_rgba(30,215,96,0.4)] transition-all active:scale-[0.97]"
+              >
+                <Target size={16} />
+                Fazer palpite
+              </button>
             </CardContent>
           </Card>
         )}
 
-        {/* Ranking da Rodada */}
+        {!proximoJogo && !carregandoGrupo && (
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-[11px] text-texto/30">Nenhum jogo agendado no momento</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sua Posição */}
+        {minhaPosicao && (
+          <Card data-testid="grupo-card-minha-posicao">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <User size={16} className="text-primaria-claro" />
+                <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
+                  Sua Posição
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="text-4xl font-bold text-texto">{minhaPosicao.posicao}º</span>
+                  <div>
+                    <p className="text-lg font-bold text-texto">{minhaPosicao.pontuacaoTotal} pts</p>
+                    {ptsAtrasDoLider > 0 && (
+                      <p className="text-[11px] text-texto/40">{ptsAtrasDoLider} pts atrás do líder</p>
+                    )}
+                    {ptsAtrasDoLider === 0 && minhaPosicao.posicao === 1 && (
+                      <p className="text-[11px] text-primaria/70">Você é o líder! 🏆</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primaria/[0.08] border border-primaria/20">
+                  <Trophy size={22} className="text-primaria-claro" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Ranking Geral */}
         <Card data-testid="grupo-card-ranking">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Trophy size={14} className="text-primaria-claro" />
+                <Trophy size={16} className="text-primaria-claro" />
                 <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                  Ranking da Rodada 18
+                  Ranking Geral
                 </span>
               </div>
-              <button className="text-[10px] text-primaria-claro/70 hover:text-primaria-claro flex items-center gap-0.5">
-                Ver completo <ChevronRight size={10} />
+              <button className="flex items-center gap-1 text-[11px] text-texto/40 border border-white/[0.08] px-2 py-1 rounded-md">
+                Geral <ChevronDown size={10} />
               </button>
             </div>
-            <div className="space-y-1">
-              {mockRanking.map((item) => {
-                let corPosicao = 'bg-texto/5 text-texto/30';
-                if (item.posicao === 1) corPosicao = 'bg-destaque/20 text-destaque';
-                else if (item.posicao === 2) corPosicao = 'bg-texto/10 text-texto/50';
 
-                return (
-                <div key={item.posicao} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
-                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${corPosicao}`}>
-                    {item.posicao}
-                  </span>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primaria/10 text-primaria text-xs font-bold">
-                    {item.nome.charAt(0)}
+            {/* Pódio Top 3 */}
+            {top3.length >= 3 && (
+              <div className="flex items-end justify-center gap-3 mb-4 pb-4 border-b border-white/[0.05]">
+                {/* 2º lugar */}
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] text-texto/40 font-bold mb-1">2</span>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-white/[0.12]">
+                    {top3[1].nomeUsuario.charAt(0)}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm text-texto/80 font-medium">{item.nome}</span>
-                      {item.admin && (
-                        <span className="text-[9px] text-destaque/70 bg-destaque/10 px-1.5 py-0.5 rounded">Admin</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-texto/60">{item.pontos} pts</span>
+                  <span className="text-[10px] text-texto/60 font-medium mt-1">{top3[1].nomeUsuario.split(' ')[0]}</span>
+                  <span className="text-[10px] text-primaria font-bold">{top3[1].pontuacaoTotal} pts</span>
                 </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                {/* 1º lugar */}
+                <div className="flex flex-col items-center -mt-3">
+                  <span className="text-destaque text-sm mb-1">👑</span>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primaria/20 text-primaria text-base font-bold border-2 border-primaria/50 shadow-[0_0_12px_rgba(34,211,94,0.2)]">
+                    {top3[0].nomeUsuario.charAt(0)}
+                  </div>
+                  <span className="text-[11px] text-texto/80 font-semibold mt-1">{top3[0].nomeUsuario.split(' ')[0]}</span>
+                  <span className="text-[11px] text-primaria font-bold">{top3[0].pontuacaoTotal} pts</span>
+                </div>
+                {/* 3º lugar */}
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] text-texto/40 font-bold mb-1">3</span>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-white/[0.12]">
+                    {top3[2].nomeUsuario.charAt(0)}
+                  </div>
+                  <span className="text-[10px] text-texto/60 font-medium mt-1">{top3[2].nomeUsuario.split(' ')[0]}</span>
+                  <span className="text-[10px] text-texto/50 font-bold">{top3[2].pontuacaoTotal} pts</span>
+                </div>
+              </div>
+            )}
 
-        {/* Próximos Jogos */}
-        <Card data-testid="grupo-card-proximos-jogos">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-primaria-claro" />
-                <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                  Próximos Jogos
-                </span>
+            {/* Resto do ranking (4+) */}
+            {restoRanking.length > 0 && (
+              <div className="space-y-1">
+                {restoRanking.map((item) => (
+                  <div key={item.usuarioId} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
+                    <span className="text-[11px] text-texto/30 font-medium w-4 text-center">{item.posicao}</span>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primaria/10 text-primaria text-[10px] font-bold">
+                      {item.nomeUsuario.charAt(0)}
+                    </div>
+                    <span className="flex-1 text-sm text-texto/70">{item.nomeUsuario}</span>
+                    <span className="text-sm text-texto/50 font-medium">{item.pontuacaoTotal} pts</span>
+                    <Minus size={10} className="text-texto/20" />
+                  </div>
+                ))}
               </div>
-              <button className="text-[10px] text-primaria-claro/70 hover:text-primaria-claro flex items-center gap-0.5">
-                Ver todos <ChevronRight size={10} />
+            )}
+
+            {(!rankingGeral || rankingGeral.length === 0) && (
+              <p className="text-[11px] text-texto/30 text-center py-4">Nenhuma pontuação registrada ainda</p>
+            )}
+
+            {/* Link ver completo */}
+            {rankingGeral && rankingGeral.length > 0 && (
+              <button className="w-full flex items-center justify-center gap-1 mt-3 pt-3 border-t border-white/[0.05] text-[11px] text-primaria-claro/70 hover:text-primaria-claro">
+                Ver ranking completo <ChevronRight size={10} />
               </button>
-            </div>
-            <div className="flex items-center justify-center py-4 gap-6">
-              <div className="flex flex-col items-center gap-1">
-                <div className="h-12 w-12 rounded-full bg-white/[0.05] flex items-center justify-center text-xl">🇧🇷</div>
-                <span className="text-[10px] text-texto/40">Brasil</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-lg font-bold text-texto">18:00</span>
-                <span className="text-[10px] text-texto/30">Hoje</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <div className="h-12 w-12 rounded-full bg-white/[0.05] flex items-center justify-center text-xl">🇦🇷</div>
-                <span className="text-[10px] text-texto/40">Argentina</span>
-              </div>
-            </div>
-            <p className="text-[11px] text-destaque/70 text-center">✨ Você ainda não palpitou!</p>
+            )}
           </CardContent>
         </Card>
 
         {/* Atividade Recente */}
         <Card data-testid="grupo-card-atividade">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Activity size={14} className="text-primaria-claro" />
-              <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                Atividade Recente
-              </span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Activity size={16} className="text-primaria-claro" />
+                <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
+                  Atividade Recente
+                </span>
+              </div>
+              <button className="text-[10px] text-primaria-claro/70 hover:text-primaria-claro flex items-center gap-0.5">
+                Ver todas <ChevronRight size={10} />
+              </button>
             </div>
             <div className="space-y-1">
-              {mockAtividade.map((item) => (
-                <div key={item.nome} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
+              {mockAtividade.map((item, i) => (
+                <div key={`${item.nome}-${i}`} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primaria/10 text-primaria text-xs font-bold shrink-0">
                     {item.inicial}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-texto/70">
+                    <p className="text-[12px] text-texto/70">
                       <span className="font-medium text-texto/90">{item.nome}</span> {item.acao}
                     </p>
-                    <p className="text-[10px] text-texto/30">{item.tempo}</p>
                   </div>
-                  <ChevronRight size={14} className="text-texto/15 shrink-0" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] text-texto/30">{item.tempo}</span>
+                    <ChevronRight size={12} className="text-texto/15" />
+                  </div>
                 </div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Membros */}
-        <Card data-testid="grupo-card-membros">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Users size={14} className="text-primaria-claro" />
-                <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                  Membros ({membros?.length ?? 0})
-                </span>
-              </div>
-              <button className="text-[10px] text-primaria-claro/70 hover:text-primaria-claro flex items-center gap-0.5">
-                Ver todos <ChevronRight size={10} />
-              </button>
-            </div>
-            <div className="flex items-center gap-3 overflow-x-auto pb-2">
-              {membros?.slice(0, 4).map((membro, index) => (
-                <div key={membro.id || `membro-${index}`} className="flex flex-col items-center gap-1 min-w-[56px]">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${
-                    membro.role === 'ADMIN'
-                      ? 'bg-primaria/15 text-primaria border-2 border-primaria/40'
-                      : 'bg-white/[0.06] text-texto/60 border border-white/[0.1]'
-                  }`}>
-                    {membro.usuario?.nome?.charAt(0).toUpperCase() || '?'}
-                  </div>
-                  <span className="text-[10px] text-texto/50 truncate max-w-[56px]">
-                    {membro.usuario?.nome?.split(' ')[0] || 'Usuário'}
-                  </span>
-                  {membro.role === 'ADMIN' && (
-                    <span className="text-[8px] text-primaria font-semibold">Admin</span>
-                  )}
-                </div>
-              ))}
-              {membros && membros.length > 4 && (
-                <div className="flex flex-col items-center gap-1 min-w-[56px]">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.04] text-texto/30 text-xs font-medium border border-white/[0.08]">
-                    +{membros.length - 4}
-                  </div>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

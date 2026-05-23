@@ -45,3 +45,14 @@ export interface DadosAtualizarGrupo {
   permitirPalpiteAutomatico?: boolean;
   permitirPalpiteDobrado?: boolean;
 }
+
+export interface RankingEntry {
+  posicao: number;
+  usuarioId: string;
+  nomeUsuario: string;
+  pontuacaoTotal: number;
+  acertosEmCheio: number;
+  acertosDeResultado: number;
+  acertosDeGolsUmTime: number;
+  errosTotais: number;
+}

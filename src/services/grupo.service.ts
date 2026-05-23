@@ -1,8 +1,13 @@
 import apiClient from '@/lib/api-client';
-import { Grupo, MembroGrupo, DadosCriarGrupo, DadosAtualizarGrupo } from '@/types/grupo.types';
+import { Grupo, MembroGrupo, DadosCriarGrupo, DadosAtualizarGrupo, RankingEntry } from '@/types/grupo.types';
 
 export async function listarGrupos(): Promise<Grupo[]> {
-  const response = await apiClient.get<Grupo[]>('/grupos');
+  const response = await apiClient.get<Grupo[]>('/grupos', { params: { membro: true } });
+  return response.data;
+}
+
+export async function listarGruposPublicos(busca?: string): Promise<Grupo[]> {
+  const response = await apiClient.get<Grupo[]>('/grupos', { params: { privado: false, busca } });
   return response.data;
 }
 
@@ -60,5 +65,15 @@ export async function promoverAdmin(grupoId: string, usuarioId: string): Promise
 
 export async function rebaixarMembro(grupoId: string, usuarioId: string): Promise<MembroGrupo> {
   const response = await apiClient.patch<MembroGrupo>(`/grupos/${grupoId}/usuarios/${usuarioId}/cargo`, { role: 'MEMBER' });
+  return response.data;
+}
+
+export async function obterRankingGeral(grupoId: string): Promise<RankingEntry[]> {
+  const response = await apiClient.get<RankingEntry[]>(`/grupos/${grupoId}/ranking/geral`);
+  return response.data;
+}
+
+export async function obterRankingFase(grupoId: string, faseId: string): Promise<RankingEntry[]> {
+  const response = await apiClient.get<RankingEntry[]>(`/grupos/${grupoId}/ranking/fases/${faseId}`);
   return response.data;
 }

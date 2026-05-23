@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
@@ -8,6 +9,7 @@ import { CardProximoJogo } from '@/components/home/card-proximo-jogo';
 import { CardMeusGrupos } from '@/components/home/card-meus-grupos';
 import { CardRanking } from '@/components/home/card-ranking';
 import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
+import { listarGrupos } from '@/services/grupo.service';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -24,11 +26,6 @@ function proximaData(horas: number): string {
   return data.toISOString();
 }
 
-const mockGrupos = [
-  { id: '1', nome: 'Peladeiros FC', participantes: 12, palpitesRestantes: 5 },
-  { id: '2', nome: 'Família Copa 2026', participantes: 8, palpitesRestantes: 0 },
-];
-
 const mockRanking = [
   { posicao: 1, nome: 'Menta', pontos: 42 },
   { posicao: 2, nome: 'Cristiano', pontos: 38, destaque: true },
@@ -44,6 +41,11 @@ export default function InicioPage() {
   const router = useRouter();
   const usuario = useAuthStore((state) => state.usuario);
   const logout = useAuthStore((state) => state.logout);
+
+  const { data: grupos } = useQuery({
+    queryKey: ['grupos'],
+    queryFn: listarGrupos,
+  });
 
   async function aoSair() {
     await logout();
@@ -106,7 +108,12 @@ export default function InicioPage() {
         />
 
         {/* Meus grupos */}
-        <CardMeusGrupos grupos={mockGrupos} />
+        <CardMeusGrupos grupos={(grupos ?? []).map((g) => ({
+          id: g.id,
+          nome: g.nome,
+          participantes: g.totalParticipantes ?? 0,
+          palpitesRestantes: g.palpitesRestantes,
+        }))} />
 
         {/* Ranking */}
         <CardRanking ranking={mockRanking} />
