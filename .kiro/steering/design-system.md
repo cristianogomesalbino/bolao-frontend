@@ -121,9 +121,69 @@ Definidas em `globals.css`:
 ## Escudos de Times
 
 - Fonte: `s.sde.globo.com` (SVGs do Globo Esporte)
-- Usar `next/image` com `unoptimized` (são SVGs)
-- Fallback: sigla do time em círculo com `bg-white/[0.08]`
+- Usar `<img>` com `object-contain` (SVGs externos)
+- Fallback: sigla do time em círculo
 - Domínio liberado em `next.config.ts` → `remotePatterns`
+- Filtros visuais: `brightness-110 saturate-[1.1]` para cores mais vivas
+- Drop shadow: `drop-shadow-[0_0_16px_rgba(255,255,255,0.2)]` para glow sutil
+- Sem borda nem fundo no container (limpo)
+
+## Padrões de Glow
+
+| Elemento | Classe |
+|----------|--------|
+| Ícone header | `drop-shadow-[0_0_10px_rgba(34,211,94,0.8)]` |
+| Botão criar | `shadow-[0_0_20px_rgba(34,211,94,0.6)]` |
+| Engrenagem config | `drop-shadow-[0_0_14px_rgba(34,211,94,1)]` |
+| Escudos times | `drop-shadow-[0_0_16px_rgba(255,255,255,0.2)]` |
+| Borda card gradiente | mask technique com `WebkitMaskComposite: 'xor'` |
+
+## Override de SVG no Button
+
+O componente Button tem `[&_svg]:size-4` global. Para ícones maiores dentro de Button, usar:
+```tsx
+className="[&_svg]:size-7" // ou size-6, size-8, etc.
+```
+
+## Countdown
+
+- Formato: `HH:MM:SS` em `font-mono font-bold`
+- Cor: `text-primaria-claro` (ativo), `text-erro` (encerrado), `text-destaque` (adiado)
+- Atualiza a cada 1s via `setInterval` no `useEffect`
+- Encerra 1 minuto antes do jogo (CRON de palpite automático)
+
+## Badges de Status
+
+| Status | Estilo |
+|--------|--------|
+| V (vitória) | `bg-primaria text-white` |
+| E (empate) | `bg-destaque text-white` |
+| D (derrota) | `bg-erro text-white` |
+| Adiado | `text-destaque bg-destaque/15 border border-destaque/30` |
+| ATRASADO | `text-destaque bg-destaque/15 border border-destaque/30` |
+| Admin | `text-destaque/70 bg-destaque/10` |
+| Online | bolinha `h-1.5 w-1.5 rounded-full bg-primaria` |
+
+## Títulos de Seção (estilo iOS Settings)
+
+```tsx
+"text-[10px] text-primaria-claro/80 uppercase tracking-[0.15em] font-bold"
+```
+
+## Zona de Perigo (colapsável)
+
+```tsx
+"rounded-2xl border border-erro/20 bg-erro/[0.02] overflow-hidden"
+// Chevron gira 180° ao expandir
+// Conteúdo com animate-[fadeIn_0.2s_ease-out]
+```
+
+## Timezone
+
+Sempre usar `timeZone: 'America/Sao_Paulo'` ao formatar datas de jogos:
+```tsx
+new Date(dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+```
 
 ## Padrões de Feedback
 
