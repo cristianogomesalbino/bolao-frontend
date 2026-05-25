@@ -1,6 +1,3 @@
-const GE_BASE_URL = 'https://api.globoesporte.globo.com/tabela';
-const BRASILEIRAO_CAMPEONATO_ID = 'd1a37fa4-e948-43a6-ba53-ab24ab3a45b1';
-
 export interface ClassificacaoTime {
   posicao: number;
   timeId: string;

@@ -6,7 +6,7 @@ export function IndicadorServidor() {
   const [servidorIndisponivel, setServidorIndisponivel] = useState(false);
 
   useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval>;
+    const intervalId: ReturnType<typeof setInterval> = setInterval(verificarServidor, 30000);
 
     async function verificarServidor() {
       try {
@@ -28,7 +28,6 @@ export function IndicadorServidor() {
     }
 
     verificarServidor();
-    intervalId = setInterval(verificarServidor, 30000);
 
     return () => clearInterval(intervalId);
   }, []);
