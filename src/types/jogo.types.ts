@@ -1,3 +1,5 @@
+export type StatusJogo = 'AGENDADO' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO' | 'ADIADO';
+
 export interface Fase {
   id: string;
   nome: string;
@@ -12,7 +14,8 @@ export interface Jogo {
   timeCasaId: string;
   timeForaId: string;
   dataHora: string;
-  status: 'AGENDADO' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO';
+  status: StatusJogo;
+  foiAdiado?: boolean;
   golsCasa: number | null;
   golsFora: number | null;
   vencedorId: string | null;
@@ -30,5 +33,5 @@ export interface JogoProximo {
   timeCasa: string;
   timeFora: string;
   dataHora: string;
-  status: 'AGENDADO' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO';
+  status: StatusJogo;
 }

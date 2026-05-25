@@ -46,3 +46,6 @@ public/workbox-*.js.map
 # Misc
 *.tsbuildinfo
 next-env.d.ts
+
+# Workspace
+bolao-frontend.code-workspace

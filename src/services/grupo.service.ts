@@ -73,7 +73,10 @@ export async function obterRankingGeral(grupoId: string): Promise<RankingEntry[]
   return response.data;
 }
 
-export async function obterRankingFase(grupoId: string, faseId: string): Promise<RankingEntry[]> {
-  const response = await apiClient.get<RankingEntry[]>(`/grupos/${grupoId}/ranking/fases/${faseId}`);
+export async function obterRankingFase(grupoId: string, faseId: string, rodada?: number, ateRodada?: number): Promise<RankingEntry[]> {
+  const params: Record<string, unknown> = {};
+  if (rodada) params.rodada = rodada;
+  if (ateRodada) params.ateRodada = ateRodada;
+  const response = await apiClient.get<RankingEntry[]>(`/grupos/${grupoId}/ranking/fases/${faseId}`, { params });
   return response.data;
 }
