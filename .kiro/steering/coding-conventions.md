@@ -6,7 +6,7 @@ inclusion: auto
 
 ## Regras Críticas (NUNCA violar)
 
-- **NUNCA usar `any` em tipos expostos** — tipar corretamente interfaces, props e retornos de funções
+- **NUNCA usar `any`** — tipar corretamente com interfaces, generics ou `unknown` + type guard. Código novo NUNCA deve introduzir `any`. Se precisar de tipo flexível, usar `unknown` com narrowing
 - **NUNCA duplicar lógica entre componentes** — extrair em hooks ou utilitários
 - **NUNCA fazer chamadas à API diretamente nos componentes** — usar services (`src/services/`)
 - **NUNCA armazenar tokens em localStorage diretamente nos componentes** — usar o auth store
