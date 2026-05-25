@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: Convenções de código, padrões de componentes, services, tipos, formulários e estilo do frontend.
 ---
 
 # Convenções de Código — Frontend
@@ -117,3 +118,35 @@ const { usuario, login, logout } = useAuthStore();
 - Property tests: fast-check
 - Rodar: `npm test` ou `npm run test:watch`
 - Arquivos: `[componente].test.tsx` no mesmo diretório ou em `__tests__/`
+
+## Páginas
+
+- Páginas (`page.tsx`) devem ter no máximo ~200 linhas
+- Se ultrapassar, extrair seções em componentes de feature: `src/components/[feature]/card-[nome].tsx`
+- Página orquestra layout e estado, componentes cuidam da renderização
+- Queries (useQuery) ficam na página, dados passam como props para componentes filhos
+
+## React Query
+
+- Chaves de query: `['entidade', id, 'sub-recurso', filtros...]`
+- `staleTime` para dados que mudam pouco (classificação: 1h, ranking: 0)
+- `enabled` para queries dependentes de dados anteriores
+- Mutations com `onSuccess` para invalidar/atualizar cache local
+- Usar `queryClient.setQueryData` para updates otimistas quando possível
+
+## Tailwind / Estilo
+
+- Nunca usar cores hardcoded repetidas — usar variáveis do tema (`text-primaria`, `bg-fundo`)
+- Exceção: gradientes e sombras específicas podem usar hex (`from-[#16a34a] to-[#22c55e]`)
+- Breakpoints: mobile-first, max-width 480px para conteúdo principal
+- Glassmorphism: `bg-white/[0.03] backdrop-blur-xl border border-white/[0.12]`
+- Glow em escudos/ícones: `drop-shadow-[0_0_Xpx_rgba(...)]`
+- Timezone em datas: sempre `{ timeZone: 'America/Sao_Paulo' }` no `toLocaleString`
+
+## Dados Externos (APIs de terceiros)
+
+- Chamadas a APIs externas NUNCA no frontend (CORS) — sempre via endpoint do backend
+- Backend faz fetch e expõe endpoint próprio
+- Sempre ter fallback gracioso (retornar `[]` ou `null` se API falhar)
+- Cache no frontend via `staleTime` do React Query
+- Dados de classificação/estatísticas: buscar do backend, nunca direto do ge.globo.com

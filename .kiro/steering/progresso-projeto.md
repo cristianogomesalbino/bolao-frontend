@@ -1,18 +1,18 @@
 ---
 inclusion: auto
+description: Registro do progresso do projeto, módulos implementados, endpoints utilizados e próximos passos.
 ---
 
 # Progresso do Projeto — Bolão Frontend
 
 ## Status Atual
 
-Branch ativa: `feature/grupos` (não mergeada ainda)
-Última branch mergeada: `feature/perfil-usuario` → develop
-Branch documentação: `feature/solicitacao-entrada-grupo` (spec completa, não implementada)
+Branch ativa: `develop` (mergeada em main)
+Deploy: Vercel (branch main)
 
 ## Módulos Implementados
 
-### 1. Autenticação ✅ (mergeado em develop)
+### 1. Autenticação ✅
 - Login com email/senha (React Hook Form + Zod)
 - Cadastro de usuário
 - Esqueci senha / Resetar senha
@@ -26,7 +26,7 @@ Branch documentação: `feature/solicitacao-entrada-grupo` (spec completa, não 
 - Agenda semanal na tela de login (mock)
 - Tratamento de erro: "Servidor indisponível" quando backend está fora (statusCode 0)
 
-### 2. Perfil / Minha Conta ✅ (mergeado em develop)
+### 2. Perfil / Minha Conta ✅
 - Rota: `/minha-conta`
 - Editar nome e email
 - Alterar senha com indicador de força
@@ -34,7 +34,7 @@ Branch documentação: `feature/solicitacao-entrada-grupo` (spec completa, não 
 - Header sticky com blur
 - Avatar com iniciais
 
-### 3. Home ✅ (na branch feature/grupos)
+### 3. Home ✅
 - Header com "Olá, Cristiano 👋" + avatar com iniciais
 - Card próximo jogo com escudos reais
 - Card meus grupos (dados reais via `GET /grupos?membro=true`)
@@ -42,75 +42,76 @@ Branch documentação: `feature/solicitacao-entrada-grupo` (spec completa, não 
 - Card próximos jogos (lista compacta)
 - Bottom navigation (Home, Grupos, Jogos, Conta)
 
-### 4. Grupos ✅ (na branch feature/grupos)
+### 4. Grupos ✅
 
 #### Listagem (`/grupos`)
-- Cards com ícone temático (bola/escudo/troféu), participantes, rodada, status
-- Borda verde vibrante (primaria-claro)
+- Cards com ícone temático, participantes, rodada, status
 - Header: troféu com glow, título "Meus Grupos", badge contador, botão entrar/criar
-- Subtítulo "Acompanhe seus bolões e dispute com seus amigos"
 - Estado vazio, loading skeleton, tratamento de erro
 - Formulário entrar por código de convite
-- Dados reais via `GET /grupos?membro=true`
 
 #### Detalhes do grupo (`/grupos/[grupoId]`)
 - Header: avatar com inicial, nome + coroa, privado/membros, código de convite (copiar), engrenagem
-- Card próximo jogo: escudos grandes, data (Hoje/Amanhã/data), horário, VS, rodada
-  - Histórico últimos 5 jogos (V/E/D badges coloridos) — mock
-  - Countdown "Fecha em" (1 min antes do jogo, tempo real)
-  - Detecção de jogo adiado (status ADIADO): badge "Adiado", "--:--", "A definir"
-  - Badge "⚠ ATRASADO" quando há jogos adiados na temporada
-  - Botão "Fazer palpite" (esconde quando encerrado/adiado)
-  - Colocação dos times (Xº colocado) — mock
-- Banner "Há jogos atrasados • Ver todos >" → navega para `/grupos/[grupoId]/jogos-adiados`
-- Card "Sua Posição": posição, pontos, pts atrás do líder (dados reais do ranking)
-- Card "Ranking Geral": pódio top 3 + lista 4+, dropdown "Geral" (dados reais via `GET /grupos/:grupoId/ranking/geral`)
+
+**Card Próximo Jogo:**
+- Escudos grandes sem fundo circular, com glow forte (drop-shadow 24px, saturação 1.2)
+- Data (Hoje/Amanhã/data) alinhada com topo dos escudos
+- Horário + VS empurrados para baixo (mt-5)
+- Alerta "Há jogos atrasados • Ver todos" como texto simples dentro do card
+- Tag "⚠ ATRASADO" só aparece se `jogo.foiAdiado === true`
+- Countdown "Fecha em" com card subido (-mt-4)
+- Colocação dos times (Xº colocado) via API externa de classificação
+- Últimos 5 jogos (V/E/D) via recentForm da classificação real
+- Lógica: só mostra jogos AGENDADOS futuros (>60s), nunca adiados/em andamento
+- Busca com `?status=AGENDADO` para pegar todas as rodadas
+
+**Palpite Inline (dentro do card):**
+- Sem palpite → alerta "⚠️ Você ainda não palpitou" + botão "Fazer palpite"
+- Clicou → controles +/- (botões h-9 w-9, contorno verde #22c55e, ícones 16px) + "Confirmar palpite"
+- Já palpitou → placar centralizado (× alinhado com VS, flex-1 simétrico) + "Editar" (absolute right-0 bottom-0)
+- "Meu palpite" acima do ×
+- Nomes dos times em verde (text-primaria-claro)
+- Encerrado → placar em modo leitura com 🔒
+
+**Card Ranking:**
+- Filtros "Geral" e "Rodada" ao lado do título
+- Seletor de rodada: setas verdes (20px) + texto clicável que abre dropdown
+- Dropdown: grid 4 colunas com números, rodada selecionada em verde, limitado até rodada atual
+- Ao clicar "Rodada", já vem com rodada atual selecionada
+- Ranking por rodada via `GET /ranking/fases/:faseId?rodada=N`
+- Variação de posição (↑↓) comparando ranking geral com `?ateRodada=N-1`
+- Pódio top 3 + lista 4+ com variação
+
+- Card "Sua Posição": posição, pontos, pts atrás do líder
 - Card "Atividade Recente" — mock
-- Timezone: `America/Sao_Paulo` forçado na formatação de datas
+- Banner "Há jogos atrasados" → `/grupos/[grupoId]/jogos-adiados`
 
 #### Jogos adiados (`/grupos/[grupoId]/jogos-adiados`)
 - Lista jogos com status ADIADO e AGENDADO
 - Escudos, badge "Adiado", rodada original
-- Contador no header
 
 #### Palpites (`/grupos/[grupoId]/palpites`)
 - Seletor de fase/rodada com setas ← →
-- Lista de jogos: escudo, horário ou placar, status adiado
-- Botão "Palpitar" para jogos agendados
+- Lista de jogos: escudo, horário ou placar, status
 
 #### Configurações (`/grupos/[grupoId]/configuracoes`)
-- Editar grupo → navega para edição
-- Gerar novo convite → navega para convite
-- Membros inline: avatar, nome, badge Admin, status online, menu 3 pontinhos
-  - Tornar admin / Remover admin / Remover membro
-  - Endpoints: `PATCH /grupos/:grupoId/usuarios/:usuarioId/cargo` com `{ role: 'ADMIN' | 'MEMBER' }`
-- Zona de perigo colapsável: excluir grupo com confirmação
-- Validação de acesso: se não é membro, mostra "Você não tem acesso"
+- Editar grupo, gerar convite, membros inline
+- Tornar admin / Remover admin / Remover membro
+- Zona de perigo: excluir grupo
 
 #### Editar grupo (`/grupos/[grupoId]/editar`)
-- 4 seções em cards: Aparência, Participantes, Privacidade, Regras do bolão
-- Seletor de ícone/avatar (12 emojis temáticos)
-- Nome do grupo, stepper participantes (botões circulares)
-- Toggle privado, toggles palpite automático/dobrado
-- Botão "Salvar alterações" fixo no bottom
-- Títulos de seção: uppercase, tracking largo, verde claro
+- 4 seções: Aparência, Participantes, Privacidade, Regras
 
 #### Código de convite (`/grupos/[grupoId]/convite`)
-- Código grande com borda gradiente verde
-- Glow no canto superior esquerdo
-- Botões copiar/compartilhar
-- "Gerar novo código" com confirmação (`PATCH /grupos/:grupoId/regenerar-convite`)
+- Código grande com glow, copiar/compartilhar, gerar novo
 
 #### Criar grupo (`/grupos/criar`)
-- Hero cinematográfico com glow e imagem decorativa
-- Card com borda gradiente
-- Formulário: nome, temporada (select), stepper, toggle privado, config avançada
+- Hero cinematográfico, formulário completo
 
 ### 5. Admin (temporário)
-- Rota: `/admin/importar`
-- Importar jogos da API do GE
+- Rota: `/admin/importar` — importar jogos da API do GE
 
-## Services e Endpoints
+## Services e Endpoints Utilizados
 
 ### grupo.service.ts
 - `listarGrupos()` → `GET /grupos?membro=true`
@@ -121,75 +122,119 @@ Branch documentação: `feature/solicitacao-entrada-grupo` (spec completa, não 
 - `excluirGrupo(grupoId)` → `DELETE /grupos/:grupoId`
 - `entrarNoGrupo(codigoConvite)` → `POST /grupos/entrar`
 - `listarMembros(grupoId)` → `GET /grupos/:grupoId/membros`
-- `adicionarMembro(grupoId, email)` → `POST /grupos/:grupoId/adicionar`
 - `sairDoGrupo(grupoId)` → `DELETE /grupos/:grupoId/sair`
 - `removerMembro(grupoId, usuarioId)` → `DELETE /grupos/:grupoId/usuarios/:usuarioId`
 - `gerarNovoConvite(grupoId)` → `PATCH /grupos/:grupoId/regenerar-convite`
-- `promoverAdmin(grupoId, usuarioId)` → `PATCH /grupos/:grupoId/usuarios/:usuarioId/cargo` `{ role: 'ADMIN' }`
-- `rebaixarMembro(grupoId, usuarioId)` → `PATCH /grupos/:grupoId/usuarios/:usuarioId/cargo` `{ role: 'MEMBER' }`
+- `promoverAdmin(grupoId, usuarioId)` → `PATCH /.../cargo` `{ role: 'ADMIN' }`
+- `rebaixarMembro(grupoId, usuarioId)` → `PATCH /.../cargo` `{ role: 'MEMBER' }`
 - `obterRankingGeral(grupoId)` → `GET /grupos/:grupoId/ranking/geral`
-- `obterRankingFase(grupoId, faseId)` → `GET /grupos/:grupoId/ranking/fases/:faseId`
+- `obterRankingFase(grupoId, faseId, rodada?, ateRodada?)` → `GET /grupos/:grupoId/ranking/fases/:faseId?rodada=&ateRodada=`
 
 ### jogo.service.ts
 - `listarFases(temporadaId)` → `GET /temporadas/:temporadaId/fases`
-- `listarJogosFase(faseId, rodada?, status?)` → `GET /fases/:faseId/jogos?rodada=&status=`
-- `buscarProximoJogo(temporadaId)` — busca próximo jogo futuro ou adiado
-- `contarJogosAdiados(temporadaId)` — conta jogos com status ADIADO
-- `buscarProximosJogos()` — mock para agenda semanal
+- `listarJogosFase(faseId, rodada?, status?)` → `GET /fases/:faseId/jogos`
+- `buscarProximoJogo(temporadaId)` — busca próximo jogo AGENDADO futuro
+- `contarJogosAdiados(temporadaId)` — conta jogos ADIADO na temporada
+- `contarJogosAdiadosRodada(faseId, rodada)` — conta adiados de uma rodada
 
-## Tipos Importantes
+### palpite.service.ts ✅ (novo)
+- `criarPalpite(jogoId, dados)` → `POST /jogos/:jogoId/palpites`
+- `atualizarPalpite(palpiteId, dados)` → `PATCH /palpites/:id`
+- `excluirPalpite(palpiteId)` → `DELETE /palpites/:id`
+- `buscarMeuPalpite(jogoId)` → `GET /jogos/:jogoId/meu-palpite`
 
-### grupo.types.ts
-- `Grupo` (com totalParticipantes, palpitesRestantes, rodadaAtual, rodadaAberta)
-- `MembroGrupo` (role: ADMIN | MEMBER, usuario?)
-- `RankingEntry` (posicao, usuarioId, nomeUsuario, pontuacaoTotal, acertos...)
+### classificacao.service.ts ✅ (novo)
+- `buscarClassificacao(season?)` → `GET /classificacao?season=`
+- `obterPosicaoTime(classificacao, nomeTime)` — retorna posição do time
+- `obterUltimosJogos(classificacao, nomeTime)` — retorna recentForm em V/E/D
 
-### jogo.types.ts
-- `StatusJogo` = 'AGENDADO' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO' | 'ADIADO'
-- `Fase` (id, nome, tipo, ordem)
-- `Jogo` (com timeCasa?, timeFora? incluindo nome, sigla, escudo)
+## Backend — Alterações nesta sessão
 
-## Infraestrutura
+### Endpoint novo: `GET /classificacao`
+- Controller: `jogo.controller.ts`
+- Service: `FutebolApiService.buscarClassificacao(season)`
+- Duas fontes com fallback:
+  1. API do ge.globo.com (endpoint classificação)
+  2. Pacote `campeonato-brasileiro-api` (scraping)
+- Retorna: posicao, timeId, nome, sigla, escudo, pontos, jogos, V/E/D, saldoGols, recentForm
 
-### Docker
-- `docker-compose.yml` com profiles dev/prod
-- Script `dev` (sh dev start-dev, stop, logs, npm, npx)
-- Porta: 3003 (backend na 3002)
+### Ranking acumulativo: `?ateRodada=N`
+- `RankingService.obterRankingFase` aceita `ateRodada` (ranking até rodada X inclusive)
+- `buscarPorFaseAteRodada` adicionado nos 3 repositórios (interface + Prisma + InMemory)
+- Controller expõe `@Query('ateRodada')`
 
-### PWA
-- manifest.json (Bolão, standalone, verde)
-- Ícones SVG placeholder
+### Pacote instalado: `campeonato-brasileiro-api`
+- Usado como fallback para classificação no backend
 
-### Design System
-- Tailwind CSS v4 (configuração via @theme no CSS)
-- Paleta: fundo #0B1020, texto #f1f5f9, primaria #16a34a, primaria-claro #22d35e
-- Cards: glassmorphism (bg-white/[0.03], backdrop-blur, border-white/[0.12])
-- Botão principal: gradient verde, glow, hover lift
-- Bottom nav: flutuante, rounded-2xl, backdrop-blur-2xl
-- Ícones: Lucide React
-- Animações: fadeIn, shake (definidas em globals.css)
-- Timezone: sempre `America/Sao_Paulo` para datas de jogos
+## Tipos
 
-## Specs Documentadas (não implementadas)
+### palpite.types.ts ✅ (novo)
+- `Palpite` (id, golsCasa, golsFora, jogoId, usuarioId, dataCriacao, atualizadoEm)
+- `DadosCriarPalpite` (golsCasa, golsFora)
+- `DadosAtualizarPalpite` (golsCasa, golsFora)
 
-### feature/solicitacao-entrada-grupo
-- Branch: `feature/solicitacao-entrada-grupo`
-- Requisitos: pesquisa grupos públicos, envio solicitação, aprovação/rejeição admin, notificação
-- Design: endpoints backend + componentes frontend + testes
-- Tasks: 17 grupos de tarefas (backend → frontend → testes)
+### jogo.types.ts (atualizado)
+- Adicionado `foiAdiado?: boolean` ao tipo `Jogo`
 
-## Problemas Conhecidos
+### classificacao.service.ts (tipos)
+- `ClassificacaoTime` (posicao, timeId, nome, sigla, recentForm?)
 
-- Horário dos jogos: backend salva BRT como UTC (3h a menos). Fix pendente na importação
-- Escudos: qualidade depende da URL fonte (alguns são baixa resolução)
-- Dados mock: colocação dos times, histórico V/E/D, atividade recente
-- `[&_svg]:size-4` no Button component limita tamanho de ícones — usar `[&_svg]:size-X` para override
+## Componentes Novos
+
+### `src/components/palpite/palpite-inline-form.tsx`
+- Props: jogoId, timeCasaNome, timeForaNome, disabled
+- Estados: aberto, editando, salvo
+- Usa React Query para buscar/criar/atualizar palpite
+- Botões +/- com contorno verde, tamanho h-9 w-9
+
+## Infraestrutura / Deploy
+
+### Vercel
+- Branch: main (deploy automático)
+- Fixes aplicados:
+  - Removido `skipWaiting` do `next.config.ts` (não suportado na versão do PWA)
+  - Removida pasta `bolao-frontend/` aninhada do repositório
+  - Deletado `(protegido)/page.tsx` redundante (causava erro de manifest)
+  - Removido `campeonato-brasileiro-api` do package.json do frontend
+  - Removido `bolao-frontend.code-workspace` de dentro de rota
+
+### ESLint config
+- `@typescript-eslint/no-explicit-any`: off (dívida técnica existente)
+- `@typescript-eslint/no-unused-vars`: warn (argsIgnorePattern: ^_)
+- `prefer-const`: warn
+
+### .gitignore
+- Adicionado `bolao-frontend/` e `bolao-frontend.code-workspace`
+
+## Scripts de Seed (banco)
+
+### `scripts/seed-palpites.sql`
+- Gera palpites aleatórios (0-3 gols) para todos os membros do grupo "Cristiano" em jogos finalizados sem palpite
+
+### `scripts/seed-palpites-variacao.sql`
+- Dá acertos em cheio para Cristiano (6), Fernanda (5), João (4), Bruno (3)
+- Faz Lucas Silva e Pedro Oliveira errarem tudo
+- Causa variação visível no ranking geral
+
+## Endpoints NÃO utilizados no frontend (24 de 44)
+
+- **Palpite Dobrado** (6) — módulo inteiro
+- **Jogos admin** (7) — criar, atualizar, finalizar, importar, sincronizar, resetar fonte
+- **Campeonatos** (2) — criar/listar
+- **Temporadas** (2) — criar/listar
+- **Palpites** (3) — lote, listar por grupo/jogo, meus palpites
+- **Ranking** (2) — detalhamento por jogo, processar pontuação
+- **Painel Rodada** (1)
+- **Grupos** (1) — alterar status
+- **Usuarios** (1) — buscar por ID
 
 ## Próximos Passos
 
-1. Mergear feature/grupos em develop
-2. Implementar tela de fazer palpite (formulário com placar)
-3. Conectar dados reais: colocação times, histórico V/E/D, atividade recente
-4. Implementar feature solicitação de entrada (branch separada)
-5. Login com Google (OAuth)
-6. Testes E2E com Playwright
+1. Criar tela `/jogos` (aba da bottom nav — atualmente dá 404)
+2. Implementar palpite em lote (tela de jogos da rodada)
+3. Conectar painel da rodada
+4. Implementar palpite dobrado (fichas)
+5. Atividade recente com dados reais
+6. Login com Google (OAuth)
+7. Resolver dívida técnica: substituir `any` por tipos corretos
+8. Testes E2E com Playwright

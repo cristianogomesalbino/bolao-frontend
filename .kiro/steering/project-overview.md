@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: Visão geral do projeto frontend — stack, estrutura de pastas, ambiente Docker e endpoints consumidos.
 ---
 
 # Bolão Frontend — Visão Geral
