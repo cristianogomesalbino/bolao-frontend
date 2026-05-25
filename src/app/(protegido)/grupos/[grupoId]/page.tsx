@@ -5,10 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Settings, Copy, Check,
-  Lock, Globe, ChevronRight, Trophy, Calendar, Activity, Minus, User
+  Lock, Globe, ChevronRight, Trophy, Calendar, Minus, User
 } from 'lucide-react';
 import { buscarGrupo, sairDoGrupo, obterRankingGeral, obterRankingFase } from '@/services/grupo.service';
-import { buscarProximoJogo, contarJogosAdiados } from '@/services/jogo.service';
+import { buscarDadosTemporada } from '@/services/jogo.service';
 import { buscarClassificacao, obterPosicaoTime, obterUltimosJogos } from '@/services/classificacao.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ export default function DetalhesGrupoPage() {
   const [rankingFiltro, setRankingFiltro] = useState<'geral' | 'rodada'>('geral');
   const [rodadaSelecionada, setRodadaSelecionada] = useState<number | null>(null);
   const [rodadaListaAberta, setRodadaListaAberta] = useState(false);
+  const [rankingExpandido, setRankingExpandido] = useState(false);
 
   const { data: grupo, isLoading: carregandoGrupo } = useQuery({
     queryKey: ['grupo', grupoId],
@@ -43,17 +44,15 @@ export default function DetalhesGrupoPage() {
     enabled: !!grupoId,
   });
 
-  const { data: proximoJogo } = useQuery({
-    queryKey: ['grupo', grupoId, 'proximo-jogo'],
-    queryFn: () => buscarProximoJogo(grupo!.temporadaId),
+  const { data: dadosTemporada } = useQuery({
+    queryKey: ['grupo', grupoId, 'dados-temporada'],
+    queryFn: () => buscarDadosTemporada(grupo!.temporadaId),
     enabled: !!grupo?.temporadaId,
+    staleTime: 1000 * 60 * 2, // 2 min
   });
 
-  const { data: totalAdiados } = useQuery({
-    queryKey: ['grupo', grupoId, 'jogos-adiados'],
-    queryFn: () => contarJogosAdiados(grupo!.temporadaId),
-    enabled: !!grupo?.temporadaId,
-  });
+  const proximoJogo = dadosTemporada?.proximoJogo ?? undefined;
+  const totalAdiados = dadosTemporada?.totalAdiados ?? 0;
 
   const { data: classificacao } = useQuery({
     queryKey: ['classificacao'],
@@ -128,20 +127,12 @@ export default function DetalhesGrupoPage() {
   const ptsAtrasDoLider = lider && minhaPosicao ? lider.pontuacaoTotal - minhaPosicao.pontuacaoTotal : 0;
 
   // Verificar se há jogos adiados na temporada (independente do próximo jogo)
-  const temJogosAdiados = (totalAdiados ?? 0) > 0;
+  const temJogosAdiados = totalAdiados > 0;
 
-  // Top 3 para o pódio
-  const top3 = rankingAtivo?.slice(0, 3) ?? [];
-  // Restante do ranking (4+)
-  const restoRanking = rankingAtivo?.slice(3) ?? [];
-
-  // Mock atividade (será substituído por dados reais)
-  const mockAtividade = [
-    { nome: 'Cristiano', acao: 'fez 5 palpites', tempo: 'Há 2h', inicial: 'C' },
-    { nome: 'Lucas', acao: 'fez 3 palpites', tempo: 'Há 2h', inicial: 'L' },
-    { nome: 'Mestre', acao: 'fez 4 palpites', tempo: 'Há 5h', inicial: 'M' },
-    { nome: 'Lucas', acao: 'assumiu a liderança', tempo: 'Há 2h', inicial: 'L' },
-  ];
+  // Top 3 para o pódio (só se tiver pelo menos 3)
+  const top3 = (rankingAtivo?.length ?? 0) >= 3 ? rankingAtivo!.slice(0, 3) : [];
+  // Restante do ranking: se não tem pódio, mostra todos; se tem, mostra 4+
+  const restoRanking = top3.length >= 3 ? (rankingAtivo?.slice(3) ?? []) : (rankingAtivo ?? []);
 
   if (carregandoGrupo) {
     return (
@@ -219,6 +210,22 @@ export default function DetalhesGrupoPage() {
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 pt-2 space-y-2">
+        {/* Alerta de jogos atrasados */}
+        {temJogosAdiados && (
+          <button
+            type="button"
+            onClick={() => router.push(`/grupos/${grupoId}/jogos-adiados`)}
+            className="flex items-center gap-2"
+          >
+            <span className="text-destaque text-sm">⏱</span>
+            <span className="text-[12px] text-destaque font-semibold">Há jogos atrasados</span>
+            <span className="text-texto/30">•</span>
+            <span className="text-[11px] text-primaria-claro font-medium flex items-center gap-0.5">
+              Ver todos <ChevronRight size={10} />
+            </span>
+          </button>
+        )}
+
         {/* Próximo Jogo */}
         {proximoJogo && (
           <Card data-testid="grupo-card-proximo-jogo">
@@ -241,22 +248,6 @@ export default function DetalhesGrupoPage() {
                   </button>
                 </div>
               </div>
-
-              {/* Alerta de jogos atrasados */}
-              {temJogosAdiados && (
-                <button
-                  type="button"
-                  onClick={() => router.push(`/grupos/${grupoId}/jogos-adiados`)}
-                  className="flex items-center gap-2 mb-2"
-                >
-                  <span className="text-destaque text-sm">⏱</span>
-                  <span className="text-[12px] text-destaque font-semibold">Há jogos atrasados</span>
-                  <span className="text-texto/30">•</span>
-                  <span className="text-[11px] text-primaria-claro font-medium flex items-center gap-0.5">
-                    Ver todos <ChevronRight size={10} />
-                  </span>
-                </button>
-              )}
 
               <div className="flex items-start justify-center py-2 gap-3">
                 {/* Time Casa */}
@@ -541,7 +532,7 @@ export default function DetalhesGrupoPage() {
             {/* Resto do ranking (4+) */}
             {restoRanking.length > 0 && (
               <div className="space-y-1">
-                {restoRanking.map((item) => {
+                {(rankingExpandido ? restoRanking : restoRanking.slice(0, 5)).map((item) => {
                   const variacao = rankingFiltro === 'geral' ? obterVariacao(item.usuarioId) : 0;
                   return (
                     <div key={item.usuarioId} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
@@ -566,49 +557,18 @@ export default function DetalhesGrupoPage() {
               <p className="text-[11px] text-texto/30 text-center py-4">Nenhuma pontuação registrada ainda</p>
             )}
 
-            {/* Link ver completo */}
-            {rankingAtivo && rankingAtivo.length > 0 && (
-              <button className="w-full flex items-center justify-center gap-1 mt-3 pt-3 border-t border-white/[0.05] text-[11px] text-primaria-claro/70 hover:text-primaria-claro">
-                Ver ranking completo <ChevronRight size={10} />
+            {/* Link ver completo / ver menos */}
+            {restoRanking.length > 5 && (
+              <button
+                onClick={() => setRankingExpandido(!rankingExpandido)}
+                className="w-full flex items-center justify-center gap-1 mt-3 pt-3 border-t border-white/[0.05] text-[11px] text-primaria-claro/70 hover:text-primaria-claro"
+              >
+                {rankingExpandido ? 'Ver menos' : 'Ver todos'} <ChevronRight size={10} className={rankingExpandido ? 'rotate-90' : ''} />
               </button>
             )}
           </CardContent>
         </Card>
 
-        {/* Atividade Recente */}
-        <Card data-testid="grupo-card-atividade">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Activity size={16} className="text-primaria-claro" />
-                <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                  Atividade Recente
-                </span>
-              </div>
-              <button className="text-[10px] text-primaria-claro/70 hover:text-primaria-claro flex items-center gap-0.5">
-                Ver todas <ChevronRight size={10} />
-              </button>
-            </div>
-            <div className="space-y-1">
-              {mockAtividade.map((item, i) => (
-                <div key={`${item.nome}-${i}`} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primaria/10 text-primaria text-xs font-bold shrink-0">
-                    {item.inicial}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] text-texto/70">
-                      <span className="font-medium text-texto/90">{item.nome}</span> {item.acao}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] text-texto/30">{item.tempo}</span>
-                    <ChevronRight size={12} className="text-texto/15" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Modal sair do grupo */}

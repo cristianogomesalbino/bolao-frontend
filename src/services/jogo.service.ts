@@ -1,5 +1,10 @@
 import apiClient from '@/lib/api-client';
-import { Fase, JogosResponse } from '@/types/jogo.types';
+import { Fase, Jogo, JogosResponse } from '@/types/jogo.types';
+
+export interface DadosTemporada {
+  proximoJogo: { fase: Fase; jogo: Jogo } | null;
+  totalAdiados: number;
+}
 
 export async function listarFases(temporadaId: string): Promise<Fase[]> {
   const response = await apiClient.get<Fase[]>(`/temporadas/${temporadaId}/fases`);
@@ -14,29 +19,51 @@ export async function listarJogosFase(faseId: string, rodada?: number, status?: 
   return response.data;
 }
 
-export async function buscarProximoJogo(temporadaId: string): Promise<{ fase: Fase; jogo: JogosResponse['jogos'][0] } | null> {
+/**
+ * Busca dados da temporada em uma única operação:
+ * - Próximo jogo agendado
+ * - Total de jogos adiados
+ *
+ * Faz apenas 1 chamada de fases + 2 chamadas de jogos por fase (AGENDADO + ADIADO)
+ * em paralelo, evitando duplicação de requests.
+ */
+export async function buscarDadosTemporada(temporadaId: string): Promise<DadosTemporada> {
   try {
     const fases = await listarFases(temporadaId);
     const agora = Date.now();
 
-    const candidatos: Array<{ fase: Fase; jogo: JogosResponse['jogos'][0]; diff: number }> = [];
+    let totalAdiados = 0;
+    const candidatos: Array<{ fase: Fase; jogo: Jogo; diff: number }> = [];
 
-    for (const fase of fases) {
-      const { jogos } = await listarJogosFase(fase.id, undefined, 'AGENDADO');
+    // Buscar jogos agendados e adiados de todas as fases em paralelo
+    const resultados = await Promise.all(
+      fases.map(async (fase) => {
+        const [agendados, adiados] = await Promise.all([
+          listarJogosFase(fase.id, undefined, 'AGENDADO'),
+          listarJogosFase(fase.id, undefined, 'ADIADO'),
+        ]);
+        return { fase, agendados: agendados.jogos, adiados: adiados.jogos };
+      })
+    );
 
-      for (const jogo of jogos) {
+    for (const { fase, agendados, adiados } of resultados) {
+      totalAdiados += adiados.length;
+      // Também contar jogos remarcados (foiAdiado=true, status AGENDADO)
+      totalAdiados += agendados.filter((j) => j.foiAdiado).length;
+
+      for (const jogo of agendados) {
         const diff = jogo.dataHora ? new Date(jogo.dataHora).getTime() - agora : Infinity;
         candidatos.push({ fase, jogo, diff });
       }
     }
 
-    // Apenas jogos futuros (que ainda não começaram — margem de 1 min antes)
+    // Apenas jogos futuros (margem de 1 min antes)
     const futuros = candidatos.filter((c) => c.diff > 60000).sort((a, b) => a.diff - b.diff);
-    if (futuros.length > 0) return { fase: futuros[0].fase, jogo: futuros[0].jogo };
+    const proximoJogo = futuros.length > 0 ? { fase: futuros[0].fase, jogo: futuros[0].jogo } : null;
 
-    return null;
+    return { proximoJogo, totalAdiados };
   } catch {
-    return null;
+    return { proximoJogo: null, totalAdiados: 0 };
   }
 }
 
@@ -63,22 +90,6 @@ export async function buscarProximosJogos(): Promise<import('@/types/jogo.types'
     ];
   } catch {
     return [];
-  }
-}
-
-export async function contarJogosAdiados(temporadaId: string): Promise<number> {
-  try {
-    const fases = await listarFases(temporadaId);
-    let count = 0;
-
-    for (const fase of fases) {
-      const { jogos } = await listarJogosFase(fase.id, undefined, 'ADIADO');
-      count += jogos.length;
-    }
-
-    return count;
-  } catch {
-    return 0;
   }
 }
 
