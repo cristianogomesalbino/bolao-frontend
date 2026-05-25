@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Workspace
 bolao-frontend.code-workspace
+
+# Nested folder (leftover)
+bolao-frontend/
