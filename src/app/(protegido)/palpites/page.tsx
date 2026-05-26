@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
 import { listarFases, listarJogosFase } from '@/services/jogo.service';
 import { buscarClassificacao } from '@/services/classificacao.service';
+import { buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { Jogo } from '@/types/jogo.types';
 import { CardJogoPalpite } from '@/components/jogos/card-jogo-palpite';
 import { IconPalpite } from '@/components/icons/icon-palpite';
@@ -23,6 +24,7 @@ export default function PalpitesPage() {
   });
 
   const temporadaId = gruposData?.[0]?.temporadaId || '';
+  const grupoId = gruposData?.[0]?.id || '';
 
   const { data: fases } = useQuery({
     queryKey: ['fases', temporadaId],
@@ -58,13 +60,39 @@ export default function PalpitesPage() {
   const jogosAtual = jogosRodadaAtual?.jogos ?? [];
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
 
-  // Filtrar jogos relevantes (agendados + em andamento + finalizados da rodada)
-  const jogosAtualVisiveis = jogosAtual.filter(
-    (j: Jogo) => j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO' || j.status === 'FINALIZADO'
-  );
+  // Filtrar jogos relevantes e colocar palpitáveis no topo
+  const jogosAtualVisiveis = jogosAtual
+    .filter(
+      (j: Jogo) => j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO' || j.status === 'FINALIZADO'
+    )
+    .sort((a: Jogo, b: Jogo) => {
+      const palpitavelA = a.status === 'AGENDADO';
+      const palpitavelB = b.status === 'AGENDADO';
+      if (palpitavelA && !palpitavelB) return -1;
+      if (!palpitavelA && palpitavelB) return 1;
+      return 0;
+    });
   const jogosProximaVisiveis = jogosProxima.filter(
     (j: Jogo) => j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO'
   );
+
+  // Buscar todos os palpites do usuário de uma vez e popular cache individual
+  const todosJogoIds = [...jogosAtualVisiveis, ...jogosProximaVisiveis].map((j) => j.id);
+  const queryClient = useQueryClient();
+
+  useQuery({
+    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaAtual],
+    queryFn: async () => {
+      const palpites = await buscarMeusPalpitesPorJogos(todosJogoIds);
+      const palpitesPorJogo = new Map(palpites.map((p) => [p.jogoId, p]));
+      for (const jogoId of todosJogoIds) {
+        queryClient.setQueryData(['meu-palpite', jogoId], palpitesPorJogo.get(jogoId) ?? null);
+      }
+      return palpites;
+    },
+    enabled: jogosAtualVisiveis.length > 0 && !isLoading,
+    staleTime: Infinity,
+  });
 
   // Contadores
   const totalJogos = jogosAtualVisiveis.length;
@@ -181,7 +209,7 @@ export default function PalpitesPage() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="h-px flex-1 bg-white/[0.06]" />
-                  <span className="text-[10px] text-texto/30 font-semibold uppercase tracking-wider">
+                  <span className="text-[11px] text-texto/80 font-semibold uppercase tracking-wider">
                     Rodada {rodadaAtual}
                   </span>
                   <span className="h-px flex-1 bg-white/[0.06]" />
@@ -192,7 +220,8 @@ export default function PalpitesPage() {
                       key={jogo.id}
                       jogo={jogo}
                       classificacao={classificacao}
-                      palpitavel={jogo.status === 'AGENDADO'}
+                      palpitavel={jogo.status === 'AGENDADO' || jogo.status === 'ADIADO'}
+                      grupoId={grupoId}
                     />
                   ))}
                 </div>
@@ -204,7 +233,7 @@ export default function PalpitesPage() {
               <div>
                 <div className="flex items-center gap-2 mb-3 mt-4">
                   <span className="h-px flex-1 bg-white/[0.06]" />
-                  <span className="text-[10px] text-texto/30 font-semibold uppercase tracking-wider">
+                  <span className="text-[11px] text-texto/80 font-semibold uppercase tracking-wider">
                     Rodada {proximaRodada}
                   </span>
                   <span className="h-px flex-1 bg-white/[0.06]" />
@@ -215,7 +244,8 @@ export default function PalpitesPage() {
                       key={jogo.id}
                       jogo={jogo}
                       classificacao={classificacao}
-                      palpitavel={jogo.status === 'AGENDADO'}
+                      palpitavel={jogo.status === 'AGENDADO' || jogo.status === 'ADIADO'}
+                      grupoId={grupoId}
                     />
                   ))}
                 </div>
@@ -238,7 +268,7 @@ export default function PalpitesPage() {
               jogosAtualVisiveis
                 .filter((j: Jogo) => j.status === 'EM_ANDAMENTO')
                 .map((jogo: Jogo) => (
-                  <CardJogoPalpite key={jogo.id} jogo={jogo} classificacao={classificacao} />
+                  <CardJogoPalpite key={jogo.id} jogo={jogo} classificacao={classificacao} grupoId={grupoId} />
                 ))
             ) : (
               <div className="flex flex-col items-center py-12 text-center">

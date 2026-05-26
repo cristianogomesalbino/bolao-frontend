@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Loader2, Minus, Plus } from 'lucide-react';
-import { buscarMeuPalpite, criarPalpite, atualizarPalpite } from '@/services/palpite.service';
+import { Check, ChevronDown, Loader2, Pencil } from 'lucide-react';
+import { criarPalpite, atualizarPalpite, buscarEstatisticasPalpite } from '@/services/palpite.service';
 import { ClassificacaoTime } from '@/services/classificacao.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Jogo } from '@/types/jogo.types';
@@ -13,41 +13,59 @@ interface PropsCardJogoPalpite {
   jogo: Jogo;
   classificacao?: ClassificacaoTime[];
   palpitavel?: boolean;
+  grupoId?: string;
 }
 
-export function CardJogoPalpite({ jogo, classificacao, palpitavel }: Readonly<PropsCardJogoPalpite>) {
+export function CardJogoPalpite({ jogo, classificacao, palpitavel, grupoId }: Readonly<PropsCardJogoPalpite>) {
   const queryClient = useQueryClient();
   const [golsCasa, setGolsCasa] = useState(0);
   const [golsFora, setGolsFora] = useState(0);
   const [editando, setEditando] = useState(false);
   const [expandido, setExpandido] = useState(false);
+  const [palpiteLocal, setPalpiteLocal] = useState<Palpite | null>(null);
 
-  const { data: meuPalpite } = useQuery({
-    queryKey: ['meu-palpite', jogo.id],
-    queryFn: () => buscarMeuPalpite(jogo.id),
+  // Observar cache populado pelo batch
+  useEffect(() => {
+    const cached = queryClient.getQueryData<Palpite | null>(['meu-palpite', jogo.id]);
+    if (cached && !palpiteLocal) {
+      setPalpiteLocal(cached);
+      setGolsCasa(cached.golsCasa);
+      setGolsFora(cached.golsFora);
+    }
   });
 
-  const jaPalpitou = !!meuPalpite;
+  const palpiteAtual = palpiteLocal;
+  const jaPalpitou = !!palpiteAtual;
 
-  useEffect(() => {
-    if (meuPalpite) {
-      setGolsCasa(meuPalpite.golsCasa);
-      setGolsFora(meuPalpite.golsFora);
-    }
-  }, [meuPalpite]);
+  const { data: estatisticas } = useQuery({
+    queryKey: ['estatisticas-palpite', grupoId, jogo.id],
+    queryFn: () => buscarEstatisticasPalpite(grupoId!, jogo.id),
+    enabled: !!grupoId && expandido,
+    staleTime: 1000 * 60 * 5,
+  });
 
   const mutationCriar = useMutation({
     mutationFn: () => criarPalpite(jogo.id, { golsCasa, golsFora }),
     onSuccess: (data: Palpite) => {
       queryClient.setQueryData(['meu-palpite', jogo.id], data);
+      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
+      setPalpiteLocal(data);
+      setEditando(false);
+    },
+    onError: () => {
       setEditando(false);
     },
   });
 
   const mutationAtualizar = useMutation({
-    mutationFn: () => atualizarPalpite(meuPalpite!.id, { golsCasa, golsFora }),
+    mutationFn: (palpiteId: string) => atualizarPalpite(palpiteId, { golsCasa, golsFora }),
     onSuccess: (data: Palpite) => {
       queryClient.setQueryData(['meu-palpite', jogo.id], data);
+      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
+      setPalpiteLocal(data);
+      setEditando(false);
+    },
+    onError: () => {
       setEditando(false);
     },
   });
@@ -55,7 +73,7 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel }: Readonly<Pr
   const salvando = mutationCriar.isPending || mutationAtualizar.isPending;
 
   function salvar() {
-    if (jaPalpitou) mutationAtualizar.mutate();
+    if (jaPalpitou && palpiteAtual) mutationAtualizar.mutate(palpiteAtual.id);
     else mutationCriar.mutate();
   }
 
@@ -70,11 +88,15 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel }: Readonly<Pr
     : '';
 
   return (
-    <Card>
+    <Card className="border-primaria">
       <CardContent className="p-3">
         {/* Data/hora centralizada + indicação de status */}
         <div className="flex items-center justify-center gap-2 mb-2">
-          <span className="text-[9px] text-texto/40 uppercase tracking-wide">{dataHoraFormatada}</span>
+          {jogo.dataHora ? (
+            <span className="text-[11px] text-texto/80 uppercase tracking-wide">{dataHoraFormatada}</span>
+          ) : (
+            <span className="text-[9px] text-destaque font-semibold uppercase tracking-wide">Jogo adiado - Data a definir</span>
+          )}
           {jogo.status === 'EM_ANDAMENTO' && (
             <span className="flex items-center gap-1 text-[8px] text-erro font-bold">
               <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />
@@ -90,14 +112,17 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel }: Readonly<Pr
         <div className="flex items-center gap-2">
           {/* Time Casa */}
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            {jogo.timeCasa?.escudo ? (
-              <img src={jogo.timeCasa.escudo} alt={jogo.timeCasa.nome} className="h-10 w-10 object-contain" />
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
-                {jogo.timeCasa?.sigla || '?'}
-              </div>
-            )}
-            <span className="text-[10px] text-texto/70 font-medium truncate max-w-[70px]">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-white/30 blur-lg" />
+              {jogo.timeCasa?.escudo ? (
+                <img src={jogo.timeCasa.escudo} alt={jogo.timeCasa.nome} className="relative h-14 w-14 object-contain" />
+              ) : (
+                <div className="relative h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
+                  {jogo.timeCasa?.sigla || '?'}
+                </div>
+              )}
+            </div>
+            <span className="text-xs text-texto font-medium truncate max-w-[70px]">
               {jogo.timeCasa?.nome || 'Casa'}
             </span>
           </div>
@@ -117,9 +142,9 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel }: Readonly<Pr
                   </span>
                 </div>
                 {/* Meu palpite abaixo */}
-                {meuPalpite && (
+                {palpiteAtual && (
                   <span className="text-[9px] text-texto/30 mt-1">
-                    Meu palpite: {meuPalpite.golsCasa} × {meuPalpite.golsFora}
+                    Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}
                   </span>
                 )}
               </>
@@ -127,73 +152,107 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel }: Readonly<Pr
               <>
                 {/* Palpite feito - modo visualização */}
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl font-bold text-primaria-claro">{meuPalpite!.golsCasa}</span>
-                  <span className="text-[10px] text-texto/20">×</span>
-                  <span className="text-2xl font-bold text-primaria-claro">{meuPalpite!.golsFora}</span>
+                  <span className="text-3xl font-bold text-primaria-claro">{palpiteAtual!.golsCasa}</span>
+                  <span className="text-sm text-texto/30">×</span>
+                  <span className="text-3xl font-bold text-primaria-claro">{palpiteAtual!.golsFora}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setEditando(true); setGolsCasa(meuPalpite!.golsCasa); setGolsFora(meuPalpite!.golsFora); }}
-                  className="text-[9px] text-primaria-claro/60 hover:text-primaria-claro mt-1"
+                  onClick={() => { setEditando(true); setGolsCasa(palpiteAtual!.golsCasa); setGolsFora(palpiteAtual!.golsFora); }}
+                  className="text-xs text-primaria-claro/60 hover:text-primaria-claro mt-1 flex items-center gap-1"
                 >
+                  <Pencil size={12} />
                   Editar
                 </button>
               </>
             ) : palpitavel ? (
               <>
-                {/* Controles +/- */}
-                <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => setGolsCasa((v) => Math.max(0, v - 1))} className="h-6 w-6 rounded-full border border-primaria/40 flex items-center justify-center text-primaria-claro active:scale-90">
-                    <Minus size={10} />
-                  </button>
-                  <span className="text-xl font-bold text-texto w-5 text-center">{golsCasa}</span>
-                  <button type="button" onClick={() => setGolsCasa((v) => v + 1)} className="h-6 w-6 rounded-full border border-primaria/40 flex items-center justify-center text-primaria-claro active:scale-90">
-                    <Plus size={10} />
-                  </button>
+                {/* Controles estilo caixa com setas laterais */}
+                <div className="flex items-center gap-2">
+                  {/* Gols Casa */}
+                  <div className="flex items-center gap-0.5">
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setGolsCasa((v) => v + 1)}
+                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
+                      >
+                        <ChevronDown size={24} className="rotate-180" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGolsCasa((v) => Math.max(0, v - 1))}
+                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
+                      >
+                        <ChevronDown size={24} />
+                      </button>
+                    </div>
+                    <div className="w-11 h-12 rounded-lg bg-black/60 border border-white/[0.12] flex items-center justify-center">
+                      <span className="text-2xl font-bold text-texto">{golsCasa}</span>
+                    </div>
+                  </div>
 
-                  <span className="text-[9px] text-texto/20 mx-0.5">×</span>
+                  <span className="text-sm font-bold text-texto/40">x</span>
 
-                  <button type="button" onClick={() => setGolsFora((v) => Math.max(0, v - 1))} className="h-6 w-6 rounded-full border border-primaria/40 flex items-center justify-center text-primaria-claro active:scale-90">
-                    <Minus size={10} />
-                  </button>
-                  <span className="text-xl font-bold text-texto w-5 text-center">{golsFora}</span>
-                  <button type="button" onClick={() => setGolsFora((v) => v + 1)} className="h-6 w-6 rounded-full border border-primaria/40 flex items-center justify-center text-primaria-claro active:scale-90">
-                    <Plus size={10} />
-                  </button>
+                  {/* Gols Fora */}
+                  <div className="flex items-center gap-0.5">
+                    <div className="w-11 h-12 rounded-lg bg-black/60 border border-white/[0.12] flex items-center justify-center">
+                      <span className="text-2xl font-bold text-texto">{golsFora}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setGolsFora((v) => v + 1)}
+                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
+                      >
+                        <ChevronDown size={24} className="rotate-180" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGolsFora((v) => Math.max(0, v - 1))}
+                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
+                      >
+                        <ChevronDown size={24} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 {/* Botão salvar */}
                 <button
                   type="button"
                   onClick={salvar}
                   disabled={salvando}
-                  className="mt-1.5 h-6 px-3 rounded-md bg-primaria/20 text-primaria-claro text-[9px] font-semibold flex items-center gap-1 hover:bg-primaria/30 disabled:opacity-50 active:scale-95 transition-all"
+                  className="mt-2 h-6 px-3 rounded-md bg-primaria/20 text-primaria-claro text-[9px] font-semibold flex items-center gap-1 hover:bg-primaria/30 disabled:opacity-50 active:scale-95 transition-all"
                 >
                   {salvando ? <Loader2 size={9} className="animate-spin" /> : <Check size={9} />}
                   {jaPalpitou ? 'Salvar' : 'Confirmar'}
                 </button>
               </>
             ) : (
-              <span className="text-[11px] text-destaque font-semibold">Adiado</span>
+              <span className="text-[11px] text-texto/40">—</span>
             )}
           </div>
 
           {/* Time Fora */}
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            {jogo.timeFora?.escudo ? (
-              <img src={jogo.timeFora.escudo} alt={jogo.timeFora.nome} className="h-10 w-10 object-contain" />
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
-                {jogo.timeFora?.sigla || '?'}
-              </div>
-            )}
-            <span className="text-[10px] text-texto/70 font-medium truncate max-w-[70px]">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-white/30 blur-lg" />
+              {jogo.timeFora?.escudo ? (
+                <img src={jogo.timeFora.escudo} alt={jogo.timeFora.nome} className="relative h-14 w-14 object-contain" />
+              ) : (
+                <div className="relative h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
+                  {jogo.timeFora?.sigla || '?'}
+                </div>
+              )}
+            </div>
+            <span className="text-xs text-texto font-medium truncate max-w-[70px]">
               {jogo.timeFora?.nome || 'Fora'}
             </span>
           </div>
         </div>
 
         {/* Pontuação (jogos finalizados) */}
-        {jogo.status === 'FINALIZADO' && meuPalpite && (
+        {jogo.status === 'FINALIZADO' && palpiteAtual && (
           <div className="flex items-center justify-center mt-2 pt-2 border-t border-white/[0.05]">
             <span className="text-[10px] text-primaria font-semibold">+10 pts</span>
           </div>
@@ -205,17 +264,42 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel }: Readonly<Pr
           onClick={() => setExpandido(!expandido)}
           className="w-full flex items-center justify-center mt-2 pt-1"
         >
-          <ChevronDown size={14} className={`text-texto/20 transition-transform ${expandido ? 'rotate-180' : ''}`} />
+          <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandido ? 'rotate-180' : ''}`} />
         </button>
 
-        {/* Detalhes expandidos */}
+        {/* Barra de palpites da galera */}
         {expandido && (
-          <div className="mt-2 pt-2 border-t border-white/[0.05] text-center">
-            <p className="text-[10px] text-texto/30">
-              {jogo.timeCasa?.nome} vs {jogo.timeFora?.nome}
-            </p>
-            {jogo.rodada && <p className="text-[9px] text-texto/20">Rodada {jogo.rodada}</p>}
-            {jogo.foiAdiado && <p className="text-[9px] text-destaque/60">⚠ Jogo remarcado</p>}
+          <div className="mt-2 pt-2 border-t border-white/[0.05]">
+            {estatisticas && estatisticas.total > 0 ? (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-left">
+                    <span className="text-sm font-bold text-primaria">{estatisticas.percentualCasa}%</span>
+                    <p className="text-[9px] text-texto/40">da galera</p>
+                  </div>
+                  {estatisticas.percentualEmpate > 0 && (
+                    <div className="text-center">
+                      <span className="text-sm font-bold text-texto/60">{estatisticas.percentualEmpate}%</span>
+                      <p className="text-[9px] text-texto/40">empate</p>
+                    </div>
+                  )}
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-erro">{estatisticas.percentualFora}%</span>
+                    <p className="text-[9px] text-texto/40">da galera</p>
+                  </div>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-primaria rounded-l-full" style={{ width: `${estatisticas.percentualCasa}%` }} />
+                  {estatisticas.percentualEmpate > 0 && (
+                    <div className="h-full bg-texto/30" style={{ width: `${estatisticas.percentualEmpate}%` }} />
+                  )}
+                  <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
+                </div>
+                <p className="text-[9px] text-texto/30 text-center mt-1">{estatisticas.total} palpites</p>
+              </>
+            ) : (
+              <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>
+            )}
           </div>
         )}
       </CardContent>

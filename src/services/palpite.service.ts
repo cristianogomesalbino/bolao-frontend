@@ -23,3 +23,36 @@ export async function buscarMeuPalpite(jogoId: string): Promise<Palpite | null> 
     return null;
   }
 }
+
+export async function buscarMeusPalpitesPorJogos(jogoIds: string[]): Promise<Palpite[]> {
+  try {
+    const response = await apiClient.post<Palpite[]>('/meus-palpites/por-jogos', { jogoIds });
+    return response.data;
+  } catch {
+    return [];
+  }
+}
+
+export interface EstatisticasPalpite {
+  total: number;
+  vitoriaCasa: number;
+  empate: number;
+  vitoriaFora: number;
+  percentualCasa: number;
+  percentualEmpate: number;
+  percentualFora: number;
+}
+
+export async function buscarEstatisticasPalpite(
+  grupoId: string,
+  jogoId: string,
+): Promise<EstatisticasPalpite | null> {
+  try {
+    const response = await apiClient.get<EstatisticasPalpite>(
+      `/grupos/${grupoId}/jogos/${jogoId}/palpites/estatisticas`,
+    );
+    return response.data;
+  } catch {
+    return null;
+  }
+}
