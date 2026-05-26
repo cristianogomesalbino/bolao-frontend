@@ -1,12 +1,13 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Trophy, CircleDot, User } from 'lucide-react';
+import { Home, Trophy, User } from 'lucide-react';
+import { IconPalpite } from '@/components/icons/icon-palpite';
 
 const itens = [
   { href: '/inicio', label: 'Home', icone: Home },
   { href: '/grupos', label: 'Grupos', icone: Trophy },
-  { href: '/jogos', label: 'Jogos', icone: CircleDot },
+  { href: '/palpites', label: 'Palpites', icone: IconPalpite },
   { href: '/minha-conta', label: 'Conta', icone: User },
 ];
 
@@ -37,7 +38,7 @@ export function BottomNav() {
               {ativo && (
                 <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primaria shadow-[0_0_6px_rgba(22,163,74,0.6)]" />
               )}
-              <Icone size={20} strokeWidth={ativo ? 2.5 : 1.5} />
+              <Icone size={24} strokeWidth={ativo ? 2.5 : 1.5} />
               <span className={`text-[10px] ${ativo ? 'font-semibold' : 'font-normal'}`}>
                 {item.label}
               </span>

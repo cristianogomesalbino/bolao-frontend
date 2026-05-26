@@ -230,11 +230,58 @@ Deploy: Vercel (branch main)
 
 ## Próximos Passos
 
-1. Criar tela `/jogos` (aba da bottom nav — atualmente dá 404)
-2. Implementar palpite em lote (tela de jogos da rodada)
+1. ~~Criar tela `/jogos` (aba da bottom nav)~~ ✅ → renomeada para `/palpites`
+2. Implementar palpite em lote (botão "Salvar todos")
 3. Conectar painel da rodada
 4. Implementar palpite dobrado (fichas)
 5. Atividade recente com dados reais
 6. Login com Google (OAuth)
 7. Resolver dívida técnica: substituir `any` por tipos corretos
 8. Testes E2E com Playwright
+9. Refatorar page do grupo (extrair componentes — está com ~500 linhas)
+
+## Sessão 2 — Continuação
+
+### Tela `/palpites` (nova — aba da bottom nav)
+- Rota: `/palpites` (renomeada de `/jogos`)
+- Header: ícone bola de futebol customizado + "Palpites" + subtítulo
+- Card da rodada: número da rodada, badge "Em andamento"/"Agendada", barra de progresso de palpites
+- 3 abas: "Todos os jogos" | "Meus palpites" | "Ao vivo" (com bolinha pulsante)
+- Mostra 2 rodadas (atual + próxima) com separador "Rodada X"
+- Jogos agendados + em andamento + finalizados da rodada
+- Loading skeleton
+
+### Componente `CardJogoPalpite` (refatorado)
+- Data/hora centralizada no topo
+- Indicação de status: "AO VIVO" (bolinha vermelha pulsante), "ENCERRADO"
+- Escudos + nome dos times nas laterais
+- Centro: placar final (se finalizado/ao vivo) ou controles +/- (se agendado)
+- Inversão: placar final no destaque, "Meu palpite: X × Y" abaixo
+- Pontuação "+10 pts" quando jogo finalizado
+- Seta no rodapé para expandir/retrair detalhes
+- Sem estrela
+- Botão "Editar" no palpite já feito
+
+### Bottom Nav
+- Aba renomeada: "Jogos" → "Palpites"
+- Rota: `/jogos` → `/palpites`
+- Ícone customizado: bola de futebol SVG (`src/components/icons/icon-palpite.tsx`)
+- Todos os ícones aumentados para 24px
+
+### Ícone customizado `IconPalpite`
+- SVG puro: bola de futebol com pentágono central e gomos
+- Props: size, color, strokeWidth, className
+- Estilo Lucide (round caps/joins, monocromático)
+- Arquivo: `src/components/icons/icon-palpite.tsx`
+
+### Fixes nesta sessão
+- `JogosResponse` tipo atualizado com `rodadaAtual: number | null`
+- Ranking: grupos com <3 membros mostram lista direto (sem pódio)
+- Ranking: "Ver todos" / "Ver menos" (expande inline, limita a 5 por padrão)
+- Removido card "Atividade Recente" (mock) da tela do grupo
+- Alerta "Há jogos atrasados" movido para fora do card de próximo jogo (aparece sempre)
+- Contagem de adiados inclui jogos com `foiAdiado=true` e status AGENDADO
+- Steerings: adicionado `description` em todos os front-matters
+- Steering coding-conventions: adicionadas seções Páginas, React Query, Tailwind, Dados Externos
+- ESLint: `no-explicit-any: off`, `no-unused-vars: warn`, `prefer-const: warn`
+- Build Vercel: removido `skipWaiting`, pasta aninhada, `(protegido)/page.tsx`
