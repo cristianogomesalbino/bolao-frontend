@@ -100,6 +100,12 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
     },
 
     inicializar: async () => {
+      // Se já está autenticado (ex: acabou de fazer login), não refazer
+      if (get().estaAutenticado) {
+        set({ estaCarregando: false });
+        return;
+      }
+
       const refresh = obterRefreshToken();
       if (!refresh) {
         set({ estaCarregando: false, estaAutenticado: false });
