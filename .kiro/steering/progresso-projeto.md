@@ -239,6 +239,67 @@ Deploy: Vercel (branch main)
 7. Resolver dívida técnica: substituir `any` por tipos corretos
 8. Testes E2E com Playwright
 9. Refatorar page do grupo (extrair componentes — está com ~500 linhas)
+10. Corrigir jogos AGENDADO sem data no banco (devem ser ADIADO) — SQL: `UPDATE "Jogo" SET status = 'ADIADO' WHERE "dataHora" IS NULL AND status = 'AGENDADO'`
+
+## Sessão 3 — Palpites + Performance
+
+### Seletor de placar redesenhado
+- Estilo: caixas escuras (`bg-black/60`) com número grande + setas laterais (ChevronDown) com borda
+- Setas ao lado da caixa (não acima/abaixo), `size={24}`, com `border border-white/[0.12] rounded p-1`
+- "x" no meio separando os dois placares
+- Escudos aumentados para `h-14 w-14` com glow branco (`bg-white/30 blur-lg`)
+- Nomes dos times: `text-xs text-texto font-medium`
+- Data/hora: `text-[11px] text-texto/80`
+- Borda do card: `border-primaria` (verde sólido)
+- Botão "Editar": `text-xs` com ícone Pencil
+- Placar do palpite feito: `text-3xl font-bold text-primaria-claro`
+
+### Jogos adiados — regras de exibição
+- Jogos sem data (`dataHora: null`): mostram "JOGO ADIADO - DATA A DEFINIR" no topo (onde fica a data)
+- Jogos adiados são palpitáveis (backend aceita `AGENDADO` e `ADIADO`)
+- Quando jogo adiado recebe data → volta para `AGENDADO` com `foiAdiado = true`
+- Campo `foiAdiado` é o indicador permanente de que o jogo foi adiado
+- Jogos palpitáveis ficam no topo da lista (sort por status)
+
+### Barra de estatísticas (expandível)
+- Ao expandir card (seta inferior): mostra barra de distribuição de palpites do grupo
+- Verde (esquerda): % vitória time casa
+- Cinza (meio): % empate
+- Vermelho (direita): % vitória time fora
+- Total de palpites exibido abaixo
+- Lazy loading: só busca ao expandir (`enabled: expandido`)
+- Atualiza ao salvar palpite (`invalidateQueries`)
+
+### Endpoint novo: `GET /grupos/:grupoId/jogos/:jogoId/palpites/estatisticas`
+- Retorna: `{ total, vitoriaCasa, empate, vitoriaFora, percentualCasa, percentualEmpate, percentualFora }`
+- Guard: `GroupRoleGuard` (ADMIN, MEMBER)
+- Service: `PalpiteService.buscarEstatisticasPorJogo`
+
+### Endpoint novo: `POST /meus-palpites/por-jogos`
+- Body: `{ jogoIds: string[] }`
+- Retorna: array de palpites do usuário para os jogos informados
+- Substitui N requests individuais de `GET /jogos/:id/meu-palpite`
+- Frontend: query batch na page popula cache individual via `setQueryData`
+
+### Otimização de performance — Login → Home
+- `inicializar()` verifica `estaAutenticado` antes de refazer refresh (evita 2 requests extras)
+- Guard de autenticação: skeleton da home (header + cards pulsando) em vez de spinner genérico
+- Root page: spinner maior + texto "Carregando..."
+
+### Otimização de requests — Palpites
+- Antes: N requests `GET /jogos/:id/meu-palpite` (1 por jogo, muitas 404)
+- Depois: 1 request `POST /meus-palpites/por-jogos` com todos os IDs
+- Card lê do cache (sem queryFn própria), populado pelo batch
+- Key estável: `['meus-palpites-batch', faseId, rodadaAtual]`
+
+### palpite.service.ts (atualizado)
+- `buscarMeusPalpitesPorJogos(jogoIds)` → `POST /meus-palpites/por-jogos`
+- `buscarEstatisticasPalpite(grupoId, jogoId)` → `GET /grupos/:grupoId/jogos/:jogoId/palpites/estatisticas`
+
+### Backend — palpite.service.ts (atualizado)
+- `buscarMeusPalpitesPorJogos(jogoIds, usuarioId)` — usa `buscarPorUsuarioEJogos` (batch)
+- `buscarEstatisticasPorJogo(jogoId, grupoId)` — conta vitória casa/empate/fora dos membros
+- Validação de palpite aceita `AGENDADO` e `ADIADO`
 
 ## Sessão 2 — Continuação
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { atualizarUsuario, excluirUsuario } from '@/services/usuario.service';
 import { FormularioPerfil } from '@/components/usuario/formulario-perfil';
@@ -73,6 +73,27 @@ export default function MinhaContaPage() {
         <div className="space-y-5">
           <FormularioPerfil usuario={usuario} onSubmit={aoAtualizarPerfil} />
           <FormularioAlterarSenha onSubmit={aoAlterarSenha} />
+
+          {/* Admin — visível apenas para SUPER_ADMIN */}
+          {usuario.perfil === 'SUPER_ADMIN' && (
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+              <h3 className="text-sm font-semibold text-texto mb-3">Administração</h3>
+              <button
+                type="button"
+                onClick={() => router.push('/admin/importar')}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.06] transition-colors"
+              >
+                <div className="h-9 w-9 rounded-lg bg-primaria/15 flex items-center justify-center">
+                  <Download size={18} className="text-primaria" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-texto">Importar jogos</p>
+                  <p className="text-[10px] text-texto/40">Importar rodadas da API externa</p>
+                </div>
+              </button>
+            </div>
+          )}
+
           <SecaoExcluirConta onConfirmar={aoExcluirConta} />
         </div>
       </div>

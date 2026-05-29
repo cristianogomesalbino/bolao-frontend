@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client';
-import { Palpite, DadosCriarPalpite, DadosAtualizarPalpite } from '@/types/palpite.types';
+import { Palpite, PalpiteComJogo, DadosCriarPalpite, DadosAtualizarPalpite } from '@/types/palpite.types';
 
 export async function criarPalpite(jogoId: string, dados: DadosCriarPalpite): Promise<Palpite> {
   const response = await apiClient.post<Palpite>(`/jogos/${jogoId}/palpites`, dados);
@@ -55,4 +55,11 @@ export async function buscarEstatisticasPalpite(
   } catch {
     return null;
   }
+}
+
+export async function listarMeusPalpites(temporadaId: string): Promise<PalpiteComJogo[]> {
+  const response = await apiClient.get<PalpiteComJogo[]>('/meus-palpites', {
+    params: { temporadaId },
+  });
+  return response.data;
 }
