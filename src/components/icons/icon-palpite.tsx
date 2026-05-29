@@ -39,5 +39,3 @@ export function IconPalpite({
     </svg>
   );
 }
-
-export default IconPalpite;

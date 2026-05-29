@@ -3,22 +3,198 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2, Pencil } from 'lucide-react';
+import Image from 'next/image';
 import { criarPalpite, atualizarPalpite, buscarEstatisticasPalpite } from '@/services/palpite.service';
-import { ClassificacaoTime } from '@/services/classificacao.service';
+import { calcularPontos } from '@/lib/pontuacao';
 import { Card, CardContent } from '@/components/ui/card';
 import { Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
 
 interface PropsCardJogoPalpite {
   jogo: Jogo;
-  classificacao?: ClassificacaoTime[];
   palpitavel?: boolean;
   grupoId?: string;
   ativo?: boolean;
   onFoco?: () => void;
 }
 
-export function CardJogoPalpite({ jogo, classificacao, palpitavel, grupoId, ativo, onFoco }: Readonly<PropsCardJogoPalpite>) {
+// --- Sub-componentes extraídos para reduzir complexidade cognitiva ---
+
+interface PropsEscudoTime {
+  time: { nome: string; sigla: string; escudo: string | null } | null | undefined;
+  label: string;
+}
+
+function EscudoTime({ time, label }: Readonly<PropsEscudoTime>) {
+  return (
+    <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+      <div className="relative h-14 flex items-center justify-center">
+        <div className="absolute inset-0 rounded-full bg-white/30 blur-lg" />
+        {time?.escudo ? (
+          <Image
+            src={time.escudo}
+            alt={time.nome}
+            width={56}
+            height={56}
+            className="relative h-14 w-14 object-contain"
+            unoptimized
+          />
+        ) : (
+          <div className="relative h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
+            {time?.sigla || '?'}
+          </div>
+        )}
+      </div>
+      <span className="text-xs text-texto font-medium truncate max-w-[70px]">
+        {time?.nome || label}
+      </span>
+    </div>
+  );
+}
+
+interface PropsFeedbackStatus {
+  salvando: boolean;
+  salvoFeedback: boolean;
+  contagem: number | null;
+  jaPalpitou: boolean;
+  editando: boolean;
+  palpiteAtual: Palpite | null;
+  onEditar: () => void;
+}
+
+function FeedbackStatus({ salvando, salvoFeedback, contagem, jaPalpitou, editando, palpiteAtual, onEditar }: Readonly<PropsFeedbackStatus>) {
+  if (salvando) {
+    return (
+      <span className="flex items-center gap-1 text-[10px] text-primaria-claro">
+        <Loader2 size={10} className="animate-spin" />
+        Salvando...
+      </span>
+    );
+  }
+  if (salvoFeedback) {
+    return (
+      <span className="flex items-center gap-1 text-[10px] text-primaria-claro animate-[fadeIn_0.2s_ease-out]">
+        <Check size={10} />
+        Salvo!
+      </span>
+    );
+  }
+  if (contagem !== null) {
+    return <span className="text-[10px] text-primaria-claro">Salvando em {contagem}...</span>;
+  }
+  if (!jaPalpitou) {
+    return <span className="text-[11px] text-destaque/80">⚠️ Você ainda não palpitou para este jogo!</span>;
+  }
+  if (!editando && palpiteAtual) {
+    return (
+      <button
+        type="button"
+        onClick={onEditar}
+        className="text-[10px] text-primaria-claro hover:text-primaria-claro flex items-center gap-1"
+      >
+        <Pencil size={10} />
+        Editar
+      </button>
+    );
+  }
+  return null;
+}
+
+interface PropsCentroCard {
+  jogo: Jogo;
+  palpitavel?: boolean;
+  jaPalpitou: boolean;
+  editando: boolean;
+  palpiteAtual: Palpite | null;
+  golsCasa: number;
+  golsFora: number;
+  salvando: boolean;
+  salvoFeedback: boolean;
+  onAlterarGolsCasa: (delta: number) => void;
+  onAlterarGolsFora: (delta: number) => void;
+}
+
+function CentroCard({
+  jogo, palpitavel, jaPalpitou, editando, palpiteAtual,
+  golsCasa, golsFora, salvando, salvoFeedback,
+  onAlterarGolsCasa, onAlterarGolsFora,
+}: Readonly<PropsCentroCard>) {
+  if (jogo.status === 'FINALIZADO' || jogo.status === 'EM_ANDAMENTO') {
+    return (
+      <>
+        <div className="flex items-center gap-3">
+          <span className={`text-2xl font-bold ${jogo.status === 'EM_ANDAMENTO' ? 'text-primaria' : 'text-texto'}`}>
+            {jogo.golsCasa ?? 0}
+          </span>
+          <span className="text-[10px] text-texto/20">×</span>
+          <span className={`text-2xl font-bold ${jogo.status === 'EM_ANDAMENTO' ? 'text-primaria' : 'text-texto'}`}>
+            {jogo.golsFora ?? 0}
+          </span>
+        </div>
+        {palpiteAtual && (
+          <span className="text-[9px] text-texto/30 mt-1">
+            Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}
+          </span>
+        )}
+      </>
+    );
+  }
+
+  if (palpitavel && jaPalpitou && !editando && palpiteAtual) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
+          <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual.golsCasa}</span>
+        </div>
+        <span className="text-sm font-bold text-texto/40">x</span>
+        <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
+          <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual.golsFora}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (palpitavel) {
+    const botoesInvisiveis = salvando || salvoFeedback ? 'invisible' : '';
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5">
+          <div className={`flex flex-col items-center justify-center gap-1 ${botoesInvisiveis}`}>
+            <button type="button" onClick={() => onAlterarGolsCasa(1)} className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]">
+              <ChevronDown size={24} className="rotate-180" />
+            </button>
+            <button type="button" onClick={() => onAlterarGolsCasa(-1)} className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]">
+              <ChevronDown size={24} />
+            </button>
+          </div>
+          <div className="w-11 h-12 rounded-lg bg-black/60 border border-white/[0.12] flex items-center justify-center">
+            <span className="text-2xl font-bold text-texto">{golsCasa}</span>
+          </div>
+        </div>
+        <span className="text-sm font-bold text-texto/40">x</span>
+        <div className="flex items-center gap-0.5">
+          <div className="w-11 h-12 rounded-lg bg-black/60 border border-white/[0.12] flex items-center justify-center">
+            <span className="text-2xl font-bold text-texto">{golsFora}</span>
+          </div>
+          <div className={`flex flex-col items-center justify-center gap-1 ${botoesInvisiveis}`}>
+            <button type="button" onClick={() => onAlterarGolsFora(1)} className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]">
+              <ChevronDown size={24} className="rotate-180" />
+            </button>
+            <button type="button" onClick={() => onAlterarGolsFora(-1)} className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]">
+              <ChevronDown size={24} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <span className="text-[11px] text-texto/40">—</span>;
+}
+
+// --- Componente principal ---
+
+export function CardJogoPalpite({ jogo, palpitavel, grupoId, ativo, onFoco }: Readonly<PropsCardJogoPalpite>) {
   const queryClient = useQueryClient();
   const [golsCasa, setGolsCasa] = useState(0);
   const [golsFora, setGolsFora] = useState(0);
@@ -43,7 +219,7 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel, grupoId, ativ
       setGolsFora(cached.golsFora);
       golsRef.current = { golsCasa: cached.golsCasa, golsFora: cached.golsFora };
     }
-  });
+  }, [jogo.id, palpiteLocal, queryClient]);
 
   const palpiteAtual = palpiteLocal;
   const jaPalpitou = !!palpiteAtual;
@@ -88,12 +264,16 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel, grupoId, ativ
     }, 2000);
   }
 
+  // Refs estáveis para mutations (evita stale closures no useCallback)
+  const mutationCriarRef = useRef(mutationCriar);
+  const mutationAtualizarRef = useRef(mutationAtualizar);
+  useEffect(() => { mutationCriarRef.current = mutationCriar; }, [mutationCriar]);
+  useEffect(() => { mutationAtualizarRef.current = mutationAtualizar; }, [mutationAtualizar]);
+
   const salvarComDebounce = useCallback(() => {
-    // Limpar timers anteriores
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (contagemRef.current) clearInterval(contagemRef.current);
 
-    // Iniciar contagem regressiva de 3s
     setContagem(3);
     let segundos = 3;
 
@@ -107,24 +287,21 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel, grupoId, ativ
       }
     }, 1000);
 
-    // Disparar save após 3s
     debounceRef.current = setTimeout(() => {
       const gols = golsRef.current;
       const palpite = palpiteRef.current;
       if (palpite) {
         if (gols.golsCasa !== palpite.golsCasa || gols.golsFora !== palpite.golsFora) {
-          mutationAtualizar.mutate({ palpiteId: palpite.id, gols });
+          mutationAtualizarRef.current.mutate({ palpiteId: palpite.id, gols });
         } else {
-          // Nada mudou, só limpar contagem
           setContagem(null);
         }
       } else {
-        mutationCriar.mutate(gols);
+        mutationCriarRef.current.mutate(gols);
       }
     }, 3000);
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -152,14 +329,12 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel, grupoId, ativ
     });
   }
 
-  // Scroll into view quando ativo
   useEffect(() => {
     if (ativo && cardRef.current) {
       cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [ativo]);
 
-  // Formatar data/hora centralizado
   const dataHoraFormatada = jogo.dataHora
     ? new Date(jogo.dataHora).toLocaleDateString('pt-BR', {
         weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo'
@@ -174,250 +349,138 @@ export function CardJogoPalpite({ jogo, classificacao, palpitavel, grupoId, ativ
     ? 'border-primaria border-[3px] shadow-[0_0_30px_rgba(34,197,94,0.35)]'
     : 'border-primaria';
 
+  function handleEditar() {
+    onFoco?.();
+    setEditando(true);
+    if (palpiteAtual) {
+      setGolsCasa(palpiteAtual.golsCasa);
+      setGolsFora(palpiteAtual.golsFora);
+      golsRef.current = { golsCasa: palpiteAtual.golsCasa, golsFora: palpiteAtual.golsFora };
+    }
+  }
+
   return (
     <div ref={cardRef} className="scroll-mt-[140px]">
       <Card className={`${cardBorda} transition-all duration-300`}>
         <CardContent className="p-3">
-        {/* Data/hora centralizada + indicação de status */}
-        <div className="flex items-center justify-center gap-2 mb-2">
-          {jogo.dataHora ? (
-            <span className="text-[11px] text-texto/80 uppercase tracking-wide">{dataHoraFormatada}</span>
-          ) : (
-            <span className="text-[9px] text-destaque font-semibold uppercase tracking-wide">Jogo adiado - Data a definir</span>
-          )}
-          {jogo.status === 'EM_ANDAMENTO' && (
-            <span className="flex items-center gap-1 text-[8px] text-erro font-bold">
-              <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />
-              AO VIVO
-            </span>
-          )}
-          {jogo.status === 'FINALIZADO' && (
-            <span className="text-[8px] text-texto/30 font-medium">ENCERRADO</span>
-          )}
-        </div>
-
-        {/* Times + Placar/Palpite */}
-        <div className="flex items-center gap-2">
-          {/* Time Casa */}
-          <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <div className="relative h-14 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-white/30 blur-lg" />
-              {jogo.timeCasa?.escudo ? (
-                <img src={jogo.timeCasa.escudo} alt={jogo.timeCasa.nome} className="relative h-14 w-14 object-contain" />
-              ) : (
-                <div className="relative h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
-                  {jogo.timeCasa?.sigla || '?'}
-                </div>
-              )}
-            </div>
-            <span className="text-xs text-texto font-medium truncate max-w-[70px]">
-              {jogo.timeCasa?.nome || 'Casa'}
-            </span>
-          </div>
-
-          {/* Centro: Placar final (se finalizado) ou Palpite (se agendado) */}
-          <div className="flex flex-col items-center shrink-0 w-[160px]">
-            {jogo.status === 'FINALIZADO' || jogo.status === 'EM_ANDAMENTO' ? (
-              <>
-                {/* Placar final */}
-                <div className="flex items-center gap-3">
-                  <span className={`text-2xl font-bold ${jogo.status === 'EM_ANDAMENTO' ? 'text-primaria' : 'text-texto'}`}>
-                    {jogo.golsCasa ?? 0}
-                  </span>
-                  <span className="text-[10px] text-texto/20">×</span>
-                  <span className={`text-2xl font-bold ${jogo.status === 'EM_ANDAMENTO' ? 'text-primaria' : 'text-texto'}`}>
-                    {jogo.golsFora ?? 0}
-                  </span>
-                </div>
-                {/* Meu palpite abaixo */}
-                {palpiteAtual && (
-                  <span className="text-[9px] text-texto/30 mt-1">
-                    Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}
-                  </span>
-                )}
-              </>
-            ) : palpitavel && (jaPalpitou && !editando) ? (
-              <>
-                {/* Palpite feito - modo visualização */}
-                <div className="flex items-center gap-2">
-                  <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual!.golsCasa}</span>
-                  </div>
-                  <span className="text-sm font-bold text-texto/40">x</span>
-                  <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual!.golsFora}</span>
-                  </div>
-                </div>
-              </>
-            ) : palpitavel ? (
-              <>
-                {/* Controles estilo caixa com setas laterais */}
-                <div className="flex items-center gap-2">
-                  {/* Gols Casa */}
-                  <div className="flex items-center gap-0.5">
-                    <div className={`flex flex-col items-center justify-center gap-1 ${salvando || salvoFeedback ? 'invisible' : ''}`}>
-                      <button
-                        type="button"
-                        onClick={() => alterarGolsCasa(1)}
-                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
-                      >
-                        <ChevronDown size={24} className="rotate-180" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => alterarGolsCasa(-1)}
-                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
-                      >
-                        <ChevronDown size={24} />
-                      </button>
-                    </div>
-                    <div className="w-11 h-12 rounded-lg bg-black/60 border border-white/[0.12] flex items-center justify-center">
-                      <span className="text-2xl font-bold text-texto">{golsCasa}</span>
-                    </div>
-                  </div>
-
-                  <span className="text-sm font-bold text-texto/40">x</span>
-
-                  {/* Gols Fora */}
-                  <div className="flex items-center gap-0.5">
-                    <div className="w-11 h-12 rounded-lg bg-black/60 border border-white/[0.12] flex items-center justify-center">
-                      <span className="text-2xl font-bold text-texto">{golsFora}</span>
-                    </div>
-                    <div className={`flex flex-col items-center justify-center gap-1 ${salvando || salvoFeedback ? 'invisible' : ''}`}>
-                      <button
-                        type="button"
-                        onClick={() => alterarGolsFora(1)}
-                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
-                      >
-                        <ChevronDown size={24} className="rotate-180" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => alterarGolsFora(-1)}
-                        className="text-texto/50 hover:text-texto active:scale-90 transition-all p-1 rounded border border-white/[0.12]"
-                      >
-                        <ChevronDown size={24} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
+          {/* Data/hora + status */}
+          <div className="flex items-center justify-center gap-2 mb-2">
+            {jogo.dataHora ? (
+              <span className="text-[11px] text-texto/80 uppercase tracking-wide">{dataHoraFormatada}</span>
             ) : (
-              <span className="text-[11px] text-texto/40">—</span>
+              <span className="text-[9px] text-destaque font-semibold uppercase tracking-wide">Jogo adiado - Data a definir</span>
+            )}
+            {jogo.status === 'EM_ANDAMENTO' && (
+              <span className="flex items-center gap-1 text-[8px] text-erro font-bold">
+                <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />{' '}
+                AO VIVO
+              </span>
+            )}
+            {jogo.status === 'FINALIZADO' && (
+              <span className="text-[8px] text-texto/30 font-medium">ENCERRADO</span>
             )}
           </div>
 
-          {/* Time Fora */}
-          <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <div className="relative h-14 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-white/30 blur-lg" />
-              {jogo.timeFora?.escudo ? (
-                <img src={jogo.timeFora.escudo} alt={jogo.timeFora.nome} className="relative h-14 w-14 object-contain" />
+          {/* Times + Placar/Palpite */}
+          <div className="flex items-center gap-2">
+            <EscudoTime time={jogo.timeCasa} label="Casa" />
+
+            <div className="flex flex-col items-center shrink-0 w-[160px]">
+              <CentroCard
+                jogo={jogo}
+                palpitavel={palpitavel}
+                jaPalpitou={jaPalpitou}
+                editando={editando}
+                palpiteAtual={palpiteAtual}
+                golsCasa={golsCasa}
+                golsFora={golsFora}
+                salvando={salvando}
+                salvoFeedback={salvoFeedback}
+                onAlterarGolsCasa={alterarGolsCasa}
+                onAlterarGolsFora={alterarGolsFora}
+              />
+            </div>
+
+            <EscudoTime time={jogo.timeFora} label="Fora" />
+          </div>
+
+          {/* Feedback de status */}
+          {palpitavel && (
+            <div className="mt-1.5 h-5 flex items-center justify-center">
+              <FeedbackStatus
+                salvando={salvando}
+                salvoFeedback={salvoFeedback}
+                contagem={contagem}
+                jaPalpitou={jaPalpitou}
+                editando={editando}
+                palpiteAtual={palpiteAtual}
+                onEditar={handleEditar}
+              />
+            </div>
+          )}
+
+          {/* Pontuação (jogos finalizados) */}
+          {jogo.status === 'FINALIZADO' && palpiteAtual && (
+            <div className="flex items-center justify-center mt-2 pt-2 border-t border-white/[0.05]">
+              {(() => {
+                const pts = calcularPontos({
+                  ...palpiteAtual,
+                  jogo: { golsCasa: jogo.golsCasa, golsFora: jogo.golsFora, status: jogo.status },
+                });
+                if (pts > 0) {
+                  return <span className="text-[10px] text-primaria font-semibold">+{pts} pts</span>;
+                }
+                return <span className="text-[10px] text-texto/30">0 pts</span>;
+              })()}
+            </div>
+          )}
+
+          {/* Seta expandir */}
+          <button
+            type="button"
+            onClick={() => setExpandido(!expandido)}
+            className="w-full flex items-center justify-center mt-2 pt-1"
+          >
+            <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandido ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Barra de palpites da galera */}
+          {expandido && (
+            <div className="mt-2 pt-2 border-t border-white/[0.05]">
+              {estatisticas && estatisticas.total > 0 ? (
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-left">
+                      <span className="text-sm font-bold text-primaria">{estatisticas.percentualCasa}%</span>
+                      <p className="text-[9px] text-texto/40">da galera</p>
+                    </div>
+                    {estatisticas.percentualEmpate > 0 && (
+                      <div className="text-center">
+                        <span className="text-sm font-bold text-texto/60">{estatisticas.percentualEmpate}%</span>
+                        <p className="text-[9px] text-texto/40">empate</p>
+                      </div>
+                    )}
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-erro">{estatisticas.percentualFora}%</span>
+                      <p className="text-[9px] text-texto/40">da galera</p>
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden flex">
+                    <div className="h-full bg-primaria rounded-l-full" style={{ width: `${estatisticas.percentualCasa}%` }} />
+                    {estatisticas.percentualEmpate > 0 && (
+                      <div className="h-full bg-texto/30" style={{ width: `${estatisticas.percentualEmpate}%` }} />
+                    )}
+                    <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
+                  </div>
+                  <p className="text-[9px] text-texto/30 text-center mt-1">{estatisticas.total} palpites</p>
+                </>
               ) : (
-                <div className="relative h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
-                  {jogo.timeFora?.sigla || '?'}
-                </div>
+                <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>
               )}
             </div>
-            <span className="text-xs text-texto font-medium truncate max-w-[70px]">
-              {jogo.timeFora?.nome || 'Fora'}
-            </span>
-          </div>
-        </div>
-
-        {/* Feedback de status (abaixo dos times, centralizado) */}
-        {palpitavel && (
-          <div className="mt-1.5 h-5 flex items-center justify-center">
-            {salvando ? (
-              <span className="flex items-center gap-1 text-[10px] text-primaria-claro">
-                <Loader2 size={10} className="animate-spin" />
-                Salvando...
-              </span>
-            ) : salvoFeedback ? (
-              <span className="flex items-center gap-1 text-[10px] text-primaria-claro animate-[fadeIn_0.2s_ease-out]">
-                <Check size={10} />
-                Salvo!
-              </span>
-            ) : contagem !== null ? (
-              <span className="text-[10px] text-primaria-claro">
-                Salvando em {contagem}...
-              </span>
-            ) : !jaPalpitou ? (
-              <span className="text-[11px] text-destaque/80">
-                ⚠️ Você ainda não palpitou para este jogo!
-              </span>
-            ) : !editando ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onFoco?.();
-                  setEditando(true);
-                  setGolsCasa(palpiteAtual!.golsCasa);
-                  setGolsFora(palpiteAtual!.golsFora);
-                  golsRef.current = { golsCasa: palpiteAtual!.golsCasa, golsFora: palpiteAtual!.golsFora };
-                }}
-                className="text-[10px] text-primaria-claro hover:text-primaria-claro flex items-center gap-1"
-              >
-                <Pencil size={10} />
-                Editar
-              </button>
-            ) : null}
-          </div>
-        )}
-
-        {/* Pontuação (jogos finalizados) */}
-        {jogo.status === 'FINALIZADO' && palpiteAtual && (
-          <div className="flex items-center justify-center mt-2 pt-2 border-t border-white/[0.05]">
-            <span className="text-[10px] text-primaria font-semibold">+10 pts</span>
-          </div>
-        )}
-
-        {/* Seta expandir detalhes */}
-        <button
-          type="button"
-          onClick={() => setExpandido(!expandido)}
-          className="w-full flex items-center justify-center mt-2 pt-1"
-        >
-          <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandido ? 'rotate-180' : ''}`} />
-        </button>
-
-        {/* Barra de palpites da galera */}
-        {expandido && (
-          <div className="mt-2 pt-2 border-t border-white/[0.05]">
-            {estatisticas && estatisticas.total > 0 ? (
-              <>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-left">
-                    <span className="text-sm font-bold text-primaria">{estatisticas.percentualCasa}%</span>
-                    <p className="text-[9px] text-texto/40">da galera</p>
-                  </div>
-                  {estatisticas.percentualEmpate > 0 && (
-                    <div className="text-center">
-                      <span className="text-sm font-bold text-texto/60">{estatisticas.percentualEmpate}%</span>
-                      <p className="text-[9px] text-texto/40">empate</p>
-                    </div>
-                  )}
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-erro">{estatisticas.percentualFora}%</span>
-                    <p className="text-[9px] text-texto/40">da galera</p>
-                  </div>
-                </div>
-                <div className="h-2 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-primaria rounded-l-full" style={{ width: `${estatisticas.percentualCasa}%` }} />
-                  {estatisticas.percentualEmpate > 0 && (
-                    <div className="h-full bg-texto/30" style={{ width: `${estatisticas.percentualEmpate}%` }} />
-                  )}
-                  <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
-                </div>
-                <p className="text-[9px] text-texto/30 text-center mt-1">{estatisticas.total} palpites</p>
-              </>
-            ) : (
-              <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

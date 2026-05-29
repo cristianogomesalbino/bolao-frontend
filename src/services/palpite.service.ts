@@ -28,7 +28,8 @@ export async function buscarMeusPalpitesPorJogos(jogoIds: string[]): Promise<Pal
   try {
     const response = await apiClient.post<Palpite[]>('/meus-palpites/por-jogos', { jogoIds });
     return response.data;
-  } catch {
+  } catch (error) {
+    console.error('[palpite.service] Erro ao buscar palpites por jogos:', error);
     return [];
   }
 }
@@ -52,7 +53,8 @@ export async function buscarEstatisticasPalpite(
       `/grupos/${grupoId}/jogos/${jogoId}/palpites/estatisticas`,
     );
     return response.data;
-  } catch {
+  } catch (error) {
+    console.error('[palpite.service] Erro ao buscar estatísticas:', error);
     return null;
   }
 }

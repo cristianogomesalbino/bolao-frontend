@@ -4,26 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Crosshair, Trophy, TrendingUp } from 'lucide-react';
 import { listarFases, listarJogosFase } from '@/services/jogo.service';
-import { buscarClassificacao } from '@/services/classificacao.service';
+import { listarGrupos } from '@/services/grupo.service';
 import { buscarMeusPalpitesPorJogos, listarMeusPalpites } from '@/services/palpite.service';
+import { calcularPontos, PONTOS } from '@/lib/pontuacao';
 import { Jogo } from '@/types/jogo.types';
 import { PalpiteComJogo } from '@/types/palpite.types';
 import { CardJogoPalpite } from '@/components/jogos/card-jogo-palpite';
 import { IconPalpite } from '@/components/icons/icon-palpite';
-
-function calcularPontos(p: PalpiteComJogo): number {
-  if (!p.jogo || p.jogo.golsCasa === null || p.jogo.golsFora === null) return 0;
-  const { golsCasa: rc, golsFora: rf } = p.jogo;
-  const { golsCasa: pc, golsFora: pf } = p;
-
-  // Acerto em cheio (placar exato)
-  if (pc === rc && pf === rf) return 3;
-  // Acerto parcial (resultado: vitória/empate/derrota)
-  const resultadoReal = rc > rf ? 'casa' : rc < rf ? 'fora' : 'empate';
-  const resultadoPalpite = pc > pf ? 'casa' : pc < pf ? 'fora' : 'empate';
-  if (resultadoReal === resultadoPalpite) return 1;
-  return 0;
-}
 
 export default function PalpitesPage() {
   const [abaAtiva, setAbaAtiva] = useState<'todos' | 'meus'>('todos');
@@ -52,11 +39,8 @@ export default function PalpitesPage() {
   // Buscar temporadaId do primeiro grupo do usuário
   const { data: gruposData } = useQuery({
     queryKey: ['grupos-palpites'],
-    queryFn: async () => {
-      const { default: apiClient } = await import('@/lib/api-client');
-      const response = await apiClient.get('/grupos', { params: { membro: true } });
-      return response.data as Array<{ id: string; temporadaId: string }>;
-    },
+    queryFn: () => listarGrupos(),
+    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId })),
   });
 
   const temporadaId = gruposData?.[0]?.temporadaId || '';
@@ -89,12 +73,6 @@ export default function PalpitesPage() {
     queryKey: ['jogos-proxima-rodada', faseAtual?.id, proximaRodada],
     queryFn: () => listarJogosFase(faseAtual!.id, proximaRodada!),
     enabled: !!faseAtual?.id && !!proximaRodada && proximaRodada <= 38,
-  });
-
-  const { data: classificacao } = useQuery({
-    queryKey: ['classificacao'],
-    queryFn: () => buscarClassificacao(),
-    staleTime: 1000 * 60 * 60,
   });
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
@@ -223,7 +201,6 @@ export default function PalpitesPage() {
                     <CardJogoPalpite
                       key={jogo.id}
                       jogo={jogo}
-                      classificacao={classificacao}
                       palpitavel={jogo.status === 'AGENDADO' || jogo.status === 'ADIADO'}
                       grupoId={grupoId}
                       ativo={cardAtivo === jogo.id}
@@ -249,7 +226,6 @@ export default function PalpitesPage() {
                     <CardJogoPalpite
                       key={jogo.id}
                       jogo={jogo}
-                      classificacao={classificacao}
                       palpitavel={jogo.status === 'AGENDADO' || jogo.status === 'ADIADO'}
                       grupoId={grupoId}
                       ativo={cardAtivo === jogo.id}
@@ -409,8 +385,8 @@ export default function PalpitesPage() {
                     const palpitesFiltrados = palpites.filter((p: PalpiteComJogo) => {
                       if (filtroTipo === 'todos') return true;
                       const pts = calcularPontos(p);
-                      if (filtroTipo === 'cheio') return pts === 3;
-                      if (filtroTipo === 'parcial') return pts === 1;
+                      if (filtroTipo === 'cheio') return pts === PONTOS.ACERTO_EM_CHEIO;
+                      if (filtroTipo === 'parcial') return pts === PONTOS.ACERTO_RESULTADO;
                       return pts === 0;
                     });
                     if (palpitesFiltrados.length === 0) return null;
@@ -442,7 +418,7 @@ export default function PalpitesPage() {
                                 {temPontos && (
                                   <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl bg-gradient-to-b from-primaria via-primaria-claro to-primaria/30 shadow-[0_0_14px_rgba(34,197,94,0.6)]" />
                                 )}
-                                {pts === 3 && (
+                                {pts === PONTOS.ACERTO_EM_CHEIO && (
                                   <>
                                     <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl bg-gradient-to-r from-primaria via-primaria-claro to-primaria/30 shadow-[0_0_14px_rgba(34,197,94,0.6)]" />
                                     <div className="absolute bottom-0 left-0 right-0 h-[3px] rounded-b-xl bg-gradient-to-r from-primaria/30 via-primaria-claro to-primaria shadow-[0_0_14px_rgba(34,197,94,0.6)]" />
@@ -531,7 +507,7 @@ export default function PalpitesPage() {
                             const total = (filtroRodada
                               ? palpitesPorRodada[filtroRodada] ?? []
                               : palpitesFinalizados
-                            ).filter((p: PalpiteComJogo) => calcularPontos(p) === 3).length;
+                            ).filter((p: PalpiteComJogo) => calcularPontos(p) === PONTOS.ACERTO_EM_CHEIO).length;
                             return total > 0 ? total : 0;
                           })()}
                         </p>
