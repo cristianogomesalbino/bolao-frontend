@@ -230,11 +230,119 @@ Deploy: Vercel (branch main)
 
 ## Próximos Passos
 
-1. Criar tela `/jogos` (aba da bottom nav — atualmente dá 404)
-2. Implementar palpite em lote (tela de jogos da rodada)
+1. ~~Criar tela `/jogos` (aba da bottom nav)~~ ✅ → renomeada para `/palpites`
+2. Implementar palpite em lote (botão "Salvar todos")
 3. Conectar painel da rodada
 4. Implementar palpite dobrado (fichas)
 5. Atividade recente com dados reais
 6. Login com Google (OAuth)
 7. Resolver dívida técnica: substituir `any` por tipos corretos
 8. Testes E2E com Playwright
+9. Refatorar page do grupo (extrair componentes — está com ~500 linhas)
+10. Corrigir jogos AGENDADO sem data no banco (devem ser ADIADO) — SQL: `UPDATE "Jogo" SET status = 'ADIADO' WHERE "dataHora" IS NULL AND status = 'AGENDADO'`
+
+## Sessão 3 — Palpites + Performance
+
+### Seletor de placar redesenhado
+- Estilo: caixas escuras (`bg-black/60`) com número grande + setas laterais (ChevronDown) com borda
+- Setas ao lado da caixa (não acima/abaixo), `size={24}`, com `border border-white/[0.12] rounded p-1`
+- "x" no meio separando os dois placares
+- Escudos aumentados para `h-14 w-14` com glow branco (`bg-white/30 blur-lg`)
+- Nomes dos times: `text-xs text-texto font-medium`
+- Data/hora: `text-[11px] text-texto/80`
+- Borda do card: `border-primaria` (verde sólido)
+- Botão "Editar": `text-xs` com ícone Pencil
+- Placar do palpite feito: `text-3xl font-bold text-primaria-claro`
+
+### Jogos adiados — regras de exibição
+- Jogos sem data (`dataHora: null`): mostram "JOGO ADIADO - DATA A DEFINIR" no topo (onde fica a data)
+- Jogos adiados são palpitáveis (backend aceita `AGENDADO` e `ADIADO`)
+- Quando jogo adiado recebe data → volta para `AGENDADO` com `foiAdiado = true`
+- Campo `foiAdiado` é o indicador permanente de que o jogo foi adiado
+- Jogos palpitáveis ficam no topo da lista (sort por status)
+
+### Barra de estatísticas (expandível)
+- Ao expandir card (seta inferior): mostra barra de distribuição de palpites do grupo
+- Verde (esquerda): % vitória time casa
+- Cinza (meio): % empate
+- Vermelho (direita): % vitória time fora
+- Total de palpites exibido abaixo
+- Lazy loading: só busca ao expandir (`enabled: expandido`)
+- Atualiza ao salvar palpite (`invalidateQueries`)
+
+### Endpoint novo: `GET /grupos/:grupoId/jogos/:jogoId/palpites/estatisticas`
+- Retorna: `{ total, vitoriaCasa, empate, vitoriaFora, percentualCasa, percentualEmpate, percentualFora }`
+- Guard: `GroupRoleGuard` (ADMIN, MEMBER)
+- Service: `PalpiteService.buscarEstatisticasPorJogo`
+
+### Endpoint novo: `POST /meus-palpites/por-jogos`
+- Body: `{ jogoIds: string[] }`
+- Retorna: array de palpites do usuário para os jogos informados
+- Substitui N requests individuais de `GET /jogos/:id/meu-palpite`
+- Frontend: query batch na page popula cache individual via `setQueryData`
+
+### Otimização de performance — Login → Home
+- `inicializar()` verifica `estaAutenticado` antes de refazer refresh (evita 2 requests extras)
+- Guard de autenticação: skeleton da home (header + cards pulsando) em vez de spinner genérico
+- Root page: spinner maior + texto "Carregando..."
+
+### Otimização de requests — Palpites
+- Antes: N requests `GET /jogos/:id/meu-palpite` (1 por jogo, muitas 404)
+- Depois: 1 request `POST /meus-palpites/por-jogos` com todos os IDs
+- Card lê do cache (sem queryFn própria), populado pelo batch
+- Key estável: `['meus-palpites-batch', faseId, rodadaAtual]`
+
+### palpite.service.ts (atualizado)
+- `buscarMeusPalpitesPorJogos(jogoIds)` → `POST /meus-palpites/por-jogos`
+- `buscarEstatisticasPalpite(grupoId, jogoId)` → `GET /grupos/:grupoId/jogos/:jogoId/palpites/estatisticas`
+
+### Backend — palpite.service.ts (atualizado)
+- `buscarMeusPalpitesPorJogos(jogoIds, usuarioId)` — usa `buscarPorUsuarioEJogos` (batch)
+- `buscarEstatisticasPorJogo(jogoId, grupoId)` — conta vitória casa/empate/fora dos membros
+- Validação de palpite aceita `AGENDADO` e `ADIADO`
+
+## Sessão 2 — Continuação
+
+### Tela `/palpites` (nova — aba da bottom nav)
+- Rota: `/palpites` (renomeada de `/jogos`)
+- Header: ícone bola de futebol customizado + "Palpites" + subtítulo
+- Card da rodada: número da rodada, badge "Em andamento"/"Agendada", barra de progresso de palpites
+- 3 abas: "Todos os jogos" | "Meus palpites" | "Ao vivo" (com bolinha pulsante)
+- Mostra 2 rodadas (atual + próxima) com separador "Rodada X"
+- Jogos agendados + em andamento + finalizados da rodada
+- Loading skeleton
+
+### Componente `CardJogoPalpite` (refatorado)
+- Data/hora centralizada no topo
+- Indicação de status: "AO VIVO" (bolinha vermelha pulsante), "ENCERRADO"
+- Escudos + nome dos times nas laterais
+- Centro: placar final (se finalizado/ao vivo) ou controles +/- (se agendado)
+- Inversão: placar final no destaque, "Meu palpite: X × Y" abaixo
+- Pontuação "+10 pts" quando jogo finalizado
+- Seta no rodapé para expandir/retrair detalhes
+- Sem estrela
+- Botão "Editar" no palpite já feito
+
+### Bottom Nav
+- Aba renomeada: "Jogos" → "Palpites"
+- Rota: `/jogos` → `/palpites`
+- Ícone customizado: bola de futebol SVG (`src/components/icons/icon-palpite.tsx`)
+- Todos os ícones aumentados para 24px
+
+### Ícone customizado `IconPalpite`
+- SVG puro: bola de futebol com pentágono central e gomos
+- Props: size, color, strokeWidth, className
+- Estilo Lucide (round caps/joins, monocromático)
+- Arquivo: `src/components/icons/icon-palpite.tsx`
+
+### Fixes nesta sessão
+- `JogosResponse` tipo atualizado com `rodadaAtual: number | null`
+- Ranking: grupos com <3 membros mostram lista direto (sem pódio)
+- Ranking: "Ver todos" / "Ver menos" (expande inline, limita a 5 por padrão)
+- Removido card "Atividade Recente" (mock) da tela do grupo
+- Alerta "Há jogos atrasados" movido para fora do card de próximo jogo (aparece sempre)
+- Contagem de adiados inclui jogos com `foiAdiado=true` e status AGENDADO
+- Steerings: adicionado `description` em todos os front-matters
+- Steering coding-conventions: adicionadas seções Páginas, React Query, Tailwind, Dados Externos
+- ESLint: `no-explicit-any: off`, `no-unused-vars: warn`, `prefer-const: warn`
+- Build Vercel: removido `skipWaiting`, pasta aninhada, `(protegido)/page.tsx`

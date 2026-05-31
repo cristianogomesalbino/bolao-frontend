@@ -19,6 +19,18 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-1024x1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-adaptive-foreground.svg",
+      "sizes": "108x108",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }

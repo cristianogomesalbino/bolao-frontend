@@ -133,6 +133,16 @@ const { usuario, login, logout } = useAuthStore();
 - `enabled` para queries dependentes de dados anteriores
 - Mutations com `onSuccess` para invalidar/atualizar cache local
 - Usar `queryClient.setQueryData` para updates otimistas quando possível
+- **NUNCA fazer N requests individuais quando um batch resolve** — criar endpoint batch e popular cache individual via `setQueryData`
+- Queries de estatísticas/detalhes: usar `enabled` com flag de visibilidade (ex: `expandido`) para lazy loading
+- Key de query batch: usar identificadores estáveis (ex: `faseId + rodadaAtual`) em vez de listas de IDs que mudam
+
+## Performance / Otimização de Requests
+
+- **Batch over individual**: se precisa buscar dados para N itens, criar endpoint `POST /recurso/por-ids` e popular cache individual
+- **Lazy loading**: dados secundários (estatísticas, detalhes expandidos) só carregam quando visíveis
+- **Auth store**: `inicializar()` deve verificar `estaAutenticado` antes de refazer refresh — evita requests duplicadas após login
+- **staleTime: Infinity** para dados que só mudam por ação do usuário (ex: palpites) — invalidar manualmente no `onSuccess` da mutation
 
 ## Tailwind / Estilo
 
@@ -140,8 +150,12 @@ const { usuario, login, logout } = useAuthStore();
 - Exceção: gradientes e sombras específicas podem usar hex (`from-[#16a34a] to-[#22c55e]`)
 - Breakpoints: mobile-first, max-width 480px para conteúdo principal
 - Glassmorphism: `bg-white/[0.03] backdrop-blur-xl border border-white/[0.12]`
-- Glow em escudos/ícones: `drop-shadow-[0_0_Xpx_rgba(...)]`
+- Glow em escudos/ícones: `drop-shadow-[0_0_Xpx_rgba(...)]` ou `bg-white/30 blur-lg` (glow branco atrás de escudos)
 - Timezone em datas: sempre `{ timeZone: 'America/Sao_Paulo' }` no `toLocaleString`
+- Cards de jogo: borda verde sólida (`border-primaria`), escudos com glow branco (`bg-white/30 blur-lg`)
+- Seletor de placar: caixas escuras (`bg-black/60 border-white/[0.12]`) com setas laterais (ChevronDown rotacionado) com borda
+- Textos de data/hora e nomes de times: `text-texto/80` e `text-texto` (branco vivo, não opaco)
+- Skeleton loading: usar `animate-pulse` com blocos que imitam o layout real da página
 
 ## Dados Externos (APIs de terceiros)
 
