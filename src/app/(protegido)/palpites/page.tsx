@@ -11,6 +11,19 @@ import { Jogo } from '@/types/jogo.types';
 import { PalpiteComJogo } from '@/types/palpite.types';
 import { CardJogoPalpite } from '@/components/jogos/card-jogo-palpite';
 import { IconPalpite } from '@/components/icons/icon-palpite';
+import { useAuthStore } from '@/stores/auth.store';
+
+/** Verifica se o jogo ainda aceita palpites (status + hora não passou) */
+function jogoPalpitavel(jogo: Jogo): boolean {
+  if (jogo.status !== 'AGENDADO' && jogo.status !== 'ADIADO') return false;
+  return true;
+}
+
+/** Verifica se o jogo já começou (hora passou) — bloqueia edição */
+function jogoJaComecou(jogo: Jogo): boolean {
+  if (!jogo.dataHora) return false;
+  return new Date(jogo.dataHora).getTime() <= Date.now();
+}
 
 export default function PalpitesPage() {
   const [abaAtiva, setAbaAtiva] = useState<'todos' | 'meus'>('todos');
@@ -19,6 +32,7 @@ export default function PalpitesPage() {
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'cheio' | 'parcial' | 'nada'>('todos');
   const [dropdownRodadaAberto, setDropdownRodadaAberto] = useState(false);
   const [dropdownTipoAberto, setDropdownTipoAberto] = useState(false);
+  const usuario = useAuthStore((state) => state.usuario);
   const dropdownRodadaRef = useRef<HTMLDivElement>(null);
   const dropdownTipoRef = useRef<HTMLDivElement>(null);
 
@@ -38,7 +52,7 @@ export default function PalpitesPage() {
 
   // Buscar temporadaId do primeiro grupo do usuário
   const { data: gruposData } = useQuery({
-    queryKey: ['grupos-palpites'],
+    queryKey: ['grupos'],
     queryFn: () => listarGrupos(),
     select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId })),
   });
@@ -98,7 +112,7 @@ export default function PalpitesPage() {
   const queryClient = useQueryClient();
 
   useQuery({
-    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada],
+    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada, usuario?.id],
     queryFn: async () => {
       const palpites = await buscarMeusPalpitesPorJogos(todosJogoIds);
       const palpitesPorJogo = new Map(palpites.map((p) => [p.jogoId, p]));
@@ -113,7 +127,7 @@ export default function PalpitesPage() {
 
   // Meus palpites anteriores (jogos finalizados)
   const { data: meusPalpitesAnteriores, isLoading: carregandoPalpites } = useQuery({
-    queryKey: ['meus-palpites-historico', temporadaId],
+    queryKey: ['meus-palpites-historico', temporadaId, usuario?.id],
     queryFn: () => listarMeusPalpites(temporadaId),
     enabled: !!temporadaId && abaAtiva === 'meus',
   });
@@ -201,7 +215,8 @@ export default function PalpitesPage() {
                     <CardJogoPalpite
                       key={jogo.id}
                       jogo={jogo}
-                      palpitavel={jogo.status === 'AGENDADO' || jogo.status === 'ADIADO'}
+                      palpitavel={jogoPalpitavel(jogo)}
+                      bloqueado={jogoJaComecou(jogo)}
                       grupoId={grupoId}
                       ativo={cardAtivo === jogo.id}
                       onFoco={() => setCardAtivo(jogo.id)}
@@ -226,7 +241,8 @@ export default function PalpitesPage() {
                     <CardJogoPalpite
                       key={jogo.id}
                       jogo={jogo}
-                      palpitavel={jogo.status === 'AGENDADO' || jogo.status === 'ADIADO'}
+                      palpitavel={jogoPalpitavel(jogo)}
+                      bloqueado={jogoJaComecou(jogo)}
                       grupoId={grupoId}
                       ativo={cardAtivo === jogo.id}
                       onFoco={() => setCardAtivo(jogo.id)}

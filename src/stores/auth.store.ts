@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Usuario } from '@/types/usuario.types';
 import { DadosLogin } from '@/types/auth.types';
 import apiClient, { configurarTokenHandlers } from '@/lib/api-client';
+import { queryClient } from '@/lib/query-client';
 
 // --- Gerenciador de Tokens ---
 let accessToken: string | null = null;
@@ -54,6 +55,7 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
     },
     aoFalharRefresh: () => {
       limparTokens();
+      queryClient.clear();
       set({ usuario: null, estaAutenticado: false, estaCarregando: false });
       if (globalThis.window !== undefined) {
         globalThis.location.href = '/login';
@@ -67,6 +69,7 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
     estaCarregando: true,
 
     login: async (dados: DadosLogin) => {
+      queryClient.removeQueries();
       const response = await apiClient.post('/auth/login', dados);
       const { accessToken: newAccess, refreshToken: newRefresh } = response.data;
       salvarTokens(newAccess, newRefresh);
@@ -75,6 +78,7 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
       const perfilResponse = await apiClient.get('/usuarios/me');
       const usuario = perfilResponse.data;
 
+      queryClient.invalidateQueries();
       set({ usuario, estaAutenticado: true, estaCarregando: false });
     },
 
@@ -88,6 +92,7 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
         // Ignore logout errors
       } finally {
         limparTokens();
+        queryClient.clear();
         set({ usuario: null, estaAutenticado: false, estaCarregando: false });
       }
     },

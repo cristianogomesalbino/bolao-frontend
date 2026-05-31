@@ -13,6 +13,7 @@ import { Palpite } from '@/types/palpite.types';
 interface PropsCardJogoPalpite {
   jogo: Jogo;
   palpitavel?: boolean;
+  bloqueado?: boolean;
   grupoId?: string;
   ativo?: boolean;
   onFoco?: () => void;
@@ -59,10 +60,11 @@ interface PropsFeedbackStatus {
   jaPalpitou: boolean;
   editando: boolean;
   palpiteAtual: Palpite | null;
-  onEditar: () => void;
+  onEditar?: () => void;
+  bloqueado?: boolean;
 }
 
-function FeedbackStatus({ salvando, salvoFeedback, contagem, jaPalpitou, editando, palpiteAtual, onEditar }: Readonly<PropsFeedbackStatus>) {
+function FeedbackStatus({ salvando, salvoFeedback, contagem, jaPalpitou, editando, palpiteAtual, onEditar, bloqueado }: Readonly<PropsFeedbackStatus>) {
   if (salvando) {
     return (
       <span className="flex items-center gap-1 text-[10px] text-primaria-claro">
@@ -82,10 +84,13 @@ function FeedbackStatus({ salvando, salvoFeedback, contagem, jaPalpitou, editand
   if (contagem !== null) {
     return <span className="text-[10px] text-primaria-claro">Salvando em {contagem}...</span>;
   }
-  if (!jaPalpitou) {
+  if (!jaPalpitou && !bloqueado) {
     return <span className="text-[11px] text-destaque/80">⚠️ Você ainda não palpitou para este jogo!</span>;
   }
-  if (!editando && palpiteAtual) {
+  if (!jaPalpitou && bloqueado) {
+    return <span className="text-[10px] text-texto/30">🔒 Palpite encerrado</span>;
+  }
+  if (!editando && palpiteAtual && !bloqueado) {
     return (
       <button
         type="button"
@@ -97,12 +102,16 @@ function FeedbackStatus({ salvando, salvoFeedback, contagem, jaPalpitou, editand
       </button>
     );
   }
+  if (!editando && palpiteAtual && bloqueado) {
+    return <span className="text-[10px] text-texto/30">🔒 Palpite encerrado</span>;
+  }
   return null;
 }
 
 interface PropsCentroCard {
   jogo: Jogo;
   palpitavel?: boolean;
+  bloqueado?: boolean;
   jaPalpitou: boolean;
   editando: boolean;
   palpiteAtual: Palpite | null;
@@ -115,7 +124,7 @@ interface PropsCentroCard {
 }
 
 function CentroCard({
-  jogo, palpitavel, jaPalpitou, editando, palpiteAtual,
+  jogo, palpitavel, bloqueado, jaPalpitou, editando, palpiteAtual,
   golsCasa, golsFora, salvando, salvoFeedback,
   onAlterarGolsCasa, onAlterarGolsFora,
 }: Readonly<PropsCentroCard>) {
@@ -154,7 +163,7 @@ function CentroCard({
     );
   }
 
-  if (palpitavel) {
+  if (palpitavel && !bloqueado) {
     const botoesInvisiveis = salvando || salvoFeedback ? 'invisible' : '';
     return (
       <div className="flex items-center gap-2">
@@ -194,7 +203,7 @@ function CentroCard({
 
 // --- Componente principal ---
 
-export function CardJogoPalpite({ jogo, palpitavel, grupoId, ativo, onFoco }: Readonly<PropsCardJogoPalpite>) {
+export function CardJogoPalpite({ jogo, palpitavel, bloqueado, grupoId, ativo, onFoco }: Readonly<PropsCardJogoPalpite>) {
   const queryClient = useQueryClient();
   const [golsCasa, setGolsCasa] = useState(0);
   const [golsFora, setGolsFora] = useState(0);
@@ -389,6 +398,7 @@ export function CardJogoPalpite({ jogo, palpitavel, grupoId, ativo, onFoco }: Re
               <CentroCard
                 jogo={jogo}
                 palpitavel={palpitavel}
+                bloqueado={bloqueado}
                 jaPalpitou={jaPalpitou}
                 editando={editando}
                 palpiteAtual={palpiteAtual}
@@ -414,7 +424,8 @@ export function CardJogoPalpite({ jogo, palpitavel, grupoId, ativo, onFoco }: Re
                 jaPalpitou={jaPalpitou}
                 editando={editando}
                 palpiteAtual={palpiteAtual}
-                onEditar={handleEditar}
+                onEditar={bloqueado ? undefined : handleEditar}
+                bloqueado={bloqueado}
               />
             </div>
           )}

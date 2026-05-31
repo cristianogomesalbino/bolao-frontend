@@ -1,6 +1,55 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="100" fill="#0B1020"/>
-  <circle cx="256" cy="220" r="100" fill="#16a34a"/>
-  <text x="256" y="245" text-anchor="middle" font-size="90" fill="white">⚽</text>
-  <text x="256" y="400" text-anchor="middle" font-size="60" font-weight="bold" fill="#e2e8f0" font-family="Arial">Bolão</text>
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#152a45"/>
+      <stop offset="100%" stop-color="#0B1020"/>
+    </radialGradient>
+    <radialGradient id="ballGrad" cx="38%" cy="35%" r="62%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="85%" stop-color="#f5f5f5"/>
+      <stop offset="100%" stop-color="#e8e8e8"/>
+    </radialGradient>
+    <filter id="greenGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.086  0 0 0 0 0.639  0 0 0 0 0.290  0 0 0 0.55 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="starGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.086  0 0 0 0 0.639  0 0 0 0 0.290  0 0 0 0.4 0"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="url(#bgGrad)"/>
+
+  <!-- Estrela sutil atrás da bola -->
+  <g transform="translate(256, 256)" opacity="0.12">
+    <polygon points="0,-120 28,-38 110,-38 44,10 68,90 0,42 -68,90 -44,10 -110,-38 -28,-38" fill="#16a34a" filter="url(#starGlow)"/>
+  </g>
+
+  <!-- Bola de futebol centralizada (~65% da área) -->
+  <g transform="translate(90, 90) scale(0.617)" filter="url(#greenGlow)">
+    <!-- Corpo branco da bola -->
+    <circle cx="269" cy="269" r="269" fill="url(#ballGrad)"/>
+    <!-- Gomos em verde -->
+    <g fill="#16a34a">
+      <path d="M467.811,124.503h-11.502c-4.962,0-9.35,3.204-10.88,7.915l-24.654,75.876l-64.482,28.337l-75.828-55.084
+        v-76.043l63.991-46.463c4.017-2.917,5.691-8.083,4.161-12.794l-3.647-11.227C394.804,51.234,437.56,82.99,467.811,124.503z"/>
+      <path d="M193.086,35.009l-3.647,11.227c-1.53,4.723,0.143,9.876,4.161,12.794l63.979,46.463v76.043l-75.828,55.084l-64.494-28.349
+        l-24.666-75.876c-1.53-4.735-5.93-7.915-10.88-7.915H70.232C100.482,82.99,143.251,51.234,193.086,35.009z"/>
+      <path d="M22.909,268.83l9.637,7.007c2.009,1.447,4.364,2.2,6.731,2.2c2.355,0,4.723-0.741,6.731-2.2l63.369-46.045l64.482,28.349l29.257,89.997
+        l-38.99,46.427H84.568c-4.962,0-9.35,3.204-10.88,7.915l-3.551,10.916c-29.568-40.592-47.24-90.403-47.24-144.375
+        C22.897,268.95,22.909,268.89,22.909,268.83z"/>
+      <path d="M192.894,502.963l9.529-6.959c4.017-2.894,5.703-8.083,4.173-12.781l-24.284-74.692
+        l38.99-46.403h95.437l38.954,46.403l-24.272,74.704c-1.53,4.723,0.167,9.876,4.185,12.794l9.529,6.935
+        c-23.985,7.808-49.536,12.196-76.103,12.196C242.442,515.158,216.891,510.794,192.894,502.963z"/>
+      <path d="M467.894,413.432l-3.551-10.952c-1.542-4.723-5.942-7.903-10.892-7.903l-79.547,0.012l-38.954-46.415l29.234-90.008l64.505-28.337l63.358,46.009
+        c2.009,1.47,4.364,2.212,6.732,2.212c2.367,0,4.735-0.741,6.732-2.212l9.637-6.994c0,0.06,0.012,0.12,0.012,0.191
+        C515.146,322.993,497.451,372.804,467.894,413.432z"/>
+    </g>
+  </g>
 </svg>
