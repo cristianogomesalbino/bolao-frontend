@@ -5,9 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Pencil, Users, Copy,
-  Trash2, ChevronRight, Crown, MoreVertical, ChevronDown
+  Trash2, ChevronRight, Crown, MoreVertical, ChevronDown, LogOut
 } from 'lucide-react';
-import { buscarGrupo, excluirGrupo, listarMembros, removerMembro, promoverAdmin, rebaixarMembro } from '@/services/grupo.service';
+import { buscarGrupo, excluirGrupo, sairDoGrupo, listarMembros, removerMembro, promoverAdmin, rebaixarMembro } from '@/services/grupo.service';
+import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { ModalConfirmacao } from '@/components/ui/modal-confirmacao';
 
@@ -25,12 +26,15 @@ export default function ConfiguracoesGrupoPage() {
   const queryClient = useQueryClient();
 
   const [modalExcluir, setModalExcluir] = useState(false);
+  const [modalSair, setModalSair] = useState(false);
   const [zonaPerigo, setZonaPerigo] = useState(false);
   const [modalRemover, setModalRemover] = useState<string | null>(null);
   const [modalAdmin, setModalAdmin] = useState<string | null>(null);
   const [modalRebaixar, setModalRebaixar] = useState<string | null>(null);
   const [menuAberto, setMenuAberto] = useState<string | null>(null);
   const [processando, setProcessando] = useState(false);
+
+  const usuario = useAuthStore((state) => state.usuario);
 
   const { data: grupo, isLoading } = useQuery({
     queryKey: ['grupo', grupoId],
@@ -53,6 +57,18 @@ export default function ConfiguracoesGrupoPage() {
     } finally {
       setProcessando(false);
       setModalExcluir(false);
+    }
+  }
+
+  async function aoSair() {
+    setProcessando(true);
+    try {
+      await sairDoGrupo(grupoId);
+      await queryClient.invalidateQueries({ queryKey: ['grupos'] });
+      router.replace('/grupos');
+    } finally {
+      setProcessando(false);
+      setModalSair(false);
     }
   }
 
@@ -105,19 +121,25 @@ export default function ConfiguracoesGrupoPage() {
     );
   }
 
+  // Determinar role do usuário logado no grupo
+  const meuMembro = membros?.find((m) => m.usuarioId === usuario?.id || m.usuario?.id === usuario?.id);
+  const souAdmin = meuMembro?.role === 'ADMIN';
+
   const itens: ItemConfiguracao[] = [
-    {
-      icone: <Pencil size={18} />,
-      titulo: 'Editar grupo',
-      descricao: 'Nome, foto, descrição',
-      onClick: () => router.push(`/grupos/${grupoId}/editar`),
-    },
-    {
-      icone: <Copy size={18} />,
-      titulo: 'Gerar novo convite',
-      descricao: grupo.codigoConvite ?? '—',
-      onClick: () => router.push(`/grupos/${grupoId}/convite`),
-    },
+    ...(souAdmin ? [
+      {
+        icone: <Pencil size={18} />,
+        titulo: 'Editar grupo',
+        descricao: 'Nome, foto, descrição',
+        onClick: () => router.push(`/grupos/${grupoId}/editar`),
+      },
+      {
+        icone: <Copy size={18} />,
+        titulo: 'Gerar novo convite',
+        descricao: grupo.codigoConvite ?? '—',
+        onClick: () => router.push(`/grupos/${grupoId}/convite`),
+      },
+    ] : []),
   ];
 
   return (
@@ -211,7 +233,8 @@ export default function ConfiguracoesGrupoPage() {
                     </div>
                   </div>
 
-                  {/* Menu 3 pontinhos */}
+                  {/* Menu 3 pontinhos — só para admins */}
+                  {souAdmin && (
                   <div className="relative">
                       <button
                         type="button"
@@ -226,16 +249,7 @@ export default function ConfiguracoesGrupoPage() {
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} aria-hidden="true" />
                           <div className="absolute right-0 bottom-full mb-1 z-50 w-40 rounded-xl border border-white/[0.1] bg-[#0d1a2d] shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden animate-[fadeIn_0.15s_ease-out]">
-                            {membro.role !== 'ADMIN' ? (
-                              <button
-                                type="button"
-                                onClick={() => { setMenuAberto(null); setModalAdmin(membroId); }}
-                                className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-texto/70 hover:bg-white/[0.05] transition-colors"
-                              >
-                                <Crown size={13} className="text-destaque/70" />
-                                Tornar admin
-                              </button>
-                            ) : (
+                            {membro.role === 'ADMIN' ? (
                               <button
                                 type="button"
                                 onClick={() => { setMenuAberto(null); setModalRebaixar(membroId); }}
@@ -243,6 +257,15 @@ export default function ConfiguracoesGrupoPage() {
                               >
                                 <Crown size={13} className="text-texto/30" />
                                 Remover admin
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => { setMenuAberto(null); setModalAdmin(membroId); }}
+                                className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-texto/70 hover:bg-white/[0.05] transition-colors"
+                              >
+                                <Crown size={13} className="text-destaque/70" />
+                                Tornar admin
                               </button>
                             )}
                             <button
@@ -257,6 +280,7 @@ export default function ConfiguracoesGrupoPage() {
                         </>
                       )}
                     </div>
+                  )}
                 </div>
               );
             })}
@@ -277,17 +301,31 @@ export default function ConfiguracoesGrupoPage() {
 
           {zonaPerigo && (
             <div className="px-4 pb-4 pt-1 border-t border-erro/10 animate-[fadeIn_0.2s_ease-out]">
-              <button
-                type="button"
-                onClick={() => setModalExcluir(true)}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-erro/[0.05] transition-colors"
-              >
-                <Trash2 size={16} className="text-erro/70" />
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-erro/80">Excluir grupo</p>
-                  <p className="text-[10px] text-erro/40">Esta ação não pode ser desfeita</p>
-                </div>
-              </button>
+              {souAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setModalExcluir(true)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-erro/[0.05] transition-colors"
+                >
+                  <Trash2 size={16} className="text-erro/70" />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-erro/80">Excluir grupo</p>
+                    <p className="text-[10px] text-erro/40">Esta ação não pode ser desfeita</p>
+                  </div>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setModalSair(true)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-erro/[0.05] transition-colors"
+                >
+                  <LogOut size={16} className="text-erro/70" />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-erro/80">Sair do grupo</p>
+                    <p className="text-[10px] text-erro/40">Você poderá entrar novamente com um convite</p>
+                  </div>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -303,6 +341,18 @@ export default function ConfiguracoesGrupoPage() {
         carregando={processando}
         onConfirmar={aoExcluir}
         onCancelar={() => setModalExcluir(false)}
+      />
+
+      {/* Modal sair */}
+      <ModalConfirmacao
+        aberto={modalSair}
+        titulo="Sair do grupo"
+        mensagem="Você será removido do grupo. Para entrar novamente, precisará de um novo convite."
+        textoBotaoConfirmar="Sair"
+        variante="destructive"
+        carregando={processando}
+        onConfirmar={aoSair}
+        onCancelar={() => setModalSair(false)}
       />
 
       {/* Modal remover membro */}

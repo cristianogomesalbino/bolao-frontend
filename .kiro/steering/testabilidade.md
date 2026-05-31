@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: Diretrizes de testabilidade — convenções de data-testid para testes E2E com Playwright.
 ---
 
 # Testabilidade — Diretrizes para Playwright

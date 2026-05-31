@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: Design system do frontend — paleta de cores, tipografia, componentes UI, glassmorphism e padrões visuais.
 ---
 
 # Design System — Bolão Frontend

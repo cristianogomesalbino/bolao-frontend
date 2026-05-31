@@ -26,6 +26,7 @@ export interface Jogo {
 export interface JogosResponse {
   fase: Fase;
   jogos: Jogo[];
+  rodadaAtual: number | null;
 }
 
 export interface JogoProximo {

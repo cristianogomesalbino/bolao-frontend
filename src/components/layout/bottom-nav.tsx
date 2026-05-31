@@ -1,18 +1,19 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import { Home, Trophy, CircleDot, User } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Home, Trophy, User } from 'lucide-react';
+import { IconPalpite } from '@/components/icons/icon-palpite';
 
 const itens = [
   { href: '/inicio', label: 'Home', icone: Home },
   { href: '/grupos', label: 'Grupos', icone: Trophy },
-  { href: '/jogos', label: 'Jogos', icone: CircleDot },
+  { href: '/palpites', label: 'Palpites', icone: IconPalpite },
   { href: '/minha-conta', label: 'Conta', icone: User },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-2 safe-area-bottom" data-testid="bottom-nav">
@@ -22,9 +23,9 @@ export function BottomNav() {
           const Icone = item.icone;
 
           return (
-            <button
+            <Link
               key={item.href}
-              onClick={() => router.push(item.href)}
+              href={item.href}
               className={`relative flex flex-col items-center gap-0.5 px-5 py-1.5 rounded-xl transition-all active:scale-90 ${
                 ativo
                   ? 'text-primaria'
@@ -37,11 +38,11 @@ export function BottomNav() {
               {ativo && (
                 <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primaria shadow-[0_0_6px_rgba(22,163,74,0.6)]" />
               )}
-              <Icone size={20} strokeWidth={ativo ? 2.5 : 1.5} />
+              <Icone size={24} strokeWidth={ativo ? 2.5 : 1.5} />
               <span className={`text-[10px] ${ativo ? 'font-semibold' : 'font-normal'}`}>
                 {item.label}
               </span>
-            </button>
+            </Link>
           );
         })}
       </div>

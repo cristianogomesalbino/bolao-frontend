@@ -5,6 +5,24 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
+  workboxOptions: {
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/(s\.glbimg\.com|s\.sde\.globo\.com)\/.*/i,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "escudos-cache",
+          expiration: {
+            maxEntries: 100,
+            maxAgeSeconds: 60 * 60 * 24 * 30, // 30 dias
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+    ],
+  },
 });
 
 const nextConfig: NextConfig = {

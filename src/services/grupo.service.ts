@@ -7,7 +7,7 @@ export async function listarGrupos(): Promise<Grupo[]> {
 }
 
 export async function listarGruposPublicos(busca?: string): Promise<Grupo[]> {
-  const response = await apiClient.get<Grupo[]>('/grupos', { params: { privado: false, busca } });
+  const response = await apiClient.get<Grupo[]>('/grupos', { params: { privado: false, membro: false, busca } });
   return response.data;
 }
 

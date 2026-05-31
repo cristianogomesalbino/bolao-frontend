@@ -16,6 +16,7 @@ export interface Grupo {
   minhaColocacao?: number;
   rodadaAtual?: number;
   rodadaAberta?: boolean;
+  meuRole?: 'ADMIN' | 'MEMBER';
 }
 
 export interface MembroGrupo {

@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client';
-import { Palpite, DadosCriarPalpite, DadosAtualizarPalpite } from '@/types/palpite.types';
+import { Palpite, PalpiteComJogo, DadosCriarPalpite, DadosAtualizarPalpite } from '@/types/palpite.types';
 
 export async function criarPalpite(jogoId: string, dados: DadosCriarPalpite): Promise<Palpite> {
   const response = await apiClient.post<Palpite>(`/jogos/${jogoId}/palpites`, dados);
@@ -22,4 +22,46 @@ export async function buscarMeuPalpite(jogoId: string): Promise<Palpite | null> 
   } catch {
     return null;
   }
+}
+
+export async function buscarMeusPalpitesPorJogos(jogoIds: string[]): Promise<Palpite[]> {
+  try {
+    const response = await apiClient.post<Palpite[]>('/meus-palpites/por-jogos', { jogoIds });
+    return response.data;
+  } catch (error) {
+    console.error('[palpite.service] Erro ao buscar palpites por jogos:', error);
+    return [];
+  }
+}
+
+export interface EstatisticasPalpite {
+  total: number;
+  vitoriaCasa: number;
+  empate: number;
+  vitoriaFora: number;
+  percentualCasa: number;
+  percentualEmpate: number;
+  percentualFora: number;
+}
+
+export async function buscarEstatisticasPalpite(
+  grupoId: string,
+  jogoId: string,
+): Promise<EstatisticasPalpite | null> {
+  try {
+    const response = await apiClient.get<EstatisticasPalpite>(
+      `/grupos/${grupoId}/jogos/${jogoId}/palpites/estatisticas`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error('[palpite.service] Erro ao buscar estatísticas:', error);
+    return null;
+  }
+}
+
+export async function listarMeusPalpites(temporadaId: string): Promise<PalpiteComJogo[]> {
+  const response = await apiClient.get<PalpiteComJogo[]>('/meus-palpites', {
+    params: { temporadaId },
+  });
+  return response.data;
 }
