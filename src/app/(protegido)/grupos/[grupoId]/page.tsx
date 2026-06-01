@@ -38,17 +38,20 @@ export default function DetalhesGrupoPage() {
     enabled: !!grupoId,
   });
 
-  const { data: rankingGeral } = useQuery({
+  const { data: rankingGeral, isLoading: carregandoRanking } = useQuery({
     queryKey: ['grupo', grupoId, 'ranking', 'geral'],
     queryFn: () => obterRankingGeral(grupoId),
     enabled: !!grupoId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
-  const { data: dadosTemporada } = useQuery({
+  const { data: dadosTemporada, isLoading: carregandoTemporada } = useQuery({
     queryKey: ['grupo', grupoId, 'dados-temporada'],
     queryFn: () => buscarDadosTemporada(grupo!.temporadaId),
     enabled: !!grupo?.temporadaId,
-    staleTime: 1000 * 60 * 2, // 2 min
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
   });
 
   const proximoJogo = dadosTemporada?.proximoJogo ?? undefined;
@@ -370,7 +373,7 @@ export default function DetalhesGrupoPage() {
           </Card>
         )}
 
-        {!proximoJogo && !carregandoGrupo && (
+        {!proximoJogo && !carregandoGrupo && !carregandoTemporada && (
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-[11px] text-texto/30">Nenhum jogo agendado no momento</p>
@@ -553,8 +556,15 @@ export default function DetalhesGrupoPage() {
               </div>
             )}
 
-            {(!rankingAtivo || rankingAtivo.length === 0) && (
+            {(!rankingAtivo || rankingAtivo.length === 0) && !carregandoRanking && (
               <p className="text-[11px] text-texto/30 text-center py-4">Nenhuma pontuação registrada ainda</p>
+            )}
+            {(!rankingAtivo || rankingAtivo.length === 0) && carregandoRanking && (
+              <div className="space-y-2 py-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 rounded-lg bg-white/[0.03] animate-pulse" />
+                ))}
+              </div>
             )}
 
             {/* Link ver completo / ver menos */}
