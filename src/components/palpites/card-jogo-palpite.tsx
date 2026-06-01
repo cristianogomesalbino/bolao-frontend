@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronUp, ChevronDown, Loader2, Star } from 'lucide-react';
+import { Check, Loader2, Star } from 'lucide-react';
 import { buscarMeuPalpite, criarPalpite, atualizarPalpite } from '@/services/palpite.service';
 import { Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
@@ -16,6 +16,9 @@ export function CardJogoPalpite({ jogo }: Readonly<PropsCardJogoPalpite>) {
   const [golsCasa, setGolsCasa] = useState(0);
   const [golsFora, setGolsFora] = useState(0);
   const [editando, setEditando] = useState(false);
+  const [salvoFeedback, setSalvoFeedback] = useState(false);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputsRef = useRef<HTMLDivElement>(null);
 
   const palpitavel = jogo.status === 'AGENDADO';
 
@@ -31,6 +34,7 @@ export function CardJogoPalpite({ jogo }: Readonly<PropsCardJogoPalpite>) {
     onSuccess: (data: Palpite) => {
       queryClient.setQueryData(['meu-palpite', jogo.id], data);
       setEditando(false);
+      mostrarFeedback();
     },
   });
 
@@ -39,14 +43,30 @@ export function CardJogoPalpite({ jogo }: Readonly<PropsCardJogoPalpite>) {
     onSuccess: (data: Palpite) => {
       queryClient.setQueryData(['meu-palpite', jogo.id], data);
       setEditando(false);
+      mostrarFeedback();
     },
   });
 
   const salvando = mutationCriar.isPending || mutationAtualizar.isPending;
 
+  function mostrarFeedback() {
+    setSalvoFeedback(true);
+    setTimeout(() => setSalvoFeedback(false), 2000);
+  }
+
   function salvar() {
-    if (jaPalpitou) mutationAtualizar.mutate();
-    else mutationCriar.mutate();
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    blurTimeoutRef.current = setTimeout(() => {
+      if (inputsRef.current?.contains(document.activeElement)) return;
+
+      if (jaPalpitou) {
+        if (golsCasa !== meuPalpite!.golsCasa || golsFora !== meuPalpite!.golsFora) {
+          mutationAtualizar.mutate();
+        }
+      } else {
+        mutationCriar.mutate();
+      }
+    }, 150);
   }
 
   function iniciarEdicao() {
@@ -118,40 +138,48 @@ export function CardJogoPalpite({ jogo }: Readonly<PropsCardJogoPalpite>) {
               <span className="text-2xl font-bold text-primaria">{jogo.golsFora ?? 0}</span>
             </div>
           ) : mostraControles ? (
-            <div className="flex items-center gap-2">
-              {/* Controle Casa */}
-              <div className="flex flex-col items-center">
-                <button type="button" onClick={() => setGolsCasa((v) => v + 1)} className="text-texto/40 hover:text-primaria-claro">
-                  <ChevronUp size={14} />
-                </button>
-                <span className="text-2xl font-bold text-texto w-8 text-center border border-white/[0.1] rounded-lg py-0.5">{golsCasa}</span>
-                <button type="button" onClick={() => setGolsCasa((v) => Math.max(0, v - 1))} className="text-texto/40 hover:text-primaria-claro">
-                  <ChevronDown size={14} />
-                </button>
-              </div>
+            <div ref={inputsRef} className="flex items-center gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                min={0}
+                max={99}
+                value={golsCasa}
+                onChange={(e) => {
+                  const val = Number.parseInt(e.target.value, 10);
+                  setGolsCasa(Number.isNaN(val) ? 0 : Math.max(0, Math.min(99, val)));
+                }}
+                onFocus={(e) => e.target.select()}
+                onBlur={salvar}
+                className="w-10 h-10 rounded-lg bg-black/60 border border-white/[0.1] text-center text-2xl font-bold text-texto outline-none focus:border-primaria focus:ring-1 focus:ring-primaria transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                disabled={salvando}
+                data-testid="input-gols-casa"
+              />
 
               <span className="text-[11px] text-texto/30">×</span>
 
-              {/* Controle Fora */}
-              <div className="flex flex-col items-center">
-                <button type="button" onClick={() => setGolsFora((v) => v + 1)} className="text-texto/40 hover:text-primaria-claro">
-                  <ChevronUp size={14} />
-                </button>
-                <span className="text-2xl font-bold text-texto w-8 text-center border border-white/[0.1] rounded-lg py-0.5">{golsFora}</span>
-                <button type="button" onClick={() => setGolsFora((v) => Math.max(0, v - 1))} className="text-texto/40 hover:text-primaria-claro">
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-
-              {/* Botão salvar */}
-              <button
-                type="button"
-                onClick={salvar}
+              <input
+                type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                min={0}
+                max={99}
+                value={golsFora}
+                onChange={(e) => {
+                  const val = Number.parseInt(e.target.value, 10);
+                  setGolsFora(Number.isNaN(val) ? 0 : Math.max(0, Math.min(99, val)));
+                }}
+                onFocus={(e) => e.target.select()}
+                onBlur={salvar}
+                className="w-10 h-10 rounded-lg bg-black/60 border border-white/[0.1] text-center text-2xl font-bold text-texto outline-none focus:border-primaria focus:ring-1 focus:ring-primaria transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 disabled={salvando}
-                className="ml-2 h-8 w-8 rounded-full bg-primaria/20 flex items-center justify-center text-primaria-claro hover:bg-primaria/30 disabled:opacity-50 active:scale-90 transition-all"
-              >
-                {salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              </button>
+                data-testid="input-gols-fora"
+              />
+
+              {/* Feedback */}
+              {salvando && <Loader2 size={14} className="animate-spin text-primaria-claro ml-1" />}
+              {salvoFeedback && <Check size={14} className="text-primaria-claro ml-1" />}
             </div>
           ) : mostraPalpiteFeito ? (
             <button type="button" onClick={iniciarEdicao} className="flex items-center gap-3 group">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
@@ -10,6 +10,7 @@ import { CardMeusGrupos } from '@/components/home/card-meus-grupos';
 import { CardRanking } from '@/components/home/card-ranking';
 import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 import { listarGrupos } from '@/services/grupo.service';
+import { definirGrupoFavorito } from '@/services/usuario.service';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -42,9 +43,18 @@ export default function InicioPage() {
   const usuario = useAuthStore((state) => state.usuario);
   const logout = useAuthStore((state) => state.logout);
 
-  const { data: grupos } = useQuery({
+  const { data: grupos, isLoading: carregandoGrupos } = useQuery({
     queryKey: ['grupos'],
     queryFn: listarGrupos,
+  });
+
+  const atualizarUsuarioStore = useAuthStore((state) => state.atualizarUsuario);
+
+  const mutationFavorito = useMutation({
+    mutationFn: (grupoId: string) => definirGrupoFavorito(grupoId),
+    onSuccess: (data) => {
+      atualizarUsuarioStore({ grupoFavoritoId: data.grupoFavoritoId });
+    },
   });
 
   async function aoSair() {
@@ -108,12 +118,17 @@ export default function InicioPage() {
         />
 
         {/* Meus grupos */}
-        <CardMeusGrupos grupos={(grupos ?? []).map((g) => ({
-          id: g.id,
-          nome: g.nome,
-          participantes: g.totalParticipantes ?? 0,
-          palpitesRestantes: g.palpitesRestantes,
-        }))} />
+        <CardMeusGrupos
+          carregando={carregandoGrupos}
+          grupos={(grupos ?? []).map((g) => ({
+            id: g.id,
+            nome: g.nome,
+            participantes: g.totalParticipantes ?? 0,
+            palpitesRestantes: g.palpitesRestantes,
+          }))}
+          grupoFavoritoId={usuario?.grupoFavoritoId}
+          onDefinirFavorito={(grupoId) => mutationFavorito.mutate(grupoId)}
+        />
 
         {/* Ranking */}
         <CardRanking ranking={mockRanking} />

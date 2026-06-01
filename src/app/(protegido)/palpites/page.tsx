@@ -3,12 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Crosshair, Trophy, TrendingUp } from 'lucide-react';
-import { listarFases, listarJogosFase } from '@/services/jogo.service';
+import { listarFases, listarJogosFase, listarTemporadas } from '@/services/jogo.service';
 import { listarGrupos } from '@/services/grupo.service';
 import { buscarMeusPalpitesPorJogos, listarMeusPalpites } from '@/services/palpite.service';
 import { calcularPontos, PONTOS } from '@/lib/pontuacao';
 import { Jogo } from '@/types/jogo.types';
-import { PalpiteComJogo } from '@/types/palpite.types';
+import { Palpite, PalpiteComJogo } from '@/types/palpite.types';
 import { CardJogoPalpite } from '@/components/jogos/card-jogo-palpite';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 import { useAuthStore } from '@/stores/auth.store';
@@ -50,15 +50,26 @@ export default function PalpitesPage() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [dropdownRodadaAberto, dropdownTipoAberto]);
 
-  // Buscar temporadaId do primeiro grupo do usuário
+  // Buscar temporada principal (Brasileirão Série A do ano atual)
+  const { data: temporadas } = useQuery({
+    queryKey: ['temporadas'],
+    queryFn: listarTemporadas,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const temporadaAtual = temporadas?.find((t) => t.campeonato?.nome.includes('Série A')) ?? temporadas?.[0];
+  const temporadaId = temporadaAtual?.id || '';
+
+  // Grupo do usuário (usa grupo favorito se definido)
   const { data: gruposData } = useQuery({
     queryKey: ['grupos'],
     queryFn: () => listarGrupos(),
     select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId })),
   });
 
-  const temporadaId = gruposData?.[0]?.temporadaId || '';
-  const grupoId = gruposData?.[0]?.id || '';
+  const grupoId = usuario?.grupoFavoritoId
+    ?? gruposData?.[0]?.id
+    ?? '';
 
   const { data: fases } = useQuery({
     queryKey: ['fases', temporadaId],
@@ -73,6 +84,13 @@ export default function PalpitesPage() {
     queryKey: ['jogos-rodada-atual', faseAtual?.id],
     queryFn: () => listarJogosFase(faseAtual!.id),
     enabled: !!faseAtual?.id,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => {
+      const jogos = query.state.data?.jogos ?? [];
+      const temAoVivo = jogos.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
+      return temAoVivo ? 60_000 : false;
+    },
   });
 
   const rodadaAtual = jogosRodadaAtual?.rodadaAtual ?? null;
@@ -83,7 +101,7 @@ export default function PalpitesPage() {
   const rodadaReal = jogosAtual.find((j: Jogo) => j.status === 'AGENDADO' && j.dataHora)?.rodada ?? rodadaAtual;
   const proximaRodada = rodadaReal ? rodadaReal + 1 : null;
 
-  const { data: jogosProximaRodada } = useQuery({
+  const { data: jogosProximaRodada, isLoading: carregandoProxima } = useQuery({
     queryKey: ['jogos-proxima-rodada', faseAtual?.id, proximaRodada],
     queryFn: () => listarJogosFase(faseAtual!.id, proximaRodada!),
     enabled: !!faseAtual?.id && !!proximaRodada && proximaRodada <= 38,
@@ -91,17 +109,19 @@ export default function PalpitesPage() {
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
 
-  // Filtrar jogos relevantes e colocar palpitáveis no topo
+  // Filtrar jogos relevantes e ordenar: ao vivo → palpitáveis → finalizados
+  const temJogoAoVivo = jogosAtual.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
   const jogosAtualVisiveis = jogosAtual
     .filter(
-      (j: Jogo) => j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO' || j.status === 'FINALIZADO'
+      (j: Jogo) => {
+        // Se há jogos ao vivo, finalizados vão para a aba "meus palpites"
+        if (temJogoAoVivo && j.status === 'FINALIZADO') return false;
+        return j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO' || j.status === 'FINALIZADO';
+      }
     )
     .sort((a: Jogo, b: Jogo) => {
-      const palpitavelA = a.status === 'AGENDADO';
-      const palpitavelB = b.status === 'AGENDADO';
-      if (palpitavelA && !palpitavelB) return -1;
-      if (!palpitavelA && palpitavelB) return 1;
-      return 0;
+      const ordem: Record<string, number> = { EM_ANDAMENTO: 0, AGENDADO: 1, FINALIZADO: 2 };
+      return (ordem[a.status] ?? 3) - (ordem[b.status] ?? 3);
     });
   const jogosProximaVisiveis = jogosProxima.filter(
     (j: Jogo) => j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO'
@@ -111,22 +131,29 @@ export default function PalpitesPage() {
   const todosJogoIds = [...jogosAtualVisiveis, ...jogosProximaVisiveis].map((j) => j.id);
   const queryClient = useQueryClient();
 
-  useQuery({
-    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada, usuario?.id],
+  const { data: palpitesBatch, isFetching: carregandoBatch } = useQuery({
+    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada, usuario?.id, todosJogoIds.join(',')],
     queryFn: async () => {
       const palpites = await buscarMeusPalpitesPorJogos(todosJogoIds);
-      const palpitesPorJogo = new Map(palpites.map((p) => [p.jogoId, p]));
-      for (const jogoId of todosJogoIds) {
-        queryClient.setQueryData(['meu-palpite', jogoId], palpitesPorJogo.get(jogoId) ?? null);
+      const palpitesPorJogo: Record<string, Palpite> = {};
+      for (const p of palpites) {
+        palpitesPorJogo[p.jogoId] = p;
       }
-      return palpites;
+      // Popular cache individual para invalidação futura
+      for (const jogoId of todosJogoIds) {
+        queryClient.setQueryData(['meu-palpite', jogoId], palpitesPorJogo[jogoId] ?? null);
+      }
+      return palpitesPorJogo;
     },
     enabled: todosJogoIds.length > 0 && !isLoading,
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 5, // 5 minutos
   });
 
+  // Mapa de palpites por jogoId para passar como prop
+  const palpitesPorJogo = palpitesBatch ?? {};
+
   // Meus palpites anteriores (jogos finalizados)
-  const { data: meusPalpitesAnteriores, isLoading: carregandoPalpites } = useQuery({
+  const { data: meusPalpitesAnteriores, isLoading: carregandoPalpites, isFetching: buscandoPalpites } = useQuery({
     queryKey: ['meus-palpites-historico', temporadaId, usuario?.id],
     queryFn: () => listarMeusPalpites(temporadaId),
     enabled: !!temporadaId && abaAtiva === 'meus',
@@ -142,7 +169,16 @@ export default function PalpitesPage() {
     if (!acc[rodada]) acc[rodada] = [];
     acc[rodada].push(p);
     return acc;
-  }, {});  if (!temporadaId) {
+  }, {});
+
+  // Ordenar jogos dentro de cada rodada: último encerrado primeiro (dataHora decrescente)
+  for (const rodada of Object.keys(palpitesPorRodada)) {
+    palpitesPorRodada[Number(rodada)].sort((a: PalpiteComJogo, b: PalpiteComJogo) => {
+      const dataA = a.jogo?.dataHora ? new Date(a.jogo.dataHora).getTime() : 0;
+      const dataB = b.jogo?.dataHora ? new Date(b.jogo.dataHora).getTime() : 0;
+      return dataB - dataA;
+    });
+  }  if (!temporadaId) {
     return (
       <div className="min-h-screen bg-fundo flex items-center justify-center pb-20">
         <p className="text-texto/40 text-sm">Entre em um grupo para ver os palpites</p>
@@ -189,7 +225,7 @@ export default function PalpitesPage() {
         </div>
 
         {/* Loading */}
-        {isLoading && (
+        {(isLoading || (carregandoBatch && !palpitesBatch)) && (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-[120px] rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse" />
@@ -198,7 +234,7 @@ export default function PalpitesPage() {
         )}
 
         {/* Conteúdo da aba "Todos os jogos" */}
-        {!isLoading && abaAtiva === 'todos' && (
+        {!isLoading && !(carregandoBatch && !palpitesBatch) && abaAtiva === 'todos' && (
           <div>
             {/* Rodada atual */}
             {jogosAtualVisiveis.length > 0 && (
@@ -215,6 +251,7 @@ export default function PalpitesPage() {
                     <CardJogoPalpite
                       key={jogo.id}
                       jogo={jogo}
+                      palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
                       palpitavel={jogoPalpitavel(jogo)}
                       bloqueado={jogoJaComecou(jogo)}
                       grupoId={grupoId}
@@ -241,6 +278,7 @@ export default function PalpitesPage() {
                     <CardJogoPalpite
                       key={jogo.id}
                       jogo={jogo}
+                      palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
                       palpitavel={jogoPalpitavel(jogo)}
                       bloqueado={jogoJaComecou(jogo)}
                       grupoId={grupoId}
@@ -252,10 +290,17 @@ export default function PalpitesPage() {
               </>
             )}
 
-            {jogosAtualVisiveis.length === 0 && jogosProximaVisiveis.length === 0 && (
+            {jogosAtualVisiveis.length === 0 && jogosProximaVisiveis.length === 0 && !carregandoProxima && !!faseAtual && (
               <div className="flex flex-col items-center py-12 text-center">
                 <IconPalpite size={32} className="text-texto/15 mb-3" />
                 <p className="text-texto/40 text-sm">Nenhum jogo disponível</p>
+              </div>
+            )}
+            {jogosAtualVisiveis.length === 0 && jogosProximaVisiveis.length === 0 && carregandoProxima && (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-[120px] rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse" />
+                ))}
               </div>
             )}
           </div>
@@ -265,7 +310,7 @@ export default function PalpitesPage() {
         {!isLoading && abaAtiva === 'meus' && (
           <div>
             {/* Filtro por rodada com combobox */}
-            {!carregandoPalpites && palpitesFinalizados.length > 0 && (
+            {!carregandoPalpites && !buscandoPalpites && temporadaId && palpitesFinalizados.length > 0 && (
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[9px] text-texto/40 uppercase tracking-wider shrink-0">Filtrar por rodada</span>
                 <button
@@ -381,7 +426,7 @@ export default function PalpitesPage() {
               </div>
             )}
 
-            {carregandoPalpites ? (
+            {(carregandoPalpites || buscandoPalpites || !temporadaId) ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-[80px] rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse" />
