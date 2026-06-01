@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
@@ -40,6 +40,7 @@ const mockProximosJogos = [
 
 export default function InicioPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const usuario = useAuthStore((state) => state.usuario);
   const logout = useAuthStore((state) => state.logout);
 
@@ -54,6 +55,7 @@ export default function InicioPage() {
     mutationFn: (grupoId: string) => definirGrupoFavorito(grupoId),
     onSuccess: (data) => {
       atualizarUsuarioStore({ grupoFavoritoId: data.grupoFavoritoId });
+      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite'] });
     },
   });
 

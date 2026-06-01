@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { criarPalpite, atualizarPalpite, buscarEstatisticasPalpite } from '@/services/palpite.service';
+import { criarPalpite, atualizarPalpite, buscarEstatisticasPalpite, EstatisticasPalpite } from '@/services/palpite.service';
 import { calcularPontos } from '@/lib/pontuacao';
 import { Card, CardContent } from '@/components/ui/card';
 import { Jogo } from '@/types/jogo.types';
@@ -192,6 +192,48 @@ function CentroCard({
   }
 
   return <span className="text-[11px] text-texto/40">—</span>;
+}
+
+interface PropsConteudoExpandido {
+  carregando: boolean;
+  estatisticas: EstatisticasPalpite | null | undefined;
+}
+
+function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoExpandido>) {
+  if (carregando) {
+    return <div className="h-8 rounded-full bg-white/[0.03] animate-pulse" />;
+  }
+  if (!estatisticas || estatisticas.total === 0) {
+    return <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>;
+  }
+  return (
+    <>
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-left">
+          <span className="text-sm font-bold text-primaria">{estatisticas.percentualCasa}%</span>
+          <p className="text-[9px] text-texto/40">da galera</p>
+        </div>
+        {estatisticas.percentualEmpate > 0 && (
+          <div className="text-center">
+            <span className="text-sm font-bold text-texto/60">{estatisticas.percentualEmpate}%</span>
+            <p className="text-[9px] text-texto/40">empate</p>
+          </div>
+        )}
+        <div className="text-right">
+          <span className="text-sm font-bold text-erro">{estatisticas.percentualFora}%</span>
+          <p className="text-[9px] text-texto/40">da galera</p>
+        </div>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden flex">
+        <div className="h-full bg-primaria rounded-l-full" style={{ width: `${estatisticas.percentualCasa}%` }} />
+        {estatisticas.percentualEmpate > 0 && (
+          <div className="h-full bg-texto/30" style={{ width: `${estatisticas.percentualEmpate}%` }} />
+        )}
+        <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
+      </div>
+      <p className="text-[9px] text-texto/30 text-center mt-1">{estatisticas.total} palpites</p>
+    </>
+  );
 }
 
 // --- Componente principal ---
@@ -433,38 +475,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           {/* Barra de palpites da galera */}
           {expandido && (
             <div className="mt-2 pt-2 border-t border-white/[0.05]">
-              {carregandoEstatisticas ? (
-                <div className="h-8 rounded-full bg-white/[0.03] animate-pulse" />
-              ) : estatisticas && estatisticas.total > 0 ? (
-                <>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="text-left">
-                      <span className="text-sm font-bold text-primaria">{estatisticas.percentualCasa}%</span>
-                      <p className="text-[9px] text-texto/40">da galera</p>
-                    </div>
-                    {estatisticas.percentualEmpate > 0 && (
-                      <div className="text-center">
-                        <span className="text-sm font-bold text-texto/60">{estatisticas.percentualEmpate}%</span>
-                        <p className="text-[9px] text-texto/40">empate</p>
-                      </div>
-                    )}
-                    <div className="text-right">
-                      <span className="text-sm font-bold text-erro">{estatisticas.percentualFora}%</span>
-                      <p className="text-[9px] text-texto/40">da galera</p>
-                    </div>
-                  </div>
-                  <div className="h-2 rounded-full overflow-hidden flex">
-                    <div className="h-full bg-primaria rounded-l-full" style={{ width: `${estatisticas.percentualCasa}%` }} />
-                    {estatisticas.percentualEmpate > 0 && (
-                      <div className="h-full bg-texto/30" style={{ width: `${estatisticas.percentualEmpate}%` }} />
-                    )}
-                    <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
-                  </div>
-                  <p className="text-[9px] text-texto/30 text-center mt-1">{estatisticas.total} palpites</p>
-                </>
-              ) : !carregandoEstatisticas ? (
-                <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>
-              ) : null}
+              <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} />
             </div>
           )}
         </CardContent>

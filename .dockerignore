@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+.env
+.env.local
+.env*.local
+*.md
+docs
+.kiro
+.vscode
+coverage
+dist
+build
