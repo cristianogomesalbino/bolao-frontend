@@ -3,4 +3,5 @@ export interface Usuario {
   nome: string;
   email: string;
   perfil: 'SUPER_ADMIN' | 'USER';
+  grupoFavoritoId: string | null;
 }

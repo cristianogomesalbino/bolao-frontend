@@ -228,13 +228,12 @@ export default function ConfiguracoesGrupoPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primaria" />
-                      <span className="text-[10px] text-texto/30">Online</span>
+                      <span className="text-[10px] text-texto/30">{membro.usuario?.email || ''}</span>
                     </div>
                   </div>
 
-                  {/* Menu 3 pontinhos — só para admins */}
-                  {souAdmin && (
+                  {/* Menu 3 pontinhos — só para admins e nunca para si mesmo */}
+                  {souAdmin && membroId !== usuario?.id && (
                   <div className="relative">
                       <button
                         type="button"

@@ -26,3 +26,8 @@ export async function atualizarUsuario(id: string, dados: DadosAtualizarUsuario)
 export async function excluirUsuario(id: string): Promise<void> {
   await apiClient.delete(`/usuarios/${id}`);
 }
+
+export async function definirGrupoFavorito(grupoId: string | null): Promise<Usuario> {
+  const response = await apiClient.patch<Usuario>('/usuarios/me/grupo-favorito', { grupoId });
+  return response.data;
+}

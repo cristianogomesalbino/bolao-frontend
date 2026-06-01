@@ -1,9 +1,22 @@
 import apiClient from '@/lib/api-client';
 import { Fase, Jogo, JogosResponse } from '@/types/jogo.types';
 
+export interface Temporada {
+  id: string;
+  nome: string;
+  ano: number;
+  campeonatoId: string;
+  campeonato?: { id: string; nome: string };
+}
+
 export interface DadosTemporada {
   proximoJogo: { fase: Fase; jogo: Jogo } | null;
   totalAdiados: number;
+}
+
+export async function listarTemporadas(): Promise<Temporada[]> {
+  const response = await apiClient.get<Temporada[]>('/temporadas');
+  return response.data;
 }
 
 export async function listarFases(temporadaId: string): Promise<Fase[]> {
