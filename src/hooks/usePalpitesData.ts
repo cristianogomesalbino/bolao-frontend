@@ -20,9 +20,18 @@ export function estaBloqueado(jogo: Jogo): boolean {
   return new Date(jogo.dataHora).getTime() <= Date.now();
 }
 
-export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
+export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionado?: string) {
   const queryClient = useQueryClient();
   const usuario = useAuthStore((state) => state.usuario);
+
+  // Grupos (precisa antes para determinar temporada)
+  const { data: gruposData } = useQuery({
+    queryKey: ['grupos'],
+    queryFn: () => listarGrupos(),
+    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId })),
+  });
+
+  const grupoId = usuario?.grupoFavoritoId ?? gruposData?.[0]?.id ?? '';
 
   // Temporadas
   const { data: temporadas } = useQuery({
@@ -31,17 +40,20 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
     staleTime: 1000 * 60 * 60,
   });
 
-  const temporadaAtual = temporadas?.find((t) => t.campeonato?.nome.includes('Série A')) ?? temporadas?.[0];
+  const temporadaAtual = (() => {
+    if (!temporadas || temporadas.length === 0) return undefined;
+    // Selecionar por campeonato escolhido pelo usuário
+    if (campeonatoSelecionado === 'copa-do-mundo-2026') {
+      return temporadas.find((t) => t.campeonato?.nome?.toLowerCase().includes('copa'));
+    }
+    if (campeonatoSelecionado === 'brasileirao') {
+      return temporadas.find((t) => t.campeonato?.nome?.includes('Série A'));
+    }
+    // Fallback
+    return temporadas.find((t) => t.campeonato?.nome?.includes('Série A')) ?? temporadas[0];
+  })();
   const temporadaId = temporadaAtual?.id || '';
-
-  // Grupos
-  const { data: gruposData } = useQuery({
-    queryKey: ['grupos'],
-    queryFn: () => listarGrupos(),
-    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId })),
-  });
-
-  const grupoId = usuario?.grupoFavoritoId ?? gruposData?.[0]?.id ?? '';
+  const ehCopaMundo = campeonatoSelecionado === 'copa-do-mundo-2026';
 
   // Fases
   const { data: fases } = useQuery({
@@ -150,6 +162,8 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
     temporadaId,
     grupoId,
     faseAtual,
+    fases,
+    ehCopaMundo,
     rodadaAtual,
     proximaRodada,
     jogosAtualVisiveis,

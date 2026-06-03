@@ -121,6 +121,11 @@ function CentroCard({
             {jogo.golsFora ?? 0}
           </span>
         </div>
+        {jogo.temPenaltis && jogo.penaltisCasa != null && jogo.penaltisFora != null && (
+          <span className="text-[9px] text-texto/40 mt-0.5">
+            ({jogo.penaltisCasa} × {jogo.penaltisFora} pen.)
+          </span>
+        )}
         {palpiteAtual && (
           <span className="text-[9px] text-primaria-claro mt-1">
             Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}

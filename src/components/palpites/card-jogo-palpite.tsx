@@ -126,10 +126,17 @@ export function CardJogoPalpite({ jogo }: Readonly<PropsCardJogoPalpite>) {
         {/* Centro */}
         <div className="flex-1 flex items-center justify-center gap-2">
           {jogo.status === 'FINALIZADO' ? (
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-bold text-texto">{jogo.golsCasa}</span>
-              <span className="text-[11px] text-texto/30">×</span>
-              <span className="text-2xl font-bold text-texto">{jogo.golsFora}</span>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold text-texto">{jogo.golsCasa}</span>
+                <span className="text-[11px] text-texto/30">×</span>
+                <span className="text-2xl font-bold text-texto">{jogo.golsFora}</span>
+              </div>
+              {jogo.temPenaltis && jogo.penaltisCasa != null && jogo.penaltisFora != null && (
+                <span className="text-[9px] text-texto/40 mt-0.5">
+                  ({jogo.penaltisCasa} × {jogo.penaltisFora} pen.)
+                </span>
+              )}
             </div>
           ) : jogo.status === 'EM_ANDAMENTO' ? (
             <div className="flex items-center gap-3">

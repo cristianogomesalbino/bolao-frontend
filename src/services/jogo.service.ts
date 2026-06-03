@@ -1,5 +1,13 @@
 import apiClient from '@/lib/api-client';
-import { Fase, Jogo, JogosResponse } from '@/types/jogo.types';
+import {
+  Fase,
+  Jogo,
+  JogosResponse,
+  ImportarJogosPayload,
+  ImportarJogosResponse,
+  SincronizarJogosPayload,
+  SincronizarJogosResponse,
+} from '@/types/jogo.types';
 
 export interface Temporada {
   id: string;
@@ -113,4 +121,22 @@ export async function contarJogosAdiadosRodada(faseId: string, rodada: number): 
   } catch {
     return 0;
   }
+}
+
+// --- Importação e Sincronização multi-campeonato (Admin) ---
+
+export async function importarJogos(payload: ImportarJogosPayload): Promise<ImportarJogosResponse> {
+  const response = await apiClient.post<ImportarJogosResponse>('/jogos/importar', payload);
+  return response.data;
+}
+
+export async function sincronizarPlacares(
+  faseId: string,
+  payload: SincronizarJogosPayload,
+): Promise<SincronizarJogosResponse> {
+  const response = await apiClient.post<SincronizarJogosResponse>(
+    `/fases/${faseId}/jogos/sincronizar`,
+    payload,
+  );
+  return response.data;
 }
