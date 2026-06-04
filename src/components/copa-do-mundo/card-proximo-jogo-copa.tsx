@@ -1,16 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { criarPalpite, atualizarPalpite, buscarEstatisticasPalpite } from '@/services/palpite.service';
 import { Jogo, Fase } from '@/types/jogo.types';
+import { Palpite } from '@/types/palpite.types';
 
 interface PropsCardProximoJogoCopa {
   jogo: Jogo;
   fase: Fase;
+  palpiteInicial?: Palpite | null;
+  grupoId?: string;
 }
 
-export function CardProximoJogoCopa({ jogo, fase }: Readonly<PropsCardProximoJogoCopa>) {
+export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Readonly<PropsCardProximoJogoCopa>) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [countdown, setCountdown] = useState('');
+  const [golsCasa, setGolsCasa] = useState<number | ''>(palpiteInicial?.golsCasa ?? '');
+  const [golsFora, setGolsFora] = useState<number | ''>(palpiteInicial?.golsFora ?? '');
+  const [palpiteLocal, setPalpiteLocal] = useState<Palpite | null>(palpiteInicial ?? null);
+  const [salvoFeedback, setSalvoFeedback] = useState(false);
+  const [expandido, setExpandido] = useState(false);
+  const golsRef = useRef({ golsCasa: palpiteInicial?.golsCasa ?? null as number | null, golsFora: palpiteInicial?.golsFora ?? null as number | null });
+  const palpiteRef = useRef<Palpite | null>(palpiteInicial ?? null);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputsRef = useRef<HTMLDivElement>(null);
+
+  // Sincronizar quando palpiteInicial muda
+  useEffect(() => {
+    if (palpiteInicial && !palpiteRef.current) {
+      setPalpiteLocal(palpiteInicial);
+      palpiteRef.current = palpiteInicial;
+      setGolsCasa(palpiteInicial.golsCasa);
+      setGolsFora(palpiteInicial.golsFora);
+      golsRef.current = { golsCasa: palpiteInicial.golsCasa, golsFora: palpiteInicial.golsFora };
+    }
+  }, [palpiteInicial]);
 
   useEffect(() => {
     if (!jogo.dataHora) return;
@@ -22,18 +51,122 @@ export function CardProximoJogoCopa({ jogo, fase }: Readonly<PropsCardProximoJog
         setCountdown('');
         return;
       }
-      const h = Math.floor(diff / 3600000);
+      const dias = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setCountdown(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`,
-      );
+
+      if (dias > 0) {
+        setCountdown(`Fecha em ${dias} dia${dias > 1 ? 's' : ''} e ${h}h`);
+      } else if (h > 0) {
+        setCountdown(`Fecha em ${h}h e ${m}min`);
+      } else {
+        setCountdown(`Fecha em ${m}min`);
+      }
     }
 
     atualizar();
-    const interval = setInterval(atualizar, 1000);
+    const interval = setInterval(atualizar, 60000);
     return () => clearInterval(interval);
   }, [jogo.dataHora]);
+
+  const { data: estatisticas } = useQuery({
+    queryKey: ['estatisticas-palpite', grupoId, jogo.id],
+    queryFn: () => buscarEstatisticasPalpite(grupoId ?? '', jogo.id),
+    enabled: !!grupoId && expandido,
+    staleTime: 1000 * 30,
+  });
+
+  const mutationCriar = useMutation({
+    mutationFn: (gols: { golsCasa: number; golsFora: number }) => criarPalpite(jogo.id, gols),
+    onSuccess: (data: Palpite) => {
+      queryClient.setQueryData(['meu-palpite', jogo.id], data);
+      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
+      setPalpiteLocal(data);
+      palpiteRef.current = data;
+      mostrarFeedbackSalvo();
+    },
+    onError: async (error: unknown) => {
+      const status = (error as { statusCode?: number })?.statusCode
+        ?? (error as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        const { buscarMeuPalpite } = await import('@/services/palpite.service');
+        const existente = await buscarMeuPalpite(jogo.id);
+        if (existente) {
+          setPalpiteLocal(existente);
+          palpiteRef.current = existente;
+          queryClient.setQueryData(['meu-palpite', jogo.id], existente);
+          const gols = golsRef.current;
+          if (gols.golsCasa !== existente.golsCasa || gols.golsFora !== existente.golsFora) {
+            if (gols.golsCasa !== null && gols.golsFora !== null) {
+              mutationAtualizar.mutate({ palpiteId: existente.id, gols: { golsCasa: gols.golsCasa, golsFora: gols.golsFora } });
+            }
+          } else {
+            mostrarFeedbackSalvo();
+          }
+        }
+      }
+    },
+  });
+
+  const mutationAtualizar = useMutation({
+    mutationFn: ({ palpiteId, gols }: { palpiteId: string; gols: { golsCasa: number; golsFora: number } }) =>
+      atualizarPalpite(palpiteId, gols),
+    onSuccess: (data: Palpite) => {
+      queryClient.setQueryData(['meu-palpite', jogo.id], data);
+      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
+      setPalpiteLocal(data);
+      palpiteRef.current = data;
+      mostrarFeedbackSalvo();
+    },
+  });
+
+  const salvando = mutationCriar.isPending || mutationAtualizar.isPending;
+
+  function mostrarFeedbackSalvo() {
+    setSalvoFeedback(true);
+    setTimeout(() => setSalvoFeedback(false), 2000);
+  }
+
+  function salvar() {
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    blurTimeoutRef.current = setTimeout(() => {
+      if (inputsRef.current?.contains(document.activeElement)) return;
+
+      const gols = golsRef.current;
+      // Não salvar se algum campo estiver vazio
+      if (gols.golsCasa === null || gols.golsFora === null) return;
+
+      const palpite = palpiteRef.current
+        ?? queryClient.getQueryData<Palpite | null>(['meu-palpite', jogo.id])
+        ?? null;
+
+      if (palpite && !palpiteRef.current) {
+        palpiteRef.current = palpite;
+        setPalpiteLocal(palpite);
+      }
+
+      if (palpite) {
+        if (gols.golsCasa !== palpite.golsCasa || gols.golsFora !== palpite.golsFora) {
+          mutationAtualizar.mutate({ palpiteId: palpite.id, gols: { golsCasa: gols.golsCasa, golsFora: gols.golsFora } });
+        }
+      } else {
+        mutationCriar.mutate({ golsCasa: gols.golsCasa, golsFora: gols.golsFora });
+      }
+    }, 150);
+  }
+
+  function handleSetGolsCasa(valor: number | '') {
+    setGolsCasa(valor);
+    golsRef.current = { ...golsRef.current, golsCasa: valor === '' ? null : valor };
+  }
+
+  function handleSetGolsFora(valor: number | '') {
+    setGolsFora(valor);
+    golsRef.current = { ...golsRef.current, golsFora: valor === '' ? null : valor };
+  }
+
+  const palpitavel = jogo.status === 'AGENDADO' || jogo.status === 'ADIADO';
+  const bloqueado = palpitavel && !!jogo.dataHora && new Date(jogo.dataHora).getTime() <= Date.now();
 
   const dataFormatada = jogo.dataHora
     ? new Date(jogo.dataHora).toLocaleDateString('pt-BR', {
@@ -55,18 +188,25 @@ export function CardProximoJogoCopa({ jogo, fase }: Readonly<PropsCardProximoJog
   return (
     <Card className="border-[#009c3b] bg-gradient-to-b from-[#009c3b]/[0.08] to-[#ffdf00]/[0.04] overflow-hidden shadow-[0_0_20px_rgba(0,156,59,0.2)]">
       <CardContent className="p-4">
-        {/* Header com badge da fase */}
-        <div className="flex items-center justify-between mb-3">
+        {/* Header com badge da fase + data + hora */}
+        <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-[#ffdf00]/90 uppercase tracking-wider">
             🏆 {fase.nome}
+          </span>
+          <span className="text-[13px] text-[#ffdf00] font-bold">
+            {dataFormatada} • {horaFormatada}
           </span>
           <button
             type="button"
             className="text-[11px] text-[#ffdf00] font-bold hover:underline"
+            onClick={() => router.push('/palpites?campeonato=copa-do-mundo-2026')}
           >
             Ver todos →
           </button>
         </div>
+        {countdown && (
+          <p className="text-[12px] text-[#ff8c00] font-bold text-center mb-1 drop-shadow-[0_0_6px_rgba(255,140,0,0.4)]">⏱ {countdown}</p>
+        )}
 
         {/* Seleções com escudos */}
         <div className="flex items-center justify-between">
@@ -91,14 +231,91 @@ export function CardProximoJogoCopa({ jogo, fase }: Readonly<PropsCardProximoJog
             </span>
           </div>
 
-          {/* Centro: data + hora + countdown */}
-          <div className="flex flex-col items-center gap-1 px-2">
-            <span className="text-[10px] text-white font-medium">{dataFormatada}</span>
-            <span className="text-xl font-bold text-white">{horaFormatada}</span>
-            <span className="text-[10px] text-white/70 font-bold">VS</span>
-            {countdown && (
-              <div className="mt-1 px-2 py-0.5 rounded-md bg-[#ffdf00]/15 border border-[#ffdf00]/40">
-                <span className="text-[11px] font-mono font-bold text-[#ffdf00]">{countdown}</span>
+          {/* Centro: inputs + countdown */}
+          <div className="flex flex-col items-center gap-0.5 px-2 pt-5">
+
+            {/* Inputs de palpite */}
+            {palpitavel && !bloqueado && (
+              <div ref={inputsRef} className="flex items-center gap-2">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={9}
+                  value={golsCasa === '' ? '' : golsCasa}
+                  placeholder="-"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') { handleSetGolsCasa(''); return; }
+                    const val = Number.parseInt(raw, 10);
+                    handleSetGolsCasa(Number.isNaN(val) ? '' : Math.max(0, Math.min(9, val)));
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  onBlur={salvar}
+                  className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/30 text-center text-2xl font-bold text-[#ffdf00] placeholder:text-[#ffdf00]/30 outline-none focus:border-[#ffdf00] focus:ring-1 focus:ring-[#ffdf00] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  disabled={salvando}
+                  data-testid="copa-input-gols-casa"
+                />
+                <span className="text-sm font-bold text-white/60">x</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={9}
+                  value={golsFora === '' ? '' : golsFora}
+                  placeholder="-"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') { handleSetGolsFora(''); return; }
+                    const val = Number.parseInt(raw, 10);
+                    handleSetGolsFora(Number.isNaN(val) ? '' : Math.max(0, Math.min(9, val)));
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  onBlur={salvar}
+                  className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/30 text-center text-2xl font-bold text-[#ffdf00] placeholder:text-[#ffdf00]/30 outline-none focus:border-[#ffdf00] focus:ring-1 focus:ring-[#ffdf00] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  disabled={salvando}
+                  data-testid="copa-input-gols-fora"
+                />
+              </div>
+            )}
+
+            {/* Palpite bloqueado */}
+            {palpitavel && bloqueado && palpiteLocal && (
+              <div className="flex items-center gap-2">
+                <div className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/20 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-[#ffdf00]/70">{palpiteLocal.golsCasa}</span>
+                </div>
+                <span className="text-sm font-bold text-white/40">x</span>
+                <div className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/20 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-[#ffdf00]/70">{palpiteLocal.golsFora}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            {palpitavel && !bloqueado && (
+              <div className="h-4 flex items-center justify-center">
+                {salvando && (
+                  <span className="flex items-center gap-1 text-[9px] text-[#ffdf00]">
+                    <Loader2 size={9} className="animate-spin" />
+                    Salvando...
+                  </span>
+                )}
+                {salvoFeedback && !salvando && (
+                  <span className="flex items-center gap-1 text-[9px] text-[#ffdf00] animate-[fadeIn_0.2s_ease-out]">
+                    <Check size={9} />
+                    Salvo!
+                  </span>
+                )}
+                {!salvando && !salvoFeedback && palpiteLocal && (
+                  <span className="flex items-center gap-1 text-[9px] text-[#a8e6b0]/70">
+                    <Check size={9} />
+                    Salvo
+                  </span>
+                )}
+                {!salvando && !salvoFeedback && !palpiteLocal && (
+                  <span className="text-[9px] text-[#ffdf00]/60">Faça seu palpite ☝️</span>
+                )}
               </div>
             )}
           </div>
@@ -124,6 +341,45 @@ export function CardProximoJogoCopa({ jogo, fase }: Readonly<PropsCardProximoJog
             </span>
           </div>
         </div>
+
+        {/* Seta expandir */}
+        <button
+          type="button"
+          onClick={() => setExpandido(!expandido)}
+          className="w-full flex items-center justify-center mt-2 pt-1"
+        >
+          <ChevronDown size={20} className={`text-[#ffdf00]/60 transition-transform ${expandido ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Barra de palpites da galera */}
+        {expandido && estatisticas && estatisticas.total > 0 && (
+          <div className="mt-2 pt-2 border-t border-[#009c3b]/20">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-left">
+                <span className="text-sm font-bold text-[#009c3b]">{estatisticas.percentualCasa}%</span>
+                <p className="text-[9px] text-[#a8e6b0]/50">da galera</p>
+              </div>
+              {estatisticas.percentualEmpate > 0 && (
+                <div className="text-center">
+                  <span className="text-sm font-bold text-white/60">{estatisticas.percentualEmpate}%</span>
+                  <p className="text-[9px] text-white/40">empate</p>
+                </div>
+              )}
+              <div className="text-right">
+                <span className="text-sm font-bold text-erro">{estatisticas.percentualFora}%</span>
+                <p className="text-[9px] text-[#a8e6b0]/50">da galera</p>
+              </div>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden flex">
+              <div className="h-full bg-[#009c3b] rounded-l-full" style={{ width: `${estatisticas.percentualCasa}%` }} />
+              {estatisticas.percentualEmpate > 0 && (
+                <div className="h-full bg-white/30" style={{ width: `${estatisticas.percentualEmpate}%` }} />
+              )}
+              <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
+            </div>
+            <p className="text-[10px] text-[#ffdf00] text-center mt-1.5 font-semibold">🔥 {estatisticas.total} {estatisticas.total === 1 ? 'pessoa já palpitou' : 'pessoas já palpitaram'}!</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

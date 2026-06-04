@@ -6,6 +6,7 @@ import { Trophy, User, ChevronRight, Minus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CardProximoJogoCopa } from './card-proximo-jogo-copa';
 import { buscarDadosTemporada } from '@/services/jogo.service';
+import { buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { obterRankingGeral, obterRankingFase } from '@/services/grupo.service';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -23,11 +24,19 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
     queryKey: ['grupo', grupoId, 'dados-temporada'],
     queryFn: () => buscarDadosTemporada(temporadaId),
     enabled: !!temporadaId,
-    staleTime: 1000 * 30,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 5,
   });
 
   const proximoJogo = dadosTemporada?.proximoJogo ?? null;
+
+  const proximoJogoId = proximoJogo?.jogo.id;
+  const { data: palpitesProximoJogo } = useQuery({
+    queryKey: ['meus-palpites-batch', 'copa-dashboard', proximoJogoId],
+    queryFn: () => buscarMeusPalpitesPorJogos([proximoJogoId!]),
+    enabled: !!proximoJogoId,
+    staleTime: 1000 * 60 * 5,
+  });
+  const palpiteProximoJogo = palpitesProximoJogo?.[0] ?? null;
 
   const { data: rankingGeral, isLoading: carregandoRanking } = useQuery({
     queryKey: ['grupo', grupoId, 'ranking', 'geral'],
@@ -69,7 +78,12 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
     <div className="space-y-3">
       {/* Próximo Jogo */}
       {proximoJogo && (
-        <CardProximoJogoCopa jogo={proximoJogo.jogo} fase={proximoJogo.fase} />
+        <CardProximoJogoCopa
+          jogo={proximoJogo.jogo}
+          fase={proximoJogo.fase}
+          palpiteInicial={palpiteProximoJogo}
+          grupoId={grupoId}
+        />
       )}
 
       {!proximoJogo && (

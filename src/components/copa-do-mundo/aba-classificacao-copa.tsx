@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { listarFases, listarJogosFase } from '@/services/jogo.service';
+import { listarFases, listarJogosTemporada } from '@/services/jogo.service';
+import { Jogo } from '@/types/jogo.types';
 import { TabelaGrupoCopa } from './tabela-grupo-copa';
 
 interface PropsAbaClassificacaoCopa {
@@ -13,28 +14,23 @@ export function AbaClassificacaoCopa({ temporadaId }: Readonly<PropsAbaClassific
     queryKey: ['fases-copa', temporadaId],
     queryFn: () => listarFases(temporadaId),
     enabled: !!temporadaId,
+    staleTime: 1000 * 60 * 60,
   });
 
   const fasesGrupos = fases?.filter((f) => f.tipo === 'PONTOS_CORRIDOS') ?? [];
 
-  const { data: jogosPorGrupo, isLoading: carregandoJogos } = useQuery({
-    queryKey: ['jogos-copa-classificacao', fasesGrupos.map((f) => f.id).join(',')],
-    queryFn: async () => {
-      const resultados = await Promise.all(
-        fasesGrupos.map(async (fase) => {
-          try {
-            const res = await listarJogosFase(fase.id);
-            return { fase, jogos: res.jogos };
-          } catch {
-            return { fase, jogos: [] };
-          }
-        }),
-      );
-      return resultados;
-    },
-    enabled: fasesGrupos.length > 0,
+  const { data: todosJogos, isLoading: carregandoJogos } = useQuery({
+    queryKey: ['jogos-temporada', temporadaId],
+    queryFn: () => listarJogosTemporada(temporadaId),
+    enabled: !!temporadaId,
     staleTime: 1000 * 60 * 5,
   });
+
+  // Agrupar jogos por faseId
+  const jogosPorGrupo = fasesGrupos.map((fase) => ({
+    fase,
+    jogos: (todosJogos ?? []).filter((j: Jogo) => j.faseId === fase.id),
+  })).filter((g) => g.jogos.length > 0);
 
   if (carregandoFases || carregandoJogos) {
     return (

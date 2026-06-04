@@ -18,6 +18,7 @@ interface PropsCardJogoPalpite {
   grupoId?: string;
   ativo?: boolean;
   onFoco?: () => void;
+  temaCopa?: boolean;
 }
 
 // --- Sub-componentes extraídos para reduzir complexidade cognitiva ---
@@ -47,7 +48,7 @@ function EscudoTime({ time, label }: Readonly<PropsEscudoTime>) {
           </div>
         )}
       </div>
-      <span className="text-xs text-texto font-medium truncate max-w-[70px]">
+      <span className="text-[11px] text-texto font-medium text-center leading-tight max-w-[90px]">
         {time?.nome || label}
       </span>
     </div>
@@ -86,6 +87,14 @@ function FeedbackStatus({ salvando, salvoFeedback, jaPalpitou, bloqueado }: Read
   }
   if (jaPalpitou && bloqueado) {
     return <span className="text-[10px] text-texto/30">🔒 Palpite encerrado</span>;
+  }
+  if (jaPalpitou && !bloqueado) {
+    return (
+      <span className="flex items-center gap-1 text-[10px] text-primaria-claro/70">
+        <Check size={10} />
+        Salvo
+      </span>
+    );
   }
   return null;
 }
@@ -243,14 +252,14 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
 
 // --- Componente principal ---
 
-export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco }: Readonly<PropsCardJogoPalpite>) {
+export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco, temaCopa }: Readonly<PropsCardJogoPalpite>) {
   const queryClient = useQueryClient();
-  const [golsCasa, setGolsCasa] = useState(palpiteInicial?.golsCasa ?? 0);
-  const [golsFora, setGolsFora] = useState(palpiteInicial?.golsFora ?? 0);
+  const [golsCasa, setGolsCasa] = useState<number | ''>(palpiteInicial?.golsCasa ?? '');
+  const [golsFora, setGolsFora] = useState<number | ''>(palpiteInicial?.golsFora ?? '');
   const [expandido, setExpandido] = useState(false);
   const [palpiteLocal, setPalpiteLocal] = useState<Palpite | null>(palpiteInicial ?? null);
   const [salvoFeedback, setSalvoFeedback] = useState(false);
-  const golsRef = useRef({ golsCasa: palpiteInicial?.golsCasa ?? 0, golsFora: palpiteInicial?.golsFora ?? 0 });
+  const golsRef = useRef({ golsCasa: palpiteInicial?.golsCasa ?? null as number | null, golsFora: palpiteInicial?.golsFora ?? null as number | null });
   const cardRef = useRef<HTMLDivElement>(null);
   const palpiteRef = useRef<Palpite | null>(palpiteInicial ?? null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -282,6 +291,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
     onSuccess: (data: Palpite) => {
       queryClient.setQueryData(['meu-palpite', jogo.id], data);
       queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
+      queryClient.invalidateQueries({ queryKey: ['palpites-copa-batch'] });
       setPalpiteLocal(data);
       palpiteRef.current = data;
       mostrarFeedbackSalvo();
@@ -316,6 +326,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
     onSuccess: (data: Palpite) => {
       queryClient.setQueryData(['meu-palpite', jogo.id], data);
       queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
+      queryClient.invalidateQueries({ queryKey: ['palpites-copa-batch'] });
       setPalpiteLocal(data);
       palpiteRef.current = data;
       mostrarFeedbackSalvo();
@@ -363,16 +374,16 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
     }, 150);
   }
 
-  function handleSetGolsCasa(valor: number) {
+  function handleSetGolsCasa(valor: number | '') {
     onFoco?.();
     setGolsCasa(valor);
-    golsRef.current = { ...golsRef.current, golsCasa: valor };
+    golsRef.current = { ...golsRef.current, golsCasa: valor === '' ? null : valor };
   }
 
-  function handleSetGolsFora(valor: number) {
+  function handleSetGolsFora(valor: number | '') {
     onFoco?.();
     setGolsFora(valor);
-    golsRef.current = { ...golsRef.current, golsFora: valor };
+    golsRef.current = { ...golsRef.current, golsFora: valor === '' ? null : valor };
   }
 
   useEffect(() => {
@@ -381,19 +392,12 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
     }
   }, [ativo]);
 
-  const dataHoraFormatada = jogo.dataHora
-    ? new Date(jogo.dataHora).toLocaleDateString('pt-BR', {
-        weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo'
-      }).toUpperCase().replace('.', '') + ' • ' +
-      new Date(jogo.dataHora).toLocaleTimeString('pt-BR', {
-        hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo'
-      })
-    : '';
-
   const emPreenchimento = palpitavel && !palpiteAtual && !bloqueado;
-  const cardBorda = ativo && emPreenchimento
-    ? 'border-primaria border-[3px] shadow-[0_0_30px_rgba(34,197,94,0.35)]'
-    : 'border-primaria';
+  const bordaCopa = temaCopa ? 'border-[#ffdf00] shadow-[0_0_12px_rgba(255,223,0,0.2)]' : 'border-primaria';
+  const bordaAtivaCopa = temaCopa
+    ? 'border-[#ffdf00] border-[3px] shadow-[0_0_30px_rgba(255,223,0,0.4)]'
+    : 'border-primaria border-[3px] shadow-[0_0_30px_rgba(34,197,94,0.35)]';
+  const cardBorda = ativo && emPreenchimento ? bordaAtivaCopa : bordaCopa;
 
   return (
     <div ref={cardRef} className="scroll-mt-[140px]">
@@ -402,14 +406,21 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           {/* Data/hora + status */}
           <div className="flex items-center justify-center gap-2 mb-2">
             {jogo.dataHora ? (
-              <span className="text-[11px] text-texto/80 uppercase tracking-wide">{dataHoraFormatada}</span>
+              <span className="text-[11px] text-texto/80 uppercase tracking-wide">
+                {new Date(jogo.dataHora).toLocaleDateString('pt-BR', {
+                  weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo'
+                }).toUpperCase().replace('.', '') + ' • ' +
+                new Date(jogo.dataHora).toLocaleTimeString('pt-BR', {
+                  hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo'
+                })}
+              </span>
             ) : (
               <span className="text-[9px] text-destaque font-semibold uppercase tracking-wide">Jogo adiado - Data a definir</span>
             )}
             {jogo.status === 'EM_ANDAMENTO' && (
               <span className="flex items-center gap-1 text-[8px] text-erro font-bold">
-                <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />{' '}
-                AO VIVO
+                <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />
+                {'AO VIVO'}
               </span>
             )}
             {jogo.status === 'FINALIZADO' && (

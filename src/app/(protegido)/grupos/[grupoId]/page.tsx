@@ -21,6 +21,26 @@ import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpite
 
 type AbaCopa = 'dashboard' | 'classificacao' | 'palpites';
 
+const ICONES_GRUPO: Record<string, string> = {
+  bola: '⚽',
+  trofeu: '🏆',
+  coroa: '👑',
+  chuteira: '👟',
+  medalha: '🥇',
+  bandeira: '🚩',
+  estrela: '⭐',
+  campo: '🏟️',
+  luva: '🧤',
+  apito: '📣',
+  escudo: '🛡️',
+  fogo: '🔥',
+};
+
+function obterEmojiGrupo(icone: string | null | undefined): string {
+  if (!icone) return '⚽';
+  return ICONES_GRUPO[icone] ?? '⚽';
+}
+
 export default function DetalhesGrupoPage() {
   const router = useRouter();
   const params = useParams();
@@ -185,7 +205,7 @@ export default function DetalhesGrupoPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <h1 className="text-base font-semibold text-texto" data-testid="grupo-detalhe-nome">{grupo.nome}</h1>
-              <span className="text-destaque text-xs">👑</span>
+              <span className="text-xs">{obterEmojiGrupo(grupo.icone)}</span>
             </div>
             <p className="text-[10px] text-texto/35 flex items-center gap-1">
               {grupo.privado ? <Lock size={9} /> : <Globe size={9} />}

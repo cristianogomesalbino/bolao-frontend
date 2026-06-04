@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Trophy } from 'lucide-react';
+import { Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listarJogosFase } from '@/services/jogo.service';
 import { Fase, Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
@@ -64,8 +64,61 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
 
   const palpitesPorJogo = palpitesBatch ?? {};
 
+  // Contar palpites feitos vs total de jogos palpitáveis
+  const jogosPalpitaveis = todosJogos.filter((j) => podePalpitar(j));
+  const totalPalpitaveis = jogosPalpitaveis.length;
+  const palpitesFeitos = jogosPalpitaveis.filter((j) => !!palpitesPorJogo[j.id]).length;
+
   return (
     <div className="space-y-4">
+      {/* Header: RODADA + barra de progresso + contador */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setRodadaSelecionada(Math.max(1, rodadaSelecionada - 1))}
+          disabled={rodadaSelecionada <= 1}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          aria-label="Rodada anterior"
+        >
+          <ChevronLeft size={16} />
+        </button>
+
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold text-[#ffdf00] uppercase tracking-wide">
+              Rodada {rodadaSelecionada}
+            </span>
+            <span className="text-[11px] text-[#009c3b] font-semibold">
+              {palpitesFeitos}/{totalPalpitaveis} palpites feitos
+            </span>
+          </div>
+          {/* Barra de progresso */}
+          <div className="flex gap-[2px] h-2">
+            {jogosPalpitaveis.map((jogo) => (
+              <div
+                key={jogo.id}
+                className={`flex-1 rounded-sm transition-colors ${
+                  palpitesPorJogo[jogo.id] ? 'bg-[#009c3b]' : 'bg-white/[0.12]'
+                }`}
+              />
+            ))}
+            {totalPalpitaveis === 0 && (
+              <div className="flex-1 rounded-sm bg-white/[0.06]" />
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setRodadaSelecionada(Math.min(3, rodadaSelecionada + 1))}
+          disabled={rodadaSelecionada >= 3}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          aria-label="Próxima rodada"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
       {/* Seletor de rodada */}
       <div className="flex items-center justify-center gap-2">
         {[1, 2, 3].map((r) => (
@@ -73,16 +126,15 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
             key={r}
             type="button"
             onClick={() => setRodadaSelecionada(r)}
-            className={`w-10 h-10 rounded-full text-sm font-bold transition-all ${
+            className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all ${
               rodadaSelecionada === r
-                ? 'bg-destaque text-white shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-                : 'bg-white/[0.04] text-texto/50 border border-white/[0.08] hover:bg-white/[0.08]'
+                ? 'bg-[#009c3b]/30 text-[#ffdf00] border border-[#009c3b]/50 shadow-[0_0_12px_rgba(0,156,59,0.3)]'
+                : 'bg-[#009c3b]/[0.06] text-[#a8e6b0]/60 border border-[#009c3b]/20 hover:bg-[#009c3b]/15 hover:text-[#ffdf00]/80'
             }`}
           >
-            {r}
+            Rodada {r}
           </button>
         ))}
-        <span className="text-[10px] text-texto/30 ml-1">ª rodada</span>
       </div>
 
       {/* Loading */}
@@ -100,13 +152,13 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
           {jogosPorGrupo.map(({ fase, jogos }) => (
             <div key={fase.id}>
               {/* Separador: Rodada X — Grupo Y */}
-              <div className="sticky top-[120px] z-10 flex items-center gap-2 py-2 -mx-4 px-4 bg-fundo/95 backdrop-blur-md">
-                <span className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-destaque/40 to-destaque/60 rounded-full" />
-                <span className="text-[11px] text-destaque font-bold uppercase tracking-wide px-3 py-1.5 rounded-full border border-destaque/30 bg-destaque/10">
+              <div className="sticky top-[88px] z-10 flex items-center gap-2 py-2 -mx-4 px-4 bg-[#003d1a]/95 backdrop-blur-md">
+                <span className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
+                <span className="text-[11px] text-[#ffdf00] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[#ffdf00]/30 bg-[#ffdf00]/10">
                   <Trophy size={10} className="inline mr-1 -mt-0.5" />
                   Rodada {rodadaSelecionada} — {fase.nome}
                 </span>
-                <span className="h-[2px] flex-1 bg-gradient-to-l from-transparent via-destaque/40 to-destaque/60 rounded-full" />
+                <span className="h-[2px] flex-1 bg-gradient-to-l from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
               </div>
 
               {/* Cards de jogos */}
@@ -121,6 +173,7 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
                     grupoId={grupoId}
                     ativo={cardAtivo === jogo.id}
                     onFoco={() => onFoco(jogo.id)}
+                    temaCopa
                   />
                 ))}
               </div>

@@ -97,7 +97,7 @@ export default function EditarGrupoPage() {
     mode: 'onChange',
     values: grupo ? {
       nome: grupo.nome,
-      icone: (grupo as unknown as { icone?: string }).icone || 'trofeu',
+      icone: grupo.icone || 'trofeu',
       privado: grupo.privado,
       permitirPalpiteAutomatico: grupo.permitirPalpiteAutomatico,
       permitirPalpiteDobrado: grupo.permitirPalpiteDobrado,

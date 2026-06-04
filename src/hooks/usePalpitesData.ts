@@ -28,10 +28,25 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
   const { data: gruposData } = useQuery({
     queryKey: ['grupos'],
     queryFn: () => listarGrupos(),
-    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId })),
+    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId, campeonato: g.temporada?.campeonato?.nome })),
   });
 
-  const grupoId = usuario?.grupoFavoritoId ?? gruposData?.[0]?.id ?? '';
+  // Selecionar grupo correto baseado no campeonato selecionado
+  const grupoParaCampeonato = (() => {
+    if (!gruposData) return undefined;
+    if (campeonatoSelecionado === 'copa-do-mundo-2026') {
+      return gruposData.find((g) => g.campeonato?.toLowerCase().includes('copa'));
+    }
+    // Brasileirão: grupo favorito ou primeiro que não é Copa
+    const favoritoId = usuario?.grupoFavoritoId;
+    if (favoritoId) {
+      const fav = gruposData.find((g) => g.id === favoritoId && !g.campeonato?.toLowerCase().includes('copa'));
+      if (fav) return fav;
+    }
+    return gruposData.find((g) => !g.campeonato?.toLowerCase().includes('copa'));
+  })();
+
+  const grupoId = grupoParaCampeonato?.id ?? usuario?.grupoFavoritoId ?? gruposData?.[0]?.id ?? '';
 
   // Temporadas
   const { data: temporadas } = useQuery({

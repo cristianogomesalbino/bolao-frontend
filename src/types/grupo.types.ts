@@ -1,6 +1,7 @@
 export interface Grupo {
   id: string;
   nome: string;
+  icone: string | null;
   temporadaId: string;
   privado: boolean;
   codigoConvite: string | null;
@@ -51,6 +52,7 @@ export interface DadosCriarGrupo {
 
 export interface DadosAtualizarGrupo {
   nome?: string;
+  icone?: string;
   privado?: boolean;
   permitirPalpiteAutomatico?: boolean;
   permitirPalpiteDobrado?: boolean;

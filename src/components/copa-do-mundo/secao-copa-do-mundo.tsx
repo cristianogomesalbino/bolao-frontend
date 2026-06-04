@@ -4,14 +4,16 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { listarFases, listarJogosFase } from '@/services/jogo.service';
+import { buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { Jogo } from '@/types/jogo.types';
 import { CardProximoJogoCopa } from './card-proximo-jogo-copa';
 
 interface PropsSecaoCopaDoMundo {
   temporadaId: string;
+  grupoId?: string;
 }
 
-export function SecaoCopaDoMundo({ temporadaId }: Readonly<PropsSecaoCopaDoMundo>) {
+export function SecaoCopaDoMundo({ temporadaId, grupoId }: Readonly<PropsSecaoCopaDoMundo>) {
   const router = useRouter();
   const [tab, setTab] = useState<'jogos' | 'palpites'>('jogos');
 
@@ -54,6 +56,15 @@ export function SecaoCopaDoMundo({ temporadaId }: Readonly<PropsSecaoCopaDoMundo
     .filter((j) => j.status === 'AGENDADO' && j.dataHora)
     .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
     .slice(0, 12);
+
+  const proximoJogoId = proximoJogo?.id;
+  const { data: palpitesProximoJogo } = useQuery({
+    queryKey: ['meus-palpites-batch', 'copa-secao', proximoJogoId],
+    queryFn: () => buscarMeusPalpitesPorJogos([proximoJogoId!]),
+    enabled: !!proximoJogoId,
+    staleTime: 1000 * 60 * 5,
+  });
+  const palpiteProximoJogo = palpitesProximoJogo?.[0] ?? null;
 
   if (carregandoFases) {
     return (
@@ -107,7 +118,12 @@ export function SecaoCopaDoMundo({ temporadaId }: Readonly<PropsSecaoCopaDoMundo
 
       {/* Próximo jogo (sempre visível) */}
       {proximoJogo && (
-        <CardProximoJogoCopa jogo={proximoJogo} fase={proximoJogo.fase} />
+        <CardProximoJogoCopa
+          jogo={proximoJogo}
+          fase={proximoJogo.fase}
+          palpiteInicial={palpiteProximoJogo}
+          grupoId={grupoId}
+        />
       )}
 
       {/* Tab: Jogos */}
