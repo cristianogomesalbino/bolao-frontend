@@ -330,6 +330,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
             <div className="flex items-center justify-center mt-2 pt-2 border-t border-white/[0.05]">
               {(() => {
                 const pts = calcularPontos({ ...palpiteAtual, jogo: { golsCasa: jogo.golsCasa, golsFora: jogo.golsFora, status: jogo.status } });
+                if (pts === 3) return <span className="text-[10px] text-primaria font-semibold">+{pts} pts <span className="text-sm">🎯</span></span>;
                 if (pts > 0) return <span className="text-[10px] text-primaria font-semibold">+{pts} pts</span>;
                 return <span className="text-[10px] text-texto/30">0 pts</span>;
               })()}

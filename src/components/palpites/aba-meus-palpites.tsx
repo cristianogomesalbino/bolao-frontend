@@ -161,7 +161,7 @@ function CardPalpiteHistorico({ palpite: p }: Readonly<{ palpite: PalpiteComJogo
           </div>
           <div className="mt-1.5">
             {temPontos ? (
-              <span className="text-[10px] text-primaria font-semibold flex items-center gap-1">+{pts} {pts > 1 ? 'pontos' : 'ponto'} ✓</span>
+              <span className="text-[10px] text-primaria font-semibold flex items-center gap-1">+{pts} {pts > 1 ? 'pontos' : 'ponto'} {pts === PONTOS.ACERTO_EM_CHEIO ? '🎯' : '✓'}</span>
             ) : (
               <span className="text-[10px] text-texto/30">0 pontos</span>
             )}
