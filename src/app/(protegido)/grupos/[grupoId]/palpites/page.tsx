@@ -113,7 +113,12 @@ export default function PalpitesGrupoPage() {
                       {/* Placar / Horário */}
                       <div className="flex-1 text-center">
                         {jogo.status === 'FINALIZADO' ? (
-                          <p className="text-lg font-bold text-texto">{jogo.golsCasa} × {jogo.golsFora}</p>
+                          <>
+                            <p className="text-lg font-bold text-texto">{jogo.golsCasa} × {jogo.golsFora}</p>
+                            {jogo.temPenaltis && jogo.penaltisCasa != null && jogo.penaltisFora != null && (
+                              <p className="text-[9px] text-texto/40">({jogo.penaltisCasa} × {jogo.penaltisFora} pen.)</p>
+                            )}
+                          </>
                         ) : jogo.status === 'ADIADO' ? (
                           <p className="text-[10px] font-semibold text-destaque">Adiado</p>
                         ) : (

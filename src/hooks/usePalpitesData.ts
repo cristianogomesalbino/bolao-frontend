@@ -3,7 +3,7 @@ import { listarFases, listarJogosFase, listarTemporadas } from '@/services/jogo.
 import { listarGrupos } from '@/services/grupo.service';
 import { buscarMeusPalpitesPorJogos, listarMeusPalpites } from '@/services/palpite.service';
 import { useAuthStore } from '@/stores/auth.store';
-import { Jogo } from '@/types/jogo.types';
+import { Jogo, CAMPEONATOS } from '@/types/jogo.types';
 import { Palpite, PalpiteComJogo } from '@/types/palpite.types';
 
 /** Verifica se o jogo aceita palpites (status correto e hora não passou) */
@@ -20,9 +20,41 @@ export function estaBloqueado(jogo: Jogo): boolean {
   return new Date(jogo.dataHora).getTime() <= Date.now();
 }
 
-export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
+export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionado?: string) {
   const queryClient = useQueryClient();
   const usuario = useAuthStore((state) => state.usuario);
+
+  // Grupos (precisa antes para determinar temporada)
+  const { data: gruposData } = useQuery({
+    queryKey: ['grupos'],
+    queryFn: () => listarGrupos(),
+    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId, campeonato: g.temporada?.campeonato?.nome })),
+  });
+
+  // Label do campeonato Copa a partir do config
+  const labelCopa = CAMPEONATOS.find((c) => c.slug === 'copa-do-mundo-2026')?.label ?? '';
+
+  function ehGrupoCopa(nomeCampeonato?: string): boolean {
+    if (!nomeCampeonato) return false;
+    return nomeCampeonato === labelCopa;
+  }
+
+  // Selecionar grupo correto baseado no campeonato selecionado
+  const grupoParaCampeonato = (() => {
+    if (!gruposData) return undefined;
+    if (campeonatoSelecionado === 'copa-do-mundo-2026') {
+      return gruposData.find((g) => ehGrupoCopa(g.campeonato));
+    }
+    // Brasileirão: grupo favorito ou primeiro que não é Copa
+    const favoritoId = usuario?.grupoFavoritoId;
+    if (favoritoId) {
+      const fav = gruposData.find((g) => g.id === favoritoId && !ehGrupoCopa(g.campeonato));
+      if (fav) return fav;
+    }
+    return gruposData.find((g) => !ehGrupoCopa(g.campeonato));
+  })();
+
+  const grupoId = grupoParaCampeonato?.id ?? usuario?.grupoFavoritoId ?? gruposData?.[0]?.id ?? '';
 
   // Temporadas
   const { data: temporadas } = useQuery({
@@ -31,17 +63,17 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
     staleTime: 1000 * 60 * 60,
   });
 
-  const temporadaAtual = temporadas?.find((t) => t.campeonato?.nome.includes('Série A')) ?? temporadas?.[0];
+  const temporadaAtual = (() => {
+    if (!temporadas || temporadas.length === 0) return undefined;
+    // Selecionar por campeonato escolhido pelo usuário
+    if (campeonatoSelecionado === 'copa-do-mundo-2026') {
+      return temporadas.find((t) => t.campeonato?.nome?.includes('Copa'));
+    }
+    // Brasileirão
+    return temporadas.find((t) => t.campeonato?.nome?.includes('Série A')) ?? temporadas[0];
+  })();
   const temporadaId = temporadaAtual?.id || '';
-
-  // Grupos
-  const { data: gruposData } = useQuery({
-    queryKey: ['grupos'],
-    queryFn: () => listarGrupos(),
-    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId })),
-  });
-
-  const grupoId = usuario?.grupoFavoritoId ?? gruposData?.[0]?.id ?? '';
+  const ehCopaMundo = campeonatoSelecionado === 'copa-do-mundo-2026';
 
   // Fases
   const { data: fases } = useQuery({
@@ -76,7 +108,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
   const { data: jogosProximaRodada, isLoading: carregandoProxima } = useQuery({
     queryKey: ['jogos-proxima-rodada', faseAtual?.id, proximaRodada],
     queryFn: () => listarJogosFase(faseAtual!.id, proximaRodada as number),
-    enabled: !!faseAtual?.id && !!proximaRodada && proximaRodada <= 38,
+    enabled: !!faseAtual?.id && !!proximaRodada,
   });
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
@@ -101,7 +133,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
   const todosJogoIds = [...jogosAtualVisiveis, ...jogosProximaVisiveis].map((j) => j.id);
 
   const { data: palpitesBatch, isFetching: carregandoBatch } = useQuery({
-    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada, usuario?.id, todosJogoIds.join(',')],
+    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada, usuario?.id],
     queryFn: async () => {
       const palpites = await buscarMeusPalpitesPorJogos(todosJogoIds);
       const palpitesPorJogo: Record<string, Palpite> = {};
@@ -150,6 +182,8 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus') {
     temporadaId,
     grupoId,
     faseAtual,
+    fases,
+    ehCopaMundo,
     rodadaAtual,
     proximaRodada,
     jogosAtualVisiveis,

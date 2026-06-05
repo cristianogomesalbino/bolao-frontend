@@ -12,10 +12,12 @@ description: Convenções de código, padrões de componentes, services, tipos, 
 - **NUNCA fazer chamadas à API diretamente nos componentes** — usar services (`src/services/`)
 - **NUNCA armazenar tokens em localStorage diretamente nos componentes** — usar o auth store
 - **NUNCA usar classes CSS ou IDs para testes** — usar `data-testid` (ver steering testabilidade.md)
+- **NUNCA fazer N requests individuais quando um batch ou endpoint consolidado resolve** — criar endpoint batch no backend ou consolidar chamadas no service. Se uma tela faz mais de 3-4 requests ao carregar, avaliar se pode ser reduzido com um endpoint dedicado
 - **SEMPRE usar 'use client' em componentes que usam hooks, estado ou eventos**
 - **SEMPRE validar formulários com Zod** — nunca validação manual
 - **SEMPRE tratar erros de API com mensagens em português**
 - **SEMPRE usar o `apiClient` de `src/lib/api-client.ts`** — nunca instanciar axios diretamente
+- **SEMPRE usar `staleTime` adequado no React Query** — dados que mudam pouco (fases, temporadas, classificação): 5min+. Dados que mudam por ação do usuário (palpites): `Infinity` com invalidação manual. NUNCA `staleTime: 0` + `refetchOnWindowFocus: true` em queries pesadas
 
 ## Componentes
 
