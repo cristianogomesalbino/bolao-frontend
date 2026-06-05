@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { criarPalpite, atualizarPalpite, buscarEstatisticasPalpite, EstatisticasPalpite } from '@/services/palpite.service';
+import { buscarEstatisticasPalpite, EstatisticasPalpite } from '@/services/palpite.service';
 import { calcularPontos } from '@/lib/pontuacao';
 import { Card, CardContent } from '@/components/ui/card';
 import { Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
+import { usePalpiteCard } from '@/hooks/usePalpiteCard';
 
 interface PropsCardJogoPalpite {
   jogo: Jogo;
@@ -21,7 +22,7 @@ interface PropsCardJogoPalpite {
   temaCopa?: boolean;
 }
 
-// --- Sub-componentes extraídos para reduzir complexidade cognitiva ---
+// --- Sub-componentes ---
 
 interface PropsEscudoTime {
   time: { nome: string; sigla: string; escudo: string | null } | null | undefined;
@@ -34,14 +35,7 @@ function EscudoTime({ time, label }: Readonly<PropsEscudoTime>) {
       <div className="relative h-14 flex items-center justify-center">
         <div className="absolute inset-0 rounded-full bg-white/30 blur-lg" />
         {time?.escudo ? (
-          <Image
-            src={time.escudo}
-            alt={time.nome}
-            width={56}
-            height={56}
-            className="relative h-14 w-14 object-contain"
-            unoptimized
-          />
+          <Image src={time.escudo} alt={time.nome} width={56} height={56} className="relative h-14 w-14 object-contain" unoptimized />
         ) : (
           <div className="relative h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-texto/50">
             {time?.sigla || '?'}
@@ -79,24 +73,18 @@ function FeedbackStatus({ salvando, salvoFeedback, jaPalpitou, bloqueado }: Read
       </span>
     );
   }
-  if (!jaPalpitou && !bloqueado) {
+  if (bloqueado) {
+    return <span className="text-[10px] text-texto/30">🔒 Palpite encerrado</span>;
+  }
+  if (!jaPalpitou) {
     return <span className="text-[11px] text-destaque/80">⚠️ Você ainda não palpitou para este jogo!</span>;
   }
-  if (!jaPalpitou && bloqueado) {
-    return <span className="text-[10px] text-texto/30">🔒 Palpite encerrado</span>;
-  }
-  if (jaPalpitou && bloqueado) {
-    return <span className="text-[10px] text-texto/30">🔒 Palpite encerrado</span>;
-  }
-  if (jaPalpitou && !bloqueado) {
-    return (
-      <span className="flex items-center gap-1 text-[10px] text-primaria-claro/70">
-        <Check size={10} />
-        Salvo
-      </span>
-    );
-  }
-  return null;
+  return (
+    <span className="flex items-center gap-1 text-[10px] text-primaria-claro/70">
+      <Check size={10} />
+      Salvo
+    </span>
+  );
 }
 
 interface PropsCentroCard {
@@ -104,13 +92,13 @@ interface PropsCentroCard {
   palpitavel?: boolean;
   bloqueado?: boolean;
   palpiteAtual: Palpite | null;
-  golsCasa: number;
-  golsFora: number;
+  golsCasa: number | '';
+  golsFora: number | '';
   salvando: boolean;
-  onSetGolsCasa: (valor: number) => void;
-  onSetGolsFora: (valor: number) => void;
+  onSetGolsCasa: (valor: number | '') => void;
+  onSetGolsFora: (valor: number | '') => void;
   onSalvar: () => void;
-  inputsRef?: React.RefObject<HTMLDivElement | null>;
+  inputsRef: React.RefObject<HTMLDivElement | null>;
 }
 
 function CentroCard({
@@ -122,29 +110,20 @@ function CentroCard({
     return (
       <>
         <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold text-texto">
-            {jogo.golsCasa ?? 0}
-          </span>
+          <span className="text-2xl font-bold text-texto">{jogo.golsCasa ?? 0}</span>
           <span className="text-[10px] text-texto/20">×</span>
-          <span className="text-2xl font-bold text-texto">
-            {jogo.golsFora ?? 0}
-          </span>
+          <span className="text-2xl font-bold text-texto">{jogo.golsFora ?? 0}</span>
         </div>
         {jogo.temPenaltis && jogo.penaltisCasa != null && jogo.penaltisFora != null && (
-          <span className="text-[9px] text-texto/40 mt-0.5">
-            ({jogo.penaltisCasa} × {jogo.penaltisFora} pen.)
-          </span>
+          <span className="text-[9px] text-texto/40 mt-0.5">({jogo.penaltisCasa} × {jogo.penaltisFora} pen.)</span>
         )}
         {palpiteAtual && (
-          <span className="text-[9px] text-primaria-claro mt-1">
-            Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}
-          </span>
+          <span className="text-[9px] text-primaria-claro mt-1">Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}</span>
         )}
       </>
     );
   }
 
-  // Bloqueado: mostra palpite estático ou traço
   if (bloqueado) {
     if (palpiteAtual) {
       return (
@@ -162,14 +141,12 @@ function CentroCard({
     return <span className="text-[11px] text-texto/40">—</span>;
   }
 
-  // Palpitável e não bloqueado: sempre mostra inputs editáveis
   if (palpitavel) {
     return (
       <div ref={inputsRef} className="flex items-center gap-2">
         <input
           type="number"
           inputMode="numeric"
-          pattern="[0-9]"
           min={0}
           max={9}
           value={golsCasa}
@@ -187,7 +164,6 @@ function CentroCard({
         <input
           type="number"
           inputMode="numeric"
-          pattern="[0-9]"
           min={0}
           max={9}
           value={golsFora}
@@ -253,31 +229,14 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
 // --- Componente principal ---
 
 export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco, temaCopa }: Readonly<PropsCardJogoPalpite>) {
-  const queryClient = useQueryClient();
-  const [golsCasa, setGolsCasa] = useState<number | ''>(palpiteInicial?.golsCasa ?? '');
-  const [golsFora, setGolsFora] = useState<number | ''>(palpiteInicial?.golsFora ?? '');
-  const [expandido, setExpandido] = useState(false);
-  const [palpiteLocal, setPalpiteLocal] = useState<Palpite | null>(palpiteInicial ?? null);
-  const [salvoFeedback, setSalvoFeedback] = useState(false);
-  const golsRef = useRef({ golsCasa: palpiteInicial?.golsCasa ?? null as number | null, golsFora: palpiteInicial?.golsFora ?? null as number | null });
   const cardRef = useRef<HTMLDivElement>(null);
-  const palpiteRef = useRef<Palpite | null>(palpiteInicial ?? null);
-  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputsRef = useRef<HTMLDivElement>(null);
+  const [expandido, setExpandido] = useState(false);
 
-  // Sincronizar quando palpiteInicial muda (ex: batch re-executa)
-  useEffect(() => {
-    if (palpiteInicial && !palpiteRef.current) {
-      setPalpiteLocal(palpiteInicial);
-      palpiteRef.current = palpiteInicial;
-      setGolsCasa(palpiteInicial.golsCasa);
-      setGolsFora(palpiteInicial.golsFora);
-      golsRef.current = { golsCasa: palpiteInicial.golsCasa, golsFora: palpiteInicial.golsFora };
-    }
-  }, [palpiteInicial]);
-
-  const palpiteAtual = palpiteLocal;
-  const jaPalpitou = !!palpiteAtual;
+  const {
+    golsCasa, golsFora, palpiteAtual, jaPalpitou,
+    salvando, salvoFeedback, inputsRef,
+    handleSetGolsCasa, handleSetGolsFora, salvar,
+  } = usePalpiteCard({ jogoId: jogo.id, grupoId, palpiteInicial });
 
   const { data: estatisticas, isLoading: carregandoEstatisticas } = useQuery({
     queryKey: ['estatisticas-palpite', grupoId, jogo.id],
@@ -285,106 +244,6 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
     enabled: !!grupoId && expandido,
     staleTime: 1000 * 30,
   });
-
-  const mutationCriar = useMutation({
-    mutationFn: (gols: { golsCasa: number; golsFora: number }) => criarPalpite(jogo.id, gols),
-    onSuccess: (data: Palpite) => {
-      queryClient.setQueryData(['meu-palpite', jogo.id], data);
-      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
-      queryClient.invalidateQueries({ queryKey: ['palpites-copa-batch'] });
-      setPalpiteLocal(data);
-      palpiteRef.current = data;
-      mostrarFeedbackSalvo();
-    },
-    onError: async (error: unknown) => {
-      // 409 = palpite já existe — buscar o existente e atualizar com os gols atuais
-      const status = (error as { statusCode?: number })?.statusCode
-        ?? (error as { status?: number })?.status
-        ?? (error as { response?: { status?: number } })?.response?.status;
-      if (status === 409) {
-        const { buscarMeuPalpite } = await import('@/services/palpite.service');
-        const existente = await buscarMeuPalpite(jogo.id);
-        if (existente) {
-          setPalpiteLocal(existente);
-          palpiteRef.current = existente;
-          queryClient.setQueryData(['meu-palpite', jogo.id], existente);
-          // Atualizar com os gols que o usuário digitou
-          const gols = golsRef.current;
-          if (gols.golsCasa !== existente.golsCasa || gols.golsFora !== existente.golsFora) {
-            mutationAtualizar.mutate({ palpiteId: existente.id, gols });
-          } else {
-            mostrarFeedbackSalvo();
-          }
-        }
-      }
-    },
-  });
-
-  const mutationAtualizar = useMutation({
-    mutationFn: ({ palpiteId, gols }: { palpiteId: string; gols: { golsCasa: number; golsFora: number } }) =>
-      atualizarPalpite(palpiteId, gols),
-    onSuccess: (data: Palpite) => {
-      queryClient.setQueryData(['meu-palpite', jogo.id], data);
-      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
-      queryClient.invalidateQueries({ queryKey: ['palpites-copa-batch'] });
-      setPalpiteLocal(data);
-      palpiteRef.current = data;
-      mostrarFeedbackSalvo();
-    },
-  });
-
-  const salvando = mutationCriar.isPending || mutationAtualizar.isPending;
-
-  function mostrarFeedbackSalvo() {
-    setSalvoFeedback(true);
-    setTimeout(() => {
-      setSalvoFeedback(false);
-    }, 2000);
-  }
-
-  function salvar() {
-    // Delay curto para verificar se o foco foi para o outro input do mesmo card
-    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
-    blurTimeoutRef.current = setTimeout(() => {
-      // Se o foco está em outro input dentro do mesmo container, não salvar ainda
-      if (inputsRef.current?.contains(document.activeElement)) return;
-
-      const gols = golsRef.current;
-
-      // Fonte de verdade: ref > cache > nada
-      const palpite = palpiteRef.current
-        ?? queryClient.getQueryData<Palpite | null>(['meu-palpite', jogo.id])
-        ?? null;
-
-      // Sincronizar se encontrou no cache mas não no ref
-      if (palpite && !palpiteRef.current) {
-        palpiteRef.current = palpite;
-        setPalpiteLocal(palpite);
-      }
-
-      if (palpite) {
-        // Já tem palpite → atualizar (só se mudou)
-        if (gols.golsCasa !== palpite.golsCasa || gols.golsFora !== palpite.golsFora) {
-          mutationAtualizar.mutate({ palpiteId: palpite.id, gols });
-        }
-      } else {
-        // Sem palpite em nenhum lugar → criar
-        mutationCriar.mutate(gols);
-      }
-    }, 150);
-  }
-
-  function handleSetGolsCasa(valor: number | '') {
-    onFoco?.();
-    setGolsCasa(valor);
-    golsRef.current = { ...golsRef.current, golsCasa: valor === '' ? null : valor };
-  }
-
-  function handleSetGolsFora(valor: number | '') {
-    onFoco?.();
-    setGolsFora(valor);
-    golsRef.current = { ...golsRef.current, golsFora: valor === '' ? null : valor };
-  }
 
   useEffect(() => {
     if (ativo && cardRef.current) {
@@ -398,6 +257,16 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
     ? 'border-[#ffdf00] border-[3px] shadow-[0_0_30px_rgba(255,223,0,0.4)]'
     : 'border-primaria border-[3px] shadow-[0_0_30px_rgba(34,197,94,0.35)]';
   const cardBorda = ativo && emPreenchimento ? bordaAtivaCopa : bordaCopa;
+
+  function handleSetCasa(valor: number | '') {
+    onFoco?.();
+    handleSetGolsCasa(valor);
+  }
+
+  function handleSetFora(valor: number | '') {
+    onFoco?.();
+    handleSetGolsFora(valor);
+  }
 
   return (
     <div ref={cardRef} className="scroll-mt-[140px]">
@@ -419,8 +288,8 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
             )}
             {jogo.status === 'EM_ANDAMENTO' && (
               <span className="flex items-center gap-1 text-[8px] text-erro font-bold">
-                <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />
-                {'AO VIVO'}
+                <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />{' '}
+                AO VIVO
               </span>
             )}
             {jogo.status === 'FINALIZADO' && (
@@ -431,7 +300,6 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           {/* Times + Placar/Palpite */}
           <div className="flex items-center gap-2">
             <EscudoTime time={jogo.timeCasa} label="Casa" />
-
             <div className="flex flex-col items-center shrink-0 w-[160px]">
               <CentroCard
                 jogo={jogo}
@@ -441,54 +309,39 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
                 golsCasa={golsCasa}
                 golsFora={golsFora}
                 salvando={salvando}
-                onSetGolsCasa={handleSetGolsCasa}
-                onSetGolsFora={handleSetGolsFora}
+                onSetGolsCasa={handleSetCasa}
+                onSetGolsFora={handleSetFora}
                 onSalvar={salvar}
                 inputsRef={inputsRef}
               />
             </div>
-
             <EscudoTime time={jogo.timeFora} label="Fora" />
           </div>
 
-          {/* Feedback de status */}
+          {/* Feedback */}
           {palpitavel && (
             <div className="mt-1.5 h-5 flex items-center justify-center">
-              <FeedbackStatus
-                salvando={salvando}
-                salvoFeedback={salvoFeedback}
-                jaPalpitou={jaPalpitou}
-                bloqueado={bloqueado}
-              />
+              <FeedbackStatus salvando={salvando} salvoFeedback={salvoFeedback} jaPalpitou={jaPalpitou} bloqueado={bloqueado} />
             </div>
           )}
 
-          {/* Pontuação (jogos finalizados) */}
+          {/* Pontuação */}
           {jogo.status === 'FINALIZADO' && palpiteAtual && (
             <div className="flex items-center justify-center mt-2 pt-2 border-t border-white/[0.05]">
               {(() => {
-                const pts = calcularPontos({
-                  ...palpiteAtual,
-                  jogo: { golsCasa: jogo.golsCasa, golsFora: jogo.golsFora, status: jogo.status },
-                });
-                if (pts > 0) {
-                  return <span className="text-[10px] text-primaria font-semibold">+{pts} pts</span>;
-                }
+                const pts = calcularPontos({ ...palpiteAtual, jogo: { golsCasa: jogo.golsCasa, golsFora: jogo.golsFora, status: jogo.status } });
+                if (pts > 0) return <span className="text-[10px] text-primaria font-semibold">+{pts} pts</span>;
                 return <span className="text-[10px] text-texto/30">0 pts</span>;
               })()}
             </div>
           )}
 
-          {/* Seta expandir */}
-          <button
-            type="button"
-            onClick={() => setExpandido(!expandido)}
-            className="w-full flex items-center justify-center mt-2 pt-1"
-          >
+          {/* Expandir */}
+          <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1">
             <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandido ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Barra de palpites da galera */}
+          {/* Estatísticas */}
           {expandido && (
             <div className="mt-2 pt-2 border-t border-white/[0.05]">
               <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} />

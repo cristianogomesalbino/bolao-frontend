@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { criarPalpite, atualizarPalpite, buscarEstatisticasPalpite } from '@/services/palpite.service';
+import { buscarEstatisticasPalpite } from '@/services/palpite.service';
 import { Jogo, Fase } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
+import { usePalpiteCard } from '@/hooks/usePalpiteCard';
 
 interface PropsCardProximoJogoCopa {
   jogo: Jogo;
@@ -17,40 +19,23 @@ interface PropsCardProximoJogoCopa {
 }
 
 export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Readonly<PropsCardProximoJogoCopa>) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const [countdown, setCountdown] = useState('');
-  const [golsCasa, setGolsCasa] = useState<number | ''>(palpiteInicial?.golsCasa ?? '');
-  const [golsFora, setGolsFora] = useState<number | ''>(palpiteInicial?.golsFora ?? '');
-  const [palpiteLocal, setPalpiteLocal] = useState<Palpite | null>(palpiteInicial ?? null);
-  const [salvoFeedback, setSalvoFeedback] = useState(false);
   const [expandido, setExpandido] = useState(false);
-  const golsRef = useRef({ golsCasa: palpiteInicial?.golsCasa ?? null as number | null, golsFora: palpiteInicial?.golsFora ?? null as number | null });
-  const palpiteRef = useRef<Palpite | null>(palpiteInicial ?? null);
-  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputsRef = useRef<HTMLDivElement>(null);
 
-  // Sincronizar quando palpiteInicial muda
-  useEffect(() => {
-    if (palpiteInicial && !palpiteRef.current) {
-      setPalpiteLocal(palpiteInicial);
-      palpiteRef.current = palpiteInicial;
-      setGolsCasa(palpiteInicial.golsCasa);
-      setGolsFora(palpiteInicial.golsFora);
-      golsRef.current = { golsCasa: palpiteInicial.golsCasa, golsFora: palpiteInicial.golsFora };
-    }
-  }, [palpiteInicial]);
+  const {
+    golsCasa, golsFora, palpiteAtual,
+    salvando, salvoFeedback, inputsRef,
+    handleSetGolsCasa, handleSetGolsFora, salvar,
+  } = usePalpiteCard({ jogoId: jogo.id, grupoId, palpiteInicial });
 
+  // Countdown até o jogo
   useEffect(() => {
     if (!jogo.dataHora) return;
     const target = new Date(jogo.dataHora).getTime() - 60000;
 
     function atualizar() {
       const diff = target - Date.now();
-      if (diff <= 0) {
-        setCountdown('');
-        return;
-      }
+      if (diff <= 0) { setCountdown(''); return; }
       const dias = Math.floor(diff / 86400000);
       const h = Math.floor((diff % 86400000) / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
@@ -76,119 +61,25 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
     staleTime: 1000 * 30,
   });
 
-  const mutationCriar = useMutation({
-    mutationFn: (gols: { golsCasa: number; golsFora: number }) => criarPalpite(jogo.id, gols),
-    onSuccess: (data: Palpite) => {
-      queryClient.setQueryData(['meu-palpite', jogo.id], data);
-      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
-      setPalpiteLocal(data);
-      palpiteRef.current = data;
-      mostrarFeedbackSalvo();
-    },
-    onError: async (error: unknown) => {
-      const status = (error as { statusCode?: number })?.statusCode
-        ?? (error as { response?: { status?: number } })?.response?.status;
-      if (status === 409) {
-        const { buscarMeuPalpite } = await import('@/services/palpite.service');
-        const existente = await buscarMeuPalpite(jogo.id);
-        if (existente) {
-          setPalpiteLocal(existente);
-          palpiteRef.current = existente;
-          queryClient.setQueryData(['meu-palpite', jogo.id], existente);
-          const gols = golsRef.current;
-          if (gols.golsCasa !== existente.golsCasa || gols.golsFora !== existente.golsFora) {
-            if (gols.golsCasa !== null && gols.golsFora !== null) {
-              mutationAtualizar.mutate({ palpiteId: existente.id, gols: { golsCasa: gols.golsCasa, golsFora: gols.golsFora } });
-            }
-          } else {
-            mostrarFeedbackSalvo();
-          }
-        }
-      }
-    },
-  });
-
-  const mutationAtualizar = useMutation({
-    mutationFn: ({ palpiteId, gols }: { palpiteId: string; gols: { golsCasa: number; golsFora: number } }) =>
-      atualizarPalpite(palpiteId, gols),
-    onSuccess: (data: Palpite) => {
-      queryClient.setQueryData(['meu-palpite', jogo.id], data);
-      queryClient.invalidateQueries({ queryKey: ['estatisticas-palpite', grupoId, jogo.id] });
-      setPalpiteLocal(data);
-      palpiteRef.current = data;
-      mostrarFeedbackSalvo();
-    },
-  });
-
-  const salvando = mutationCriar.isPending || mutationAtualizar.isPending;
-
-  function mostrarFeedbackSalvo() {
-    setSalvoFeedback(true);
-    setTimeout(() => setSalvoFeedback(false), 2000);
-  }
-
-  function salvar() {
-    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
-    blurTimeoutRef.current = setTimeout(() => {
-      if (inputsRef.current?.contains(document.activeElement)) return;
-
-      const gols = golsRef.current;
-      // Não salvar se algum campo estiver vazio
-      if (gols.golsCasa === null || gols.golsFora === null) return;
-
-      const palpite = palpiteRef.current
-        ?? queryClient.getQueryData<Palpite | null>(['meu-palpite', jogo.id])
-        ?? null;
-
-      if (palpite && !palpiteRef.current) {
-        palpiteRef.current = palpite;
-        setPalpiteLocal(palpite);
-      }
-
-      if (palpite) {
-        if (gols.golsCasa !== palpite.golsCasa || gols.golsFora !== palpite.golsFora) {
-          mutationAtualizar.mutate({ palpiteId: palpite.id, gols: { golsCasa: gols.golsCasa, golsFora: gols.golsFora } });
-        }
-      } else {
-        mutationCriar.mutate({ golsCasa: gols.golsCasa, golsFora: gols.golsFora });
-      }
-    }, 150);
-  }
-
-  function handleSetGolsCasa(valor: number | '') {
-    setGolsCasa(valor);
-    golsRef.current = { ...golsRef.current, golsCasa: valor === '' ? null : valor };
-  }
-
-  function handleSetGolsFora(valor: number | '') {
-    setGolsFora(valor);
-    golsRef.current = { ...golsRef.current, golsFora: valor === '' ? null : valor };
-  }
-
   const palpitavel = jogo.status === 'AGENDADO' || jogo.status === 'ADIADO';
   const bloqueado = palpitavel && !!jogo.dataHora && new Date(jogo.dataHora).getTime() <= Date.now();
 
   const dataFormatada = jogo.dataHora
     ? new Date(jogo.dataHora).toLocaleDateString('pt-BR', {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-        timeZone: 'America/Sao_Paulo',
+        weekday: 'short', day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo',
       }).toUpperCase()
     : 'DATA A DEFINIR';
 
   const horaFormatada = jogo.dataHora
     ? new Date(jogo.dataHora).toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
       })
     : '--:--';
 
   return (
-    <Card className="border-[#009c3b] bg-gradient-to-b from-[#009c3b]/[0.08] to-[#ffdf00]/[0.04] overflow-hidden shadow-[0_0_20px_rgba(0,156,59,0.2)]">
+    <Card className="border-[#009c3b] bg-gradient-to-b from-[#009c3b]/[0.08] to-[#ffdf00]/[0.04] overflow-hidden shadow-[0_0_20px_rgba(0,156,59,0.2)]" data-testid="card-proximo-jogo-copa">
       <CardContent className="p-4">
-        {/* Header com badge da fase + data + hora */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-[#ffdf00]/90 uppercase tracking-wider">
             🏆 {fase.nome}
@@ -196,45 +87,25 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
           <span className="text-[13px] text-[#ffdf00] font-bold">
             {dataFormatada} • {horaFormatada}
           </span>
-          <button
-            type="button"
+          <Link
+            href="/palpites?campeonato=copa-do-mundo-2026"
             className="text-[11px] text-[#ffdf00] font-bold hover:underline"
-            onClick={() => router.push('/palpites?campeonato=copa-do-mundo-2026')}
           >
             Ver todos →
-          </button>
+          </Link>
         </div>
         {countdown && (
-          <p className="text-[12px] text-[#ff8c00] font-bold text-center mb-1 drop-shadow-[0_0_6px_rgba(255,140,0,0.4)]">⏱ {countdown}</p>
+          <p className="text-[12px] text-[#ff8c00] font-bold text-center mb-1 drop-shadow-[0_0_6px_rgba(255,140,0,0.4)]" data-testid="copa-countdown">
+            ⏱ {countdown}
+          </p>
         )}
 
         {/* Seleções com escudos */}
         <div className="flex items-center justify-between">
-          {/* Time Casa */}
-          <div className="flex flex-col items-center gap-1.5 flex-1">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-[#ffdf00]/25 blur-xl" />
-              {jogo.timeCasa?.escudo ? (
-                <img
-                  src={jogo.timeCasa.escudo}
-                  alt={jogo.timeCasa.nome}
-                  className="relative h-16 w-16 object-contain drop-shadow-[0_0_16px_rgba(255,223,0,0.5)]"
-                />
-              ) : (
-                <div className="relative h-16 w-16 rounded-full bg-[#009c3b]/20 border border-[#009c3b]/40 flex items-center justify-center text-lg font-bold text-[#ffdf00]">
-                  {jogo.timeCasa?.sigla || '?'}
-                </div>
-              )}
-            </div>
-            <span className="text-xs text-[#ffdf00] font-semibold text-center max-w-[80px] truncate">
-              {jogo.timeCasa?.nome || 'Casa'}
-            </span>
-          </div>
+          <EscudoCopa time={jogo.timeCasa} label="Casa" />
 
-          {/* Centro: inputs + countdown */}
+          {/* Centro: inputs */}
           <div className="flex flex-col items-center gap-0.5 px-2 pt-5">
-
-            {/* Inputs de palpite */}
             {palpitavel && !bloqueado && (
               <div ref={inputsRef} className="flex items-center gap-2">
                 <input
@@ -279,79 +150,34 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
               </div>
             )}
 
-            {/* Palpite bloqueado */}
-            {palpitavel && bloqueado && palpiteLocal && (
+            {/* Bloqueado */}
+            {palpitavel && bloqueado && palpiteAtual && (
               <div className="flex items-center gap-2">
                 <div className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/20 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-[#ffdf00]/70">{palpiteLocal.golsCasa}</span>
+                  <span className="text-2xl font-bold text-[#ffdf00]/70">{palpiteAtual.golsCasa}</span>
                 </div>
                 <span className="text-sm font-bold text-white/40">x</span>
                 <div className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/20 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-[#ffdf00]/70">{palpiteLocal.golsFora}</span>
+                  <span className="text-2xl font-bold text-[#ffdf00]/70">{palpiteAtual.golsFora}</span>
                 </div>
               </div>
             )}
 
             {/* Feedback */}
             {palpitavel && !bloqueado && (
-              <div className="h-4 flex items-center justify-center">
-                {salvando && (
-                  <span className="flex items-center gap-1 text-[9px] text-[#ffdf00]">
-                    <Loader2 size={9} className="animate-spin" />
-                    Salvando...
-                  </span>
-                )}
-                {salvoFeedback && !salvando && (
-                  <span className="flex items-center gap-1 text-[9px] text-[#ffdf00] animate-[fadeIn_0.2s_ease-out]">
-                    <Check size={9} />
-                    Salvo!
-                  </span>
-                )}
-                {!salvando && !salvoFeedback && palpiteLocal && (
-                  <span className="flex items-center gap-1 text-[9px] text-[#a8e6b0]/70">
-                    <Check size={9} />
-                    Salvo
-                  </span>
-                )}
-                {!salvando && !salvoFeedback && !palpiteLocal && (
-                  <span className="text-[9px] text-[#ffdf00]/60">Faça seu palpite ☝️</span>
-                )}
-              </div>
+              <FeedbackCopa salvando={salvando} salvoFeedback={salvoFeedback} palpiteAtual={palpiteAtual} />
             )}
           </div>
 
-          {/* Time Fora */}
-          <div className="flex flex-col items-center gap-1.5 flex-1">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-[#ffdf00]/25 blur-xl" />
-              {jogo.timeFora?.escudo ? (
-                <img
-                  src={jogo.timeFora.escudo}
-                  alt={jogo.timeFora.nome}
-                  className="relative h-16 w-16 object-contain drop-shadow-[0_0_16px_rgba(255,223,0,0.5)]"
-                />
-              ) : (
-                <div className="relative h-16 w-16 rounded-full bg-[#009c3b]/20 border border-[#009c3b]/40 flex items-center justify-center text-lg font-bold text-[#ffdf00]">
-                  {jogo.timeFora?.sigla || '?'}
-                </div>
-              )}
-            </div>
-            <span className="text-xs text-[#ffdf00] font-semibold text-center max-w-[80px] truncate">
-              {jogo.timeFora?.nome || 'Fora'}
-            </span>
-          </div>
+          <EscudoCopa time={jogo.timeFora} label="Fora" />
         </div>
 
-        {/* Seta expandir */}
-        <button
-          type="button"
-          onClick={() => setExpandido(!expandido)}
-          className="w-full flex items-center justify-center mt-2 pt-1"
-        >
+        {/* Expandir */}
+        <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1" data-testid="copa-btn-expandir">
           <ChevronDown size={20} className={`text-[#ffdf00]/60 transition-transform ${expandido ? 'rotate-180' : ''}`} />
         </button>
 
-        {/* Barra de palpites da galera */}
+        {/* Estatísticas */}
         {expandido && estatisticas && estatisticas.total > 0 && (
           <div className="mt-2 pt-2 border-t border-[#009c3b]/20">
             <div className="flex items-center justify-between mb-1">
@@ -377,10 +203,69 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
               )}
               <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
             </div>
-            <p className="text-[10px] text-[#ffdf00] text-center mt-1.5 font-semibold">🔥 {estatisticas.total} {estatisticas.total === 1 ? 'pessoa já palpitou' : 'pessoas já palpitaram'}!</p>
+            <p className="text-[10px] text-[#ffdf00] text-center mt-1.5 font-semibold">
+              🔥 {estatisticas.total} {estatisticas.total === 1 ? 'pessoa já palpitou' : 'pessoas já palpitaram'}!
+            </p>
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// --- Sub-componentes Copa ---
+
+function EscudoCopa({ time, label }: Readonly<{ time: { nome: string; sigla: string; escudo: string | null } | null | undefined; label: string }>) {
+  return (
+    <div className="flex flex-col items-center gap-1.5 flex-1">
+      <div className="relative">
+        <div className="absolute inset-0 rounded-full bg-[#ffdf00]/25 blur-xl" />
+        {time?.escudo ? (
+          <Image
+            src={time.escudo}
+            alt={time.nome}
+            width={64}
+            height={64}
+            className="relative h-16 w-16 object-contain drop-shadow-[0_0_16px_rgba(255,223,0,0.5)]"
+            unoptimized
+          />
+        ) : (
+          <div className="relative h-16 w-16 rounded-full bg-[#009c3b]/20 border border-[#009c3b]/40 flex items-center justify-center text-lg font-bold text-[#ffdf00]">
+            {time?.sigla || '?'}
+          </div>
+        )}
+      </div>
+      <span className="text-xs text-[#ffdf00] font-semibold text-center max-w-[80px] truncate">
+        {time?.nome || label}
+      </span>
+    </div>
+  );
+}
+
+function FeedbackCopa({ salvando, salvoFeedback, palpiteAtual }: Readonly<{ salvando: boolean; salvoFeedback: boolean; palpiteAtual: Palpite | null }>) {
+  return (
+    <div className="h-4 flex items-center justify-center">
+      {salvando && (
+        <span className="flex items-center gap-1 text-[9px] text-[#ffdf00]">
+          <Loader2 size={9} className="animate-spin" />
+          Salvando...
+        </span>
+      )}
+      {salvoFeedback && !salvando && (
+        <span className="flex items-center gap-1 text-[9px] text-[#ffdf00] animate-[fadeIn_0.2s_ease-out]">
+          <Check size={9} />
+          Salvo!
+        </span>
+      )}
+      {!salvando && !salvoFeedback && palpiteAtual && (
+        <span className="flex items-center gap-1 text-[9px] text-[#a8e6b0]/70">
+          <Check size={9} />
+          Salvo
+        </span>
+      )}
+      {!salvando && !salvoFeedback && !palpiteAtual && (
+        <span className="text-[9px] text-[#ffdf00]/60">Faça seu palpite ☝️</span>
+      )}
+    </div>
   );
 }

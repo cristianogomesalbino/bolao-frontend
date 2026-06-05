@@ -9,9 +9,14 @@ import { AbaJogosCopa } from '@/components/palpites/aba-jogos-copa';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 import { type CampeonatoSlug } from '@/types/jogo.types';
 
+const SLUGS_VALIDOS = new Set<CampeonatoSlug>(['brasileirao', 'copa-do-mundo-2026']);
+
 export default function PalpitesPage() {
   const searchParams = useSearchParams();
-  const campeonatoInicial = (searchParams.get('campeonato') as CampeonatoSlug) || 'brasileirao';
+  const paramCampeonato = searchParams.get('campeonato');
+  const campeonatoInicial: CampeonatoSlug = SLUGS_VALIDOS.has(paramCampeonato as CampeonatoSlug)
+    ? (paramCampeonato as CampeonatoSlug)
+    : 'brasileirao';
   const [abaAtiva, setAbaAtiva] = useState<'todos' | 'meus'>('todos');
   const [cardAtivo, setCardAtivo] = useState<string | null>(null);
   const [campeonato, setCampeonato] = useState<CampeonatoSlug>(campeonatoInicial);
@@ -36,6 +41,14 @@ export default function PalpitesPage() {
     buscandoPalpites,
     palpitesBatch,
   } = usePalpitesData(abaAtiva, campeonato);
+
+  if (!temporadaId) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center pb-20 ${campeonato === 'copa-do-mundo-2026' ? 'bg-[#003d1a]' : 'bg-fundo'}`}>
+        <p className="text-texto/40 text-sm">Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen pb-36 relative ${ehCopaMundo ? 'bg-[#003d1a]' : 'bg-fundo'}`}>
