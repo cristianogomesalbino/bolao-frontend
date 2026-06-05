@@ -1,5 +1,13 @@
 import apiClient from '@/lib/api-client';
-import { Fase, Jogo, JogosResponse } from '@/types/jogo.types';
+import {
+  Fase,
+  Jogo,
+  JogosResponse,
+  ImportarJogosPayload,
+  ImportarJogosResponse,
+  SincronizarJogosPayload,
+  SincronizarJogosResponse,
+} from '@/types/jogo.types';
 
 export interface Temporada {
   id: string;
@@ -32,49 +40,23 @@ export async function listarJogosFase(faseId: string, rodada?: number, status?: 
   return response.data;
 }
 
+export async function listarJogosTemporada(temporadaId: string): Promise<Jogo[]> {
+  const response = await apiClient.get<Jogo[]>(`/temporadas/${temporadaId}/jogos`);
+  return response.data;
+}
+
 /**
- * Busca dados da temporada em uma única operação:
+ * Busca dados da temporada via endpoint otimizado (1 request):
  * - Próximo jogo agendado
  * - Total de jogos adiados
- *
- * Faz apenas 1 chamada de fases + 2 chamadas de jogos por fase (AGENDADO + ADIADO)
- * em paralelo, evitando duplicação de requests.
  */
 export async function buscarDadosTemporada(temporadaId: string): Promise<DadosTemporada> {
   try {
-    const fases = await listarFases(temporadaId);
-    const agora = Date.now();
-
-    let totalAdiados = 0;
-    const candidatos: Array<{ fase: Fase; jogo: Jogo; diff: number }> = [];
-
-    // Buscar jogos agendados e adiados de todas as fases em paralelo
-    const resultados = await Promise.all(
-      fases.map(async (fase) => {
-        const [agendados, adiados] = await Promise.all([
-          listarJogosFase(fase.id, undefined, 'AGENDADO'),
-          listarJogosFase(fase.id, undefined, 'ADIADO'),
-        ]);
-        return { fase, agendados: agendados.jogos, adiados: adiados.jogos };
-      })
-    );
-
-    for (const { fase, agendados, adiados } of resultados) {
-      totalAdiados += adiados.length;
-      // Também contar jogos remarcados (foiAdiado=true, status AGENDADO)
-      totalAdiados += agendados.filter((j) => j.foiAdiado).length;
-
-      for (const jogo of agendados) {
-        const diff = jogo.dataHora ? new Date(jogo.dataHora).getTime() - agora : Infinity;
-        candidatos.push({ fase, jogo, diff });
-      }
-    }
-
-    // Apenas jogos futuros (margem de 1 min antes)
-    const futuros = candidatos.filter((c) => c.diff > 60000).sort((a, b) => a.diff - b.diff);
-    const proximoJogo = futuros.length > 0 ? { fase: futuros[0].fase, jogo: futuros[0].jogo } : null;
-
-    return { proximoJogo, totalAdiados };
+    const response = await apiClient.get<{
+      proximoJogo: { fase: Fase; jogo: Jogo } | null;
+      totalAdiados: number;
+    }>(`/temporadas/${temporadaId}/dados`);
+    return response.data;
   } catch {
     return { proximoJogo: null, totalAdiados: 0 };
   }
@@ -82,25 +64,25 @@ export async function buscarDadosTemporada(temporadaId: string): Promise<DadosTe
 
 export async function buscarProximosJogos(): Promise<import('@/types/jogo.types').JogoProximo[]> {
   try {
-    // TODO: substituir por endpoint real quando disponível
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const agora = new Date();
-    return [
-      {
-        id: '1',
-        timeCasa: 'Flamengo',
-        timeFora: 'Palmeiras',
-        dataHora: new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 21, 30).toISOString(),
-        status: 'AGENDADO',
-      },
-      {
-        id: '2',
-        timeCasa: 'Brasil',
-        timeFora: 'Argentina',
-        dataHora: new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 3, 22, 0).toISOString(),
-        status: 'AGENDADO',
-      },
-    ];
+    const temporadas = await listarTemporadas();
+    if (temporadas.length === 0) return [];
+
+    const resultados = await Promise.all(
+      temporadas.map(async (t) => {
+        const dados = await buscarDadosTemporada(t.id);
+        return dados.proximoJogo;
+      })
+    );
+
+    return resultados
+      .filter((r) => r !== null)
+      .map((r) => ({
+        id: r.jogo.id,
+        timeCasa: r.jogo.timeCasa?.nome || 'Casa',
+        timeFora: r.jogo.timeFora?.nome || 'Fora',
+        dataHora: r.jogo.dataHora || '',
+        status: r.jogo.status,
+      }));
   } catch {
     return [];
   }
@@ -113,4 +95,22 @@ export async function contarJogosAdiadosRodada(faseId: string, rodada: number): 
   } catch {
     return 0;
   }
+}
+
+// --- Importação e Sincronização multi-campeonato (Admin) ---
+
+export async function importarJogos(payload: ImportarJogosPayload): Promise<ImportarJogosResponse> {
+  const response = await apiClient.post<ImportarJogosResponse>('/jogos/importar', payload);
+  return response.data;
+}
+
+export async function sincronizarPlacares(
+  faseId: string,
+  payload: SincronizarJogosPayload,
+): Promise<SincronizarJogosResponse> {
+  const response = await apiClient.post<SincronizarJogosResponse>(
+    `/fases/${faseId}/jogos/sincronizar`,
+    payload,
+  );
+  return response.data;
 }

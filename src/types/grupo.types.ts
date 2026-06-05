@@ -1,6 +1,7 @@
 export interface Grupo {
   id: string;
   nome: string;
+  icone: string | null;
   temporadaId: string;
   privado: boolean;
   codigoConvite: string | null;
@@ -10,6 +11,15 @@ export interface Grupo {
   ativo: boolean;
   dataCriacao: string;
   criadoPor: string;
+  /** Temporada com campeonato (retornado pelo GET /grupos/:id) */
+  temporada?: {
+    id: string;
+    ano: number;
+    campeonato?: {
+      id: string;
+      nome: string;
+    };
+  };
   /** Dados extras retornados na listagem */
   totalParticipantes?: number;
   palpitesRestantes?: number;
@@ -42,6 +52,7 @@ export interface DadosCriarGrupo {
 
 export interface DadosAtualizarGrupo {
   nome?: string;
+  icone?: string;
   privado?: boolean;
   permitirPalpiteAutomatico?: boolean;
   permitirPalpiteDobrado?: boolean;

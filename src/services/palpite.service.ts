@@ -65,3 +65,27 @@ export async function listarMeusPalpites(temporadaId: string): Promise<PalpiteCo
   });
   return response.data;
 }
+
+export interface PalpiteMembro {
+  id: string;
+  golsCasa: number;
+  golsFora: number;
+  jogoId: string;
+  usuarioId: string;
+  dataCriacao: string;
+  atualizadoEm: string;
+}
+
+export async function buscarPalpitesGrupoJogo(
+  grupoId: string,
+  jogoId: string,
+): Promise<PalpiteMembro[]> {
+  try {
+    const response = await apiClient.get<PalpiteMembro[]>(
+      `/grupos/${grupoId}/jogos/${jogoId}/palpites`,
+    );
+    return response.data;
+  } catch {
+    return [];
+  }
+}
