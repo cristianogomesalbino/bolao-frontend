@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { LogoBolao } from '@/components/layout/logo-bolao';
-import { AgendaSemanal } from '@/components/auth/agenda-semanal';
 
 export default function AuthLayout({ children }: { readonly children: React.ReactNode }) {
   const router = useRouter();
@@ -42,10 +41,6 @@ export default function AuthLayout({ children }: { readonly children: React.Reac
           <LogoBolao />
         </div>
         {children}
-        {/* Agenda carrega em background, não bloqueia o login */}
-        <div className="mt-3">
-          <AgendaSemanal />
-        </div>
       </div>
     </div>
   );

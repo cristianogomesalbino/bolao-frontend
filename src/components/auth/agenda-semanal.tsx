@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { buscarProximosJogos } from '@/services/jogo.service';
 import { JogoProximo } from '@/types/jogo.types';
+import { useAuthStore } from '@/stores/auth.store';
 
 function formatarData(dataHora: string): string {
   const data = new Date(dataHora);
@@ -69,11 +70,14 @@ function LinhaJogo({ jogo }: { jogo: JogoProximo }) {
 }
 
 export function AgendaSemanal() {
+  const estaAutenticado = useAuthStore((state) => state.estaAutenticado);
+
   const { data: jogos, isLoading } = useQuery({
     queryKey: ['jogos', 'proximos'],
     queryFn: buscarProximosJogos,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    enabled: estaAutenticado,
   });
 
   return (
