@@ -1,98 +1,120 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, ChevronRight, Star } from 'lucide-react';
 
-interface Grupo {
+interface GrupoHome {
   id: string;
   nome: string;
+  icone?: string | null;
   participantes: number;
-  palpitesRestantes?: number;
+  ehFavorito?: boolean;
 }
 
 interface PropsCardMeusGrupos {
-  grupos: Grupo[];
+  grupos: GrupoHome[];
   carregando?: boolean;
-  grupoFavoritoId?: string | null;
-  onDefinirFavorito?: (grupoId: string) => void;
 }
 
-export function CardMeusGrupos({ grupos, carregando, grupoFavoritoId, onDefinirFavorito }: Readonly<PropsCardMeusGrupos>) {
+const ICONES_GRUPO: Record<string, string> = {
+  bola: '⚽',
+  trofeu: '🏆',
+  coroa: '👑',
+  chuteira: '👟',
+  medalha: '🥇',
+  bandeira: '🏁',
+  estrela: '⭐',
+  campo: '🏟️',
+  luva: '🧤',
+  apito: '📣',
+  escudo: '🛡️',
+  fogo: '🔥',
+};
+
+function obterEmojiGrupo(icone: string | null | undefined): string {
+  if (!icone) return '⚽';
+  return ICONES_GRUPO[icone] ?? '⚽';
+}
+
+export function CardMeusGrupos({ grupos, carregando }: Readonly<PropsCardMeusGrupos>) {
+  const router = useRouter();
+
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
+    <Card data-testid="home-card-meus-grupos" className="border-primaria shadow-[0_0_20px_rgba(22,163,74,0.2)]">
+      <CardContent className="p-3">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-sm">🏆</span>
-            <span className="text-[11px] text-texto/40 uppercase tracking-wider font-medium">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primaria/15">
+              <Users size={14} className="text-primaria" />
+            </div>
+            <span className="text-xs text-texto font-bold uppercase tracking-wider">
               Meus grupos
             </span>
           </div>
-          <span className="text-[10px] text-link/60 cursor-pointer hover:text-link transition-colors">
-            Ver todos
-          </span>
+          <button
+            onClick={() => router.push('/grupos')}
+            className="text-[11px] text-primaria-claro font-medium hover:text-primaria transition-colors"
+            data-testid="home-ver-todos-grupos"
+          >
+            Ver todos <ChevronRight size={14} className="inline" />
+          </button>
         </div>
 
-        {carregando ? (
-          <div className="space-y-2 py-2">
+        {/* Loading */}
+        {carregando && (
+          <div className="space-y-1 py-1">
             {[1, 2].map((i) => (
-              <div key={i} className="h-12 rounded-lg bg-white/[0.03] animate-pulse" />
+              <div key={i} className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
             ))}
           </div>
-        ) : grupos.length === 0 ? (
+        )}
+
+        {/* Vazio */}
+        {!carregando && grupos.length === 0 && (
           <p className="text-sm text-texto/40 text-center py-4">
             Você ainda não participa de nenhum grupo
           </p>
-        ) : (
-          <div className="space-y-1">
-            {grupos.map((grupo) => {
-              const ehFavorito = grupo.id === grupoFavoritoId;
-              return (
-                <div
-                  key={grupo.id}
-                  className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-white/[0.03] transition-colors cursor-pointer group"
-                >
-                  {/* Estrela de favorito */}
-                  {grupos.length > 1 && onDefinirFavorito && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!ehFavorito) onDefinirFavorito(grupo.id);
-                      }}
-                      className="mr-2 shrink-0"
-                      aria-label={ehFavorito ? 'Grupo favorito' : 'Definir como favorito'}
-                    >
-                      <Star
-                        size={16}
-                        className={`transition-colors ${
-                          ehFavorito
-                            ? 'text-yellow-400 fill-yellow-400'
-                            : 'text-texto/20 hover:text-yellow-400/60'
-                        }`}
-                      />
-                    </button>
-                  )}
-                  <div className="flex-1">
-                    <span className="text-sm text-texto/80 font-medium group-hover:text-texto transition-colors">
+        )}
+
+        {/* Lista */}
+        {!carregando && grupos.length > 0 && (
+          <div>
+            {grupos.map((grupo, index) => (
+              <button
+                key={grupo.id}
+                onClick={() => router.push(`/grupos/${grupo.id}`)}
+                className={`w-full flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-white/[0.04] transition-colors text-left group ${
+                  index < grupos.length - 1 ? 'border-b border-white/[0.04]' : ''
+                }`}
+                data-testid={`home-grupo-${grupo.id}`}
+              >
+                {/* Ícone do grupo */}
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05] border border-white/[0.1] shrink-0">
+                  <span className="text-lg">{obterEmojiGrupo(grupo.icone)}</span>
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-texto font-bold truncate group-hover:text-primaria-claro transition-colors">
                       {grupo.nome}
                     </span>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <div className="flex items-center gap-1 text-texto/30">
-                        <Users size={11} />
-                        <span className="text-[10px]">{grupo.participantes}</span>
-                      </div>
-                      {grupo.palpitesRestantes !== undefined && grupo.palpitesRestantes > 0 && (
-                        <span className="text-[10px] text-destaque/60">
-                          {grupo.palpitesRestantes} palpites restantes
-                        </span>
-                      )}
-                    </div>
+                    {grupo.ehFavorito && (
+                      <Star size={12} className="text-yellow-400 fill-yellow-400 shrink-0" />
+                    )}
                   </div>
-                  <ChevronRight size={14} className="text-texto/20 group-hover:text-texto/40 transition-colors" />
+                  <div className="flex items-center gap-1 mt-0.5 text-texto/40">
+                    <Users size={11} />
+                    <span className="text-[11px]">{grupo.participantes} membros</span>
+                  </div>
                 </div>
-              );
-            })}
+
+                {/* Chevron */}
+                <ChevronRight size={18} className="text-texto/20 group-hover:text-texto/50 transition-colors shrink-0" />
+              </button>
+            ))}
           </div>
         )}
       </CardContent>
