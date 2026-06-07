@@ -94,7 +94,7 @@ function EscudoTime({ time }: Readonly<{ time: TimeInfo }>) {
 }
 
 export function CardProximoJogo({
-  jogoId,
+  jogoId: _jogoId,
   timeCasa,
   timeFora,
   dataHora,

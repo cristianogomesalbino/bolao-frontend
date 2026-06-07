@@ -13,11 +13,12 @@ import { IconPalpite } from '@/components/icons/icon-palpite';
 interface PropsAbaJogosCopa {
   fases: Fase[];
   grupoId: string;
+  temporadaId: string;
   cardAtivo: string | null;
   onFoco: (jogoId: string) => void;
 }
 
-export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<PropsAbaJogosCopa>) {
+export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }: Readonly<PropsAbaJogosCopa>) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState<number>(1);
 
   // Todas as fases (grupos + eliminatórias juntas, ordenadas por ordem)
@@ -25,10 +26,10 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
 
   // Buscar jogos de TODAS as fases da rodada selecionada — 1 request via listarJogosTemporada
   const { data: jogosPorGrupo, isLoading: carregandoJogos } = useQuery({
-    queryKey: ['jogos-copa-todos-grupos', fases[0]?.temporadaId, rodadaSelecionada],
+    queryKey: ['jogos-copa-todos-grupos', temporadaId, rodadaSelecionada],
     queryFn: async () => {
       const { listarJogosTemporada } = await import('@/services/jogo.service');
-      const todosJogos = await listarJogosTemporada(fases[0]?.temporadaId ?? '');
+      const todosJogos = await listarJogosTemporada(temporadaId);
       // Filtrar pela rodada selecionada e agrupar por fase
       return fasesOrdenadas
         .map((fase) => ({
@@ -46,7 +47,7 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
   const jogoIds = todosJogos.map((j) => j.id);
 
   const { data: palpitesBatch } = useQuery({
-    queryKey: ['palpites-copa-batch', fases[0]?.temporadaId, rodadaSelecionada],
+    queryKey: ['palpites-copa-batch', temporadaId, rodadaSelecionada],
     queryFn: async () => {
       const palpites = await buscarMeusPalpitesPorJogos(jogoIds);
       const map: Record<string, Palpite> = {};

@@ -132,6 +132,7 @@ export default function PalpitesPage() {
           <AbaJogosCopa
             fases={fases}
             grupoId={grupoId}
+            temporadaId={temporadaId}
             cardAtivo={cardAtivo}
             onFoco={setCardAtivo}
           />
