@@ -34,13 +34,61 @@ Deploy: Vercel (branch main)
 - Header sticky com blur
 - Avatar com iniciais
 
-### 3. Home ✅
-- Header com "Olá, Cristiano 👋" + avatar com iniciais
-- Card próximo jogo com escudos reais
-- Card meus grupos (dados reais via `GET /grupos?membro=true`)
-- Card ranking (mock com medalhas)
-- Card próximos jogos (lista compacta)
-- Bottom navigation (Home, Grupos, Jogos, Conta)
+### 3. Home ✅ (Redesenhada — Sessão Atual)
+- Header: "Olá, Cristiano 👋" com nome em verde + avatar com borda/glow verde
+- Ícone notificação com badge verde pulsante
+- Botão logout discreto (cinza → vermelho no hover)
+- Sem badge de campeonato no header (removido)
+
+**Card Próximo Jogo (`card-proximo-jogo.tsx`):**
+- Dados reais via `buscarDadosTemporada` (endpoint otimizado)
+- Escudos 56px com glow branco (`blur-lg`)
+- Countdown estilo grupo page: `⏱ Encerra em HH:MM:SS` (encerra 1min antes do jogo)
+- Total palpites real via `buscarEstatisticasPalpite` → "X palpitaram" (ícone Users)
+- Palpite do usuário via `buscarMeuPalpite` → "Você já palpitou ✓" ou "• Sem palpite"
+- Botão "PALPITAR >" com glow verde
+- **Tema Copa:** fundo verde escuro/amarelo, borda amarela sólida, textos amarelos, countdown laranja
+- **Tema Brasileirão:** fundo superfície, borda verde vibrante, textos brancos/verdes
+
+**Card Meus Grupos (`card-meus-grupos.tsx`):**
+- Dados reais via `listarGrupos`
+- Mostra **todos** os grupos (sem limite)
+- Ícone temático baseado no campo `icone` do grupo (mapa: bola→⚽, trofeu→🏆, bandeira→🏁, etc.)
+- Estrela ⭐ ao lado do nome do grupo favorito
+- Espaçamentos compactos (p-3, separadores border-b)
+- Link "Ver todos" com ChevronRight
+- Borda verde vibrante sólida + glow
+
+**Card Ranking (`card-ranking.tsx`):**
+- Dados reais via `obterRankingGeral(grupoId)`
+- **Filtro dropdown customizado** ao lado do título "RANKING" (menu flutuante, fecha ao clicar fora)
+- Muda ranking dinamicamente ao trocar grupo no filtro
+- **Pódio visual:** top 3 em barras lado a lado (2º | 1º | 3º)
+  - Avatares com glow na cor da posição
+  - Bordas vibrantes (cinza/dourado/laranja, 80-90% opacidade)
+  - Posição colorida (1º dourado, 2º prata, 3º bronze)
+  - Stats compactos (Target + Zap) dentro da barra
+  - Coroa no 1º lugar
+- **Lista 4º e 5º:** com badges coloridos (cheio verde, parcial âmbar, feitos neutro, esquecidos vermelho)
+- Pontos em destaque grande à direita com "pts" abaixo
+- **Motivação:** "Faltam X pts para o 1º lugar!" ou "🔥 Você está na liderança!"
+- **Legenda desempate:** ícones coloridos (Target cheio → Zap parcial → CircleDot feitos)
+- **Tema Copa:** borda amarela sólida, fundo verde/amarelo, título amarelo
+- **Tema Brasileirão:** borda verde sólida + glow
+- Critérios de ordenação: pontuação → acertos em cheio → acertos parciais → total palpites feitos
+- Quando pontuação zerada: posição por ordem de entrada no grupo
+
+**Regras de Ranking (frontend):**
+- Pódio sempre com os 3 primeiros
+- Mostra até 5º (2 posições fora do pódio em lista)
+- Pontuação zerada → ordem de chegada (mantém ordem do backend)
+- Com jogos: 1º pontuação, 2º acertos em cheio, 3º acertos parciais, 4º total palpites feitos
+- Se usuário fora do top 5, mostra posição separada
+
+**Componente removido:**
+- `card-proximos-jogos.tsx` — substituído pelo card principal mais rico
+
+- Bottom navigation (Home, Grupos, Palpites, Conta)
 
 ### 4. Grupos ✅
 

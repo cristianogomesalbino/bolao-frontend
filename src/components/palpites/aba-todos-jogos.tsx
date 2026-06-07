@@ -31,6 +31,21 @@ export function AbaTodosJogos({
   cardAtivo,
   onFoco,
 }: Readonly<PropsAbaTodosJogos>) {
+  // Todos os jogos palpitáveis para navegação sequencial
+  const jogosPalpitaveis = [...jogosAtualVisiveis, ...jogosProximaVisiveis].filter((j) => podePalpitar(j));
+
+  function proximoCardId(jogoAtualId: string): string | undefined {
+    const idx = jogosPalpitaveis.findIndex((j) => j.id === jogoAtualId);
+    if (idx >= 0 && idx < jogosPalpitaveis.length - 1) {
+      return jogosPalpitaveis[idx + 1].id;
+    }
+    return undefined;
+  }
+
+  function ehUltimoPalpitavel(jogoId: string): boolean {
+    return jogosPalpitaveis.at(-1)?.id === jogoId;
+  }
+
   return (
     <div>
       {/* Rodada atual */}
@@ -48,6 +63,11 @@ export function AbaTodosJogos({
                 grupoId={grupoId}
                 ativo={cardAtivo === jogo.id}
                 onFoco={() => onFoco(jogo.id)}
+                onProximoCard={() => {
+                  const proximo = proximoCardId(jogo.id);
+                  if (proximo) onFoco(proximo);
+                }}
+                ehUltimoCard={ehUltimoPalpitavel(jogo.id)}
               />
             ))}
           </div>
@@ -71,6 +91,11 @@ export function AbaTodosJogos({
                 grupoId={grupoId}
                 ativo={cardAtivo === jogo.id}
                 onFoco={() => onFoco(jogo.id)}
+                onProximoCard={() => {
+                  const proximo = proximoCardId(jogo.id);
+                  if (proximo) onFoco(proximo);
+                }}
+                ehUltimoCard={ehUltimoPalpitavel(jogo.id)}
               />
             ))}
           </div>
