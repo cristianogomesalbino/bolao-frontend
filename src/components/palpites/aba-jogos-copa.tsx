@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
-import { listarJogosFase } from '@/services/jogo.service';
 import { Fase, Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
 import { buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
@@ -24,24 +23,22 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
   // Todas as fases (grupos + eliminatórias juntas, ordenadas por ordem)
   const fasesOrdenadas = [...fases].sort((a, b) => a.ordem - b.ordem);
 
-  // Buscar jogos de TODAS as fases da rodada selecionada em paralelo
+  // Buscar jogos de TODAS as fases da rodada selecionada — 1 request via listarJogosTemporada
   const { data: jogosPorGrupo, isLoading: carregandoJogos } = useQuery({
-    queryKey: ['jogos-copa-todos-grupos', rodadaSelecionada],
+    queryKey: ['jogos-copa-todos-grupos', fases[0]?.temporadaId, rodadaSelecionada],
     queryFn: async () => {
-      const resultados = await Promise.all(
-        fasesOrdenadas.map(async (fase) => {
-          try {
-            const res = await listarJogosFase(fase.id, rodadaSelecionada);
-            return { fase, jogos: res.jogos };
-          } catch {
-            return { fase, jogos: [] };
-          }
-        }),
-      );
-      return resultados.filter((r) => r.jogos.length > 0);
+      const { listarJogosTemporada } = await import('@/services/jogo.service');
+      const todosJogos = await listarJogosTemporada(fases[0]?.temporadaId ?? '');
+      // Filtrar pela rodada selecionada e agrupar por fase
+      return fasesOrdenadas
+        .map((fase) => ({
+          fase,
+          jogos: todosJogos.filter((j) => j.faseId === fase.id && j.rodada === rodadaSelecionada),
+        }))
+        .filter((r) => r.jogos.length > 0);
     },
     enabled: fasesOrdenadas.length > 0,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 60 * 5,
   });
 
   // Coletar todos os IDs de jogos para batch de palpites
@@ -49,7 +46,7 @@ export function AbaJogosCopa({ fases, grupoId, cardAtivo, onFoco }: Readonly<Pro
   const jogoIds = todosJogos.map((j) => j.id);
 
   const { data: palpitesBatch } = useQuery({
-    queryKey: ['palpites-copa-batch', rodadaSelecionada, jogoIds.join(',')],
+    queryKey: ['palpites-copa-batch', fases[0]?.temporadaId, rodadaSelecionada],
     queryFn: async () => {
       const palpites = await buscarMeusPalpitesPorJogos(jogoIds);
       const map: Record<string, Palpite> = {};

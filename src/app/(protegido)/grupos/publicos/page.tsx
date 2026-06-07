@@ -126,7 +126,7 @@ export default function GruposPublicosPage() {
                       <span className="text-[11px]">
                         {grupo.totalParticipantes ?? 0} participantes
                       </span>
-                      {grupo.maxParticipantes && (
+                      {grupo.maxParticipantes != null && grupo.maxParticipantes > 0 && (
                         <>
                           <span className="text-texto/20 mx-0.5">•</span>
                           <span className="text-[11px]">

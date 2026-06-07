@@ -42,7 +42,7 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
     queryKey: ['grupo', grupoId, 'ranking', 'geral'],
     queryFn: () => obterRankingGeral(grupoId),
     enabled: !!grupoId,
-    staleTime: 0,
+    staleTime: 60_000,
     refetchOnWindowFocus: true,
   });
 

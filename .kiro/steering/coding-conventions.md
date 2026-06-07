@@ -166,3 +166,77 @@ const { usuario, login, logout } = useAuthStore();
 - Sempre ter fallback gracioso (retornar `[]` ou `null` se API falhar)
 - Cache no frontend via `staleTime` do React Query
 - Dados de classificação/estatísticas: buscar do backend, nunca direto do ge.globo.com
+
+## Tema Dinâmico (Copa vs Brasileirão)
+
+- Cards e componentes que mudam de visual baseado no campeonato recebem prop `temaCopa?: boolean`
+- Detecção: `campeonato.nome.toLowerCase().includes('copa')`
+- Usar objeto `cores` com todas as variantes para evitar ternários espalhados no JSX
+- Padrão:
+```tsx
+const cores = temaCopa
+  ? { border: '...', titulo: '...', ... }
+  : { border: '...', titulo: '...', ... };
+```
+- NUNCA usar ternários aninhados no `className` — extrair em variável ou objeto
+
+## React Keys
+
+- **NUNCA usar campos de dados que podem duplicar** como key em `.map()` (ex: `posicao`, `status`, `tipo`)
+- **SEMPRE usar combinações únicas**: `${index}-${nome}`, `${id}`, ou `podio-${i}-${entrada.nome}`
+- Se o dado tem `id` do backend, usar `id` como key
+- Se não tem `id`, combinar `index` + campo descritivo para garantir unicidade
+- Keys devem ser estáveis entre re-renders (evitar `Math.random()` ou `Date.now()`)
+
+## Dropdowns Customizados
+
+- Usar `useRef` + `useEffect` com `mousedown` listener para fechar ao clicar fora
+- Animação de abertura: `animate-[fadeIn_0.15s_ease-out]`
+- Menu flutuante: `absolute z-50` com `backdrop-blur-xl` e sombra forte
+- Trigger: botão com `ChevronDown` que rotaciona (`rotate-180`) ao abrir
+- Item selecionado: fundo sutil + ícone `Check`
+- Padrão reutilizável para filtros inline em headers de cards
+
+## Ranking / Gamificação
+
+- Pódio visual para top 3: barras de alturas diferentes (2º | 1º | 3º)
+- Avatares com iniciais: `obterIniciais(nome)` — pega primeiras letras dos 2 primeiros nomes
+- Stats de palpites em badges coloridos: verde (cheio), âmbar (parcial), neutro (feitos), vermelho (esquecidos)
+- Mensagem motivacional contextual: distância do líder ou parabéns pela liderança
+- Critérios de desempate explícitos no rodapé com ícones (Target, Zap, CircleDot)
+- Ordenação no frontend: pontução → cheio → parcial → total palpites → ordem original
+
+## Ícones de Grupo (Mapa)
+
+Mapa de ícones do banco → emoji visual:
+```typescript
+const ICONES_GRUPO: Record<string, string> = {
+  bola: '⚽', trofeu: '🏆', coroa: '👑', chuteira: '👟',
+  medalha: '🥇', bandeira: '🏁', estrela: '⭐', campo: '🏟️',
+  luva: '🧤', apito: '📣', escudo: '🛡️', fogo: '🔥',
+};
+```
+- Fallback: `'⚽'` quando `icone` é `null`
+- Mesmo mapa usado no grupo page e na home
+
+## Fallback de Valores Numéricos
+
+- Campos do ranking (`acertosEmCheio`, `errosTotais`, etc.) podem vir `undefined` do backend
+- **SEMPRE usar `?? 0`** ao somar ou exibir valores numéricos do ranking
+- Previne `NaN` em cálculos e na UI
+
+## Redução Gradual de Dívida Técnica (Regra dos 15%)
+
+- **Sempre que editar um arquivo .tsx/.ts existente**, corrigir pelo menos **15% dos erros de lint/Sonar pré-existentes** nesse arquivo (arredondando pra cima, mínimo 1)
+- Prioridade de correção:
+  1. Erros de Prettier (formatação)
+  2. Ambiguous spacing (S6772) — envolver texto solto em `<span>`
+  3. Leaked values (S6439) — converter condicional em boolean explícito
+  4. Ternários aninhados (S3358) — extrair em variável ou componente
+  5. Array index keys (S6479) — usar combinação única como key
+  6. Props não Readonly (S6759) — adicionar `Readonly<>`
+  7. Complexidade cognitiva > 15 (S3776) — extrair sub-componentes
+- **Cálculo:** se o arquivo tem 20 issues Sonar, corrigir pelo menos 3 ao editá-lo. Se tem 4, corrigir pelo menos 1.
+- **Não quebrar funcionalidade** — rodar build após correções
+- **Documentar no commit** — mencionar "redução de dívida técnica" quando aplicável
+- **Meta:** zero issues Sonar em código novo. Código legado deve ser corrigido ao ser editado.

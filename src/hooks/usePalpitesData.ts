@@ -33,10 +33,11 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
 
   // Label do campeonato Copa a partir do config
   const labelCopa = CAMPEONATOS.find((c) => c.slug === 'copa-do-mundo-2026')?.label ?? '';
+  const palavraChaveCopa = labelCopa.split(' ')[0].toLowerCase(); // 'copa'
 
   function ehGrupoCopa(nomeCampeonato?: string): boolean {
     if (!nomeCampeonato) return false;
-    return nomeCampeonato === labelCopa;
+    return nomeCampeonato.toLowerCase().includes(palavraChaveCopa) && nomeCampeonato.toLowerCase().includes('mundo');
   }
 
   // Selecionar grupo correto baseado no campeonato selecionado
@@ -65,12 +66,13 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
 
   const temporadaAtual = (() => {
     if (!temporadas || temporadas.length === 0) return undefined;
-    // Selecionar por campeonato escolhido pelo usuário
     if (campeonatoSelecionado === 'copa-do-mundo-2026') {
-      return temporadas.find((t) => t.campeonato?.nome?.includes('Copa'));
+      return temporadas.find((t) => ehGrupoCopa(t.campeonato?.nome));
     }
-    // Brasileirão
-    return temporadas.find((t) => t.campeonato?.nome?.includes('Série A')) ?? temporadas[0];
+    // Brasileirão: buscar por nome que contém "Série A" ou primeiro que não é Copa
+    return temporadas.find((t) => t.campeonato?.nome?.includes('Série A'))
+      ?? temporadas.find((t) => !ehGrupoCopa(t.campeonato?.nome))
+      ?? temporadas[0];
   })();
   const temporadaId = temporadaAtual?.id || '';
   const ehCopaMundo = campeonatoSelecionado === 'copa-do-mundo-2026';
@@ -89,7 +91,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     queryKey: ['jogos-rodada-atual', faseAtual?.id],
     queryFn: () => listarJogosFase(faseAtual!.id),
     enabled: !!faseAtual?.id,
-    staleTime: 0,
+    staleTime: 30_000, // 30s — evita refetch em cada render
     refetchOnWindowFocus: true,
     refetchInterval: (query) => {
       const jogos = query.state.data?.jogos ?? [];
@@ -109,6 +111,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     queryKey: ['jogos-proxima-rodada', faseAtual?.id, proximaRodada],
     queryFn: () => listarJogosFase(faseAtual!.id, proximaRodada as number),
     enabled: !!faseAtual?.id && !!proximaRodada,
+    staleTime: 60_000, // 1min
   });
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];

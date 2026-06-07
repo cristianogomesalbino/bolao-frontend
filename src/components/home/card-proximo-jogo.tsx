@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Card, CardContent } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { Clock, Check, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TimeInfo {
   nome: string;
@@ -11,67 +13,79 @@ interface TimeInfo {
 }
 
 interface PropsCardProximoJogo {
+  jogoId?: string;
   timeCasa: TimeInfo;
   timeFora: TimeInfo;
   dataHora: string;
   totalPalpites?: number;
   jaPalpitou?: boolean;
+  grupoId?: string;
+  temaCopa?: boolean;
 }
 
-function calcularCountdown(dataHora: string): string {
-  const diff = new Date(dataHora).getTime() - Date.now();
-  if (diff <= 0) return 'Encerrado';
+function calcularCountdown(dataHora: string): { texto: string; encerrado: boolean } {
+  const target = new Date(dataHora).getTime() - 60000;
+  const diff = target - Date.now();
+  if (diff <= 0) return { texto: 'Encerrado', encerrado: true };
 
-  const horas = Math.floor(diff / (1000 * 60 * 60));
-  const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const segundos = Math.floor((diff % (1000 * 60)) / 1000);
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
 
-  if (horas > 24) {
-    const dias = Math.floor(horas / 24);
-    return `${dias}d ${horas % 24}h`;
-  }
-  return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+  const texto = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return { texto, encerrado: false };
 }
 
-function formatarHorario(dataHora: string): string {
+function formatarDataJogo(dataHora: string): string {
   const data = new Date(dataHora);
   const agora = new Date();
-  const diffDias = Math.floor((data.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24));
+
+  const hojeStr = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const jogoStr = data.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+  const amanha = new Date(agora);
+  amanha.setDate(amanha.getDate() + 1);
+  const amanhaStr = amanha.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
   let dia: string;
-  if (diffDias <= 0 && data.getDate() === agora.getDate()) {
+  if (jogoStr === hojeStr) {
     dia = 'Hoje';
-  } else if (diffDias <= 1) {
+  } else if (jogoStr === amanhaStr) {
     dia = 'Amanhã';
   } else {
-    const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    dia = dias[data.getDay()];
+    dia = data.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'America/Sao_Paulo' });
+    dia = dia.charAt(0).toUpperCase() + dia.slice(1).replace('.', '');
   }
 
-  const hora = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const hora = data.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  });
+
   return `${dia} • ${hora}`;
 }
 
-function EscudoTime({ time }: { time: TimeInfo }) {
+function EscudoTime({ time }: Readonly<{ time: TimeInfo }>) {
   const [erroImagem, setErroImagem] = useState(false);
 
   if (!time.escudo || erroImagem) {
-    // Fallback: sigla do time em círculo
     return (
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.08] border border-white/[0.06]">
-        <span className="text-[10px] font-bold text-texto/60">{time.sigla}</span>
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/[0.08] border border-white/[0.06]">
+        <span className="text-xs font-bold text-texto/60">{time.sigla}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex h-10 w-10 items-center justify-center">
+    <div className="relative">
+      <div className="absolute inset-0 h-14 w-14 bg-white/15 rounded-full blur-lg" />
       <Image
         src={time.escudo}
         alt={`Escudo ${time.nome}`}
-        width={40}
-        height={40}
-        className="h-10 w-10 object-contain"
+        width={56}
+        height={56}
+        className="h-14 w-14 object-contain relative z-10 brightness-110 saturate-[1.2] drop-shadow-[0_0_16px_rgba(255,255,255,0.2)]"
         onError={() => setErroImagem(true)}
         unoptimized
       />
@@ -79,7 +93,17 @@ function EscudoTime({ time }: { time: TimeInfo }) {
   );
 }
 
-export function CardProximoJogo({ timeCasa, timeFora, dataHora, totalPalpites, jaPalpitou }: PropsCardProximoJogo) {
+export function CardProximoJogo({
+  jogoId,
+  timeCasa,
+  timeFora,
+  dataHora,
+  totalPalpites,
+  jaPalpitou,
+  grupoId,
+  temaCopa,
+}: Readonly<PropsCardProximoJogo>) {
+  const router = useRouter();
   const [countdown, setCountdown] = useState(calcularCountdown(dataHora));
 
   useEffect(() => {
@@ -89,56 +113,129 @@ export function CardProximoJogo({ timeCasa, timeFora, dataHora, totalPalpites, j
     return () => clearInterval(interval);
   }, [dataHora]);
 
+  function irParaPalpite() {
+    if (grupoId) {
+      router.push(`/grupos/${grupoId}/palpites`);
+    } else {
+      router.push('/palpites');
+    }
+  }
+
+  // Cores dinâmicas baseadas no tema
+  const cores = temaCopa
+    ? {
+        border: 'border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]',
+        titulo: 'text-[#ffdf00]/90',
+        data: 'text-[#ffdf00]/70',
+        nomeTime: 'text-[#ffdf00]',
+        countdown: countdown.encerrado ? 'text-erro' : 'text-[#ff8c00]',
+        palpites: 'text-[#ffdf00]',
+        botao: 'bg-[#009c3b] hover:bg-[#009c3b]/80 shadow-[0_0_12px_rgba(0,156,59,0.4)]',
+        divider: 'border-[#009c3b]/20',
+        icone: '🏆',
+      }
+    : {
+        border: 'border-primaria/40 shadow-[0_0_16px_rgba(22,163,74,0.15)]',
+        titulo: 'text-texto/50',
+        data: 'text-texto/50',
+        nomeTime: 'text-texto',
+        countdown: countdown.encerrado ? 'text-erro' : 'text-primaria-claro',
+        palpites: 'text-primaria-claro',
+        botao: 'bg-primaria hover:bg-primaria-claro shadow-[0_0_12px_rgba(22,163,74,0.3)]',
+        divider: 'border-white/[0.06]',
+        icone: '⚽',
+      };
+
   return (
-    <Card className="border-primaria/15 shadow-[0_0_20px_rgba(22,163,74,0.08)]">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-4">
+    <div
+      className={`relative overflow-hidden rounded-2xl border ${cores.border} bg-white/[0.03] backdrop-blur-2xl`}
+      data-testid="home-card-proximo-jogo"
+    >
+      {/* Background */}
+      {temaCopa ? (
+        <div className="absolute inset-0 bg-gradient-to-b from-[#009c3b]/20 via-[#003d1a] to-[#ffdf00]/10" />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-b from-superficie/60 to-fundo/80" />
+      )}
+
+      <div className="relative p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm">⚽</span>
-            <span className="text-[11px] text-texto/40 uppercase tracking-wider font-medium">
+            <span className="text-sm">{cores.icone}</span>
+            <span className={`text-xs uppercase tracking-wider font-bold ${cores.titulo}`}>
               Próximo jogo
             </span>
           </div>
-          <span className="text-[11px] text-texto/35">{formatarHorario(dataHora)}</span>
+          <div className={`flex items-center gap-1.5 ${cores.data}`}>
+            <Clock size={13} />
+            <span className="text-xs font-medium">{formatarDataJogo(dataHora)}</span>
+          </div>
         </div>
 
-        {/* Times */}
-        <div className="flex items-center justify-center gap-5 py-4">
-          <div className="flex flex-col items-center gap-2">
+        {/* Times VS */}
+        <div className="flex items-center justify-between px-2">
+          <div className="flex flex-col items-center gap-2 flex-1">
             <EscudoTime time={timeCasa} />
-            <span className="text-sm font-semibold text-texto">{timeCasa.nome}</span>
+            <span className={`text-base font-bold text-center leading-tight ${cores.nomeTime}`}>
+              {timeCasa.nome}
+            </span>
           </div>
 
-          <div className="flex flex-col items-center">
-            <span className="text-xs text-texto/25 font-bold">VS</span>
-          </div>
+          <span className="text-lg font-bold text-texto/25 px-3">VS</span>
 
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2 flex-1">
             <EscudoTime time={timeFora} />
-            <span className="text-sm font-semibold text-texto">{timeFora.nome}</span>
+            <span className={`text-base font-bold text-center leading-tight ${cores.nomeTime}`}>
+              {timeFora.nome}
+            </span>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.05]">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-texto/40">Encerra em</span>
-            <span className="text-xs font-mono text-primaria/80 tabular-nums">{countdown}</span>
+        <div className={`flex items-center justify-between mt-3 pt-3 border-t ${cores.divider}`}>
+          {/* Countdown */}
+          <div className="flex flex-col">
+            <span className="text-[9px] text-texto/40 flex items-center gap-1">⏱ Encerra em</span>
+            <span className={`text-xl font-mono font-bold tabular-nums mt-0.5 ${cores.countdown}`}>
+              {countdown.texto}
+            </span>
           </div>
+
+          {/* Stats + Botão */}
           <div className="flex items-center gap-3">
-            {totalPalpites && totalPalpites > 0 && (
-              <span className="text-[10px] text-destaque/70">
-                🔥 {totalPalpites} palpites
-              </span>
-            )}
-            {jaPalpitou !== undefined && (
-              <span className={`text-[10px] ${jaPalpitou ? 'text-sucesso/70' : 'text-texto/40'}`}>
-                {jaPalpitou ? '✓ Palpite feito' : '• Sem palpite'}
-              </span>
+            <div className="flex flex-col items-end gap-1">
+              {totalPalpites !== undefined && totalPalpites > 0 && (
+                <div className="flex items-center gap-1">
+                  <Users size={12} className={cores.palpites} />
+                  <span className={`text-xs font-semibold ${cores.palpites}`}>
+                    {totalPalpites} palpitaram
+                  </span>
+                </div>
+              )}
+              {jaPalpitou ? (
+                <div className="flex items-center gap-1 text-sucesso">
+                  <Check size={12} />
+                  <span className="text-[11px] font-medium">Você já palpitou</span>
+                </div>
+              ) : (
+                <span className="text-[11px] text-texto/40">• Sem palpite</span>
+              )}
+            </div>
+
+            {!jaPalpitou && !countdown.encerrado && (
+              <Button
+                onClick={irParaPalpite}
+                size="sm"
+                className={`${cores.botao} text-white font-bold text-xs px-4 h-9 rounded-lg`}
+                data-testid="home-btn-palpitar"
+              >
+                PALPITAR &gt;
+              </Button>
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

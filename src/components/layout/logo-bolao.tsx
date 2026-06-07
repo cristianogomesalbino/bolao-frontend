@@ -4,7 +4,7 @@ export function LogoBolao() {
   return (
     <div className="flex flex-col items-center gap-2.5">
       <Image
-        src="/logo-bolao.png"
+        src="/logo-bolao.png?v=2"
         alt="Bolão"
         width={160}
         height={160}
