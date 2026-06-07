@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { listarFases, listarJogosFase } from '@/services/jogo.service';
+import { listarFases } from '@/services/jogo.service';
 import { buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { Jogo } from '@/types/jogo.types';
 import { CardProximoJogoCopa } from './card-proximo-jogo-copa';
@@ -26,22 +26,18 @@ export function SecaoCopaDoMundo({ temporadaId, grupoId }: Readonly<PropsSecaoCo
   const fasesGrupos = fases?.filter((f) => f.tipo === 'PONTOS_CORRIDOS') ?? [];
 
   const { data: jogosPorGrupo, isLoading: carregandoJogos } = useQuery({
-    queryKey: ['jogos-copa-grupo-page', fasesGrupos.map((f) => f.id).join(',')],
+    queryKey: ['jogos-copa-grupo-page', temporadaId],
     queryFn: async () => {
-      const resultados = await Promise.all(
-        fasesGrupos.map(async (fase) => {
-          try {
-            const res = await listarJogosFase(fase.id);
-            return { fase, jogos: res.jogos };
-          } catch {
-            return { fase, jogos: [] };
-          }
-        }),
-      );
-      return resultados;
+      const { listarJogosTemporada } = await import('@/services/jogo.service');
+      const todosJogos = await listarJogosTemporada(temporadaId);
+      // Agrupar por fase
+      return fasesGrupos.map((fase) => ({
+        fase,
+        jogos: todosJogos.filter((j) => j.faseId === fase.id),
+      }));
     },
     enabled: fasesGrupos.length > 0,
-    staleTime: 1000 * 60,
+    staleTime: 1000 * 60 * 5,
   });
 
   const agora = Date.now();

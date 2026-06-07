@@ -90,7 +90,7 @@ export function FormularioEntrarGrupo({ onSubmit }: Readonly<PropsFormularioEntr
             {isSubmitting ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Entrando...
+                <span>Entrando...</span>
               </span>
             ) : (
               'Entrar no grupo'

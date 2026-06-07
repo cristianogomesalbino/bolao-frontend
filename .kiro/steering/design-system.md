@@ -48,8 +48,33 @@ Páginas de auth adicionam:
 ```
 
 Variações:
+- Card Home (Brasileirão): `border-primaria shadow-[0_0_20px_rgba(22,163,74,0.2)]` — borda verde sólida + glow
+- Card Home (Copa): `border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]` — borda amarela sólida + glow
 - Card com destaque: `border-primaria/15 shadow-[0_0_20px_rgba(22,163,74,0.08)]`
 - Card de perigo: `border-erro/20`
+
+## Tema Copa do Mundo
+
+Quando o grupo ativo pertence à Copa do Mundo, cards mudam de tema automaticamente:
+
+| Elemento | Brasileirão | Copa do Mundo |
+|----------|-------------|---------------|
+| Borda | `border-primaria` (verde) | `border-[#ffdf00]` (amarelo) |
+| Fundo | `from-superficie/60 to-fundo/80` | `from-[#009c3b]/20 via-[#003d1a] to-[#ffdf00]/10` |
+| Textos título | `text-texto/50` | `text-[#ffdf00]/90` |
+| Nomes times | `text-texto` | `text-[#ffdf00]` |
+| Countdown | `text-primaria-claro` | `text-[#ff8c00]` |
+| Botão | `bg-primaria` | `bg-[#009c3b]` |
+| Glow escudos | branco (`bg-white/15`) | amarelo (`bg-[#ffdf00]/25`) |
+| Ícone | ⚽ | 🏆 |
+
+Cores Copa (referência — bandeira do Brasil):
+- Verde escuro (fundo): `#003d1a`
+- Verde Brasil (bordas/ações): `#009c3b`
+- Amarelo (destaques/textos): `#ffdf00`
+- Laranja (countdown): `#ff8c00`
+
+Detecção: `grupo.temporada.campeonato.nome.toLowerCase().includes('copa')`
 
 ## Inputs
 

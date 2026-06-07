@@ -35,8 +35,6 @@ export default function MembrosGrupoPage() {
     enabled: !!grupoId,
   });
 
-  const meuMembro = membros?.find((m) => (m.usuarioId || m.usuario?.id) === usuario?.id);
-  const souAdmin = meuMembro?.role === 'ADMIN' || grupo?.criadoPor === usuario?.id;
   const totalMembros = membros?.length ?? 0;
   const maxParticipantes = grupo?.maxParticipantes ?? 50;
   const vagasDisponiveis = maxParticipantes - totalMembros;

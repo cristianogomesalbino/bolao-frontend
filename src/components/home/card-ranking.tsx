@@ -249,9 +249,9 @@ export function CardRanking({
   }
 
   const rankingOrdenado = atribuirPosicoes(ordenarRanking(ranking));
-  const top5 = rankingOrdenado.slice(0, 5);
-  const top3 = top5.slice(0, 3);
-  const resto = top5.slice(3, 5);
+  const top8 = rankingOrdenado.slice(0, 8);
+  const top3 = top8.slice(0, 3);
+  const resto = top8.slice(3);
 
   const minhaEntrada = rankingOrdenado.find((e) => e.destaque);
   const lider = rankingOrdenado[0];

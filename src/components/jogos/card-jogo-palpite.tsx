@@ -19,6 +19,8 @@ interface PropsCardJogoPalpite {
   grupoId?: string;
   ativo?: boolean;
   onFoco?: () => void;
+  onProximoCard?: () => void;
+  ehUltimoCard?: boolean;
   temaCopa?: boolean;
 }
 
@@ -98,14 +100,18 @@ interface PropsCentroCard {
   onSetGolsCasa: (valor: number | '') => void;
   onSetGolsFora: (valor: number | '') => void;
   onSalvar: () => void;
+  onProximoCard?: () => void;
+  ehUltimoCard?: boolean;
   inputsRef: React.RefObject<HTMLDivElement | null>;
 }
 
 function CentroCard({
   jogo, palpitavel, bloqueado, palpiteAtual,
   golsCasa, golsFora, salvando,
-  onSetGolsCasa, onSetGolsFora, onSalvar, inputsRef,
+  onSetGolsCasa, onSetGolsFora, onSalvar, onProximoCard, ehUltimoCard, inputsRef,
 }: Readonly<PropsCentroCard>) {
+  const inputForaRef = useRef<HTMLInputElement>(null);
+
   if (jogo.status === 'FINALIZADO' || jogo.status === 'EM_ANDAMENTO') {
     return (
       <>
@@ -142,38 +148,61 @@ function CentroCard({
   }
 
   if (palpitavel) {
+    function handleInputCasa(e: React.ChangeEvent<HTMLInputElement>) {
+      const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
+      if (raw === '') { onSetGolsCasa(''); return; }
+      const val = Number.parseInt(raw, 10);
+      onSetGolsCasa(Math.min(9, val));
+      // Auto-avançar para golsFora
+      setTimeout(() => inputForaRef.current?.focus(), 50);
+    }
+
+    function handleInputFora(e: React.ChangeEvent<HTMLInputElement>) {
+      const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
+      if (raw === '') { onSetGolsFora(''); return; }
+      const val = Number.parseInt(raw, 10);
+      onSetGolsFora(Math.min(9, val));
+      // Auto-avançar para próximo card ou salvar
+      setTimeout(() => {
+        if (onProximoCard && !ehUltimoCard) {
+          onSalvar();
+          onProximoCard();
+        } else {
+          // Último card: blur para disparar salvar
+          inputForaRef.current?.blur();
+        }
+      }, 100);
+    }
+
     return (
       <div ref={inputsRef} className="flex items-center gap-2">
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={0}
-          max={9}
-          value={golsCasa}
-          onChange={(e) => {
-            const val = Number.parseInt(e.target.value, 10);
-            onSetGolsCasa(Number.isNaN(val) ? 0 : Math.max(0, Math.min(9, val)));
-          }}
+          pattern="[0-9]"
+          maxLength={1}
+          value={golsCasa === '' ? '' : golsCasa}
+          placeholder="-"
+          onChange={handleInputCasa}
           onFocus={(e) => e.target.select()}
           onBlur={onSalvar}
-          className="w-12 h-14 rounded-lg bg-black/60 border border-white/[0.12] text-center text-2xl font-bold text-texto outline-none focus:border-primaria focus:ring-1 focus:ring-primaria transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-12 h-14 rounded-lg bg-black/60 border border-white/[0.12] text-center text-2xl font-bold text-texto outline-none focus:border-primaria focus:ring-1 focus:ring-primaria transition-colors"
           disabled={salvando}
           data-testid="input-gols-casa"
         />
         <span className="text-sm font-bold text-texto/40">x</span>
         <input
-          type="number"
+          ref={inputForaRef}
+          type="text"
           inputMode="numeric"
-          min={0}
-          max={9}
-          value={golsFora}
-          onChange={(e) => {
-            const val = Number.parseInt(e.target.value, 10);
-            onSetGolsFora(Number.isNaN(val) ? 0 : Math.max(0, Math.min(9, val)));
-          }}
+          pattern="[0-9]"
+          maxLength={1}
+          value={golsFora === '' ? '' : golsFora}
+          placeholder="-"
+          onChange={handleInputFora}
           onFocus={(e) => e.target.select()}
           onBlur={onSalvar}
-          className="w-12 h-14 rounded-lg bg-black/60 border border-white/[0.12] text-center text-2xl font-bold text-texto outline-none focus:border-primaria focus:ring-1 focus:ring-primaria transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-12 h-14 rounded-lg bg-black/60 border border-white/[0.12] text-center text-2xl font-bold text-texto outline-none focus:border-primaria focus:ring-1 focus:ring-primaria transition-colors"
           disabled={salvando}
           data-testid="input-gols-fora"
         />
@@ -228,7 +257,7 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
 
 // --- Componente principal ---
 
-export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco, temaCopa }: Readonly<PropsCardJogoPalpite>) {
+export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco, onProximoCard, ehUltimoCard, temaCopa }: Readonly<PropsCardJogoPalpite>) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [expandido, setExpandido] = useState(false);
 
@@ -312,6 +341,8 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
                 onSetGolsCasa={handleSetCasa}
                 onSetGolsFora={handleSetFora}
                 onSalvar={salvar}
+                onProximoCard={onProximoCard}
+                ehUltimoCard={ehUltimoCard}
                 inputsRef={inputsRef}
               />
             </div>

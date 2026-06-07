@@ -11,10 +11,6 @@ export async function atualizarPalpite(palpiteId: string, dados: DadosAtualizarP
   return response.data;
 }
 
-export async function excluirPalpite(palpiteId: string): Promise<void> {
-  await apiClient.delete(`/palpites/${palpiteId}`);
-}
-
 export async function buscarMeuPalpite(jogoId: string): Promise<Palpite | null> {
   try {
     const response = await apiClient.get<Palpite>(`/jogos/${jogoId}/meu-palpite`);
