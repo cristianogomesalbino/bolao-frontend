@@ -14,7 +14,7 @@ export async function atualizarPalpite(palpiteId: string, dados: DadosAtualizarP
 export async function buscarMeuPalpite(jogoId: string): Promise<Palpite | null> {
   try {
     const response = await apiClient.get<Palpite>(`/jogos/${jogoId}/meu-palpite`);
-    return response.data;
+    return response.data || null;
   } catch {
     return null;
   }

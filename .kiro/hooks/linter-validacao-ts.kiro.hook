@@ -1,7 +1,7 @@
 {
   "enabled": true,
-  "name": "Verificar Build após Edição",
-  "description": "Após cada arquivo .ts ou .tsx ser editado, pede ao agente para rodar getDiagnostics e verificar se há erros de compilação que quebrariam o build. Previne publicações com erro.",
+  "name": "Linter — Validação TypeScript",
+  "description": "Após qualquer escrita em arquivo .ts/.tsx, verifica erros de TypeScript e Prettier usando getDiagnostics e corrige automaticamente.",
   "version": "1",
   "when": {
     "type": "postToolUse",
