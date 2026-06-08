@@ -167,11 +167,11 @@ function CentroCard({
         if (onProximoCard && !ehUltimoCard) {
           // Blur antes de avançar para evitar que salvar() detecte foco interno
           inputForaRef.current?.blur();
-          // Aguardar blur processar e então avançar
-          setTimeout(() => {
+          // requestAnimationFrame garante que o blur foi processado pelo browser
+          requestAnimationFrame(() => {
             onSalvar();
             onProximoCard();
-          }, 50);
+          });
         } else {
           // Último card: blur para disparar salvar
           inputForaRef.current?.blur();
@@ -294,7 +294,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
         }, 300);
       }
     }
-  }, [ativo, palpitavel, bloqueado, inputsRef]);
+  }, [ativo, palpitavel, bloqueado]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const emPreenchimento = palpitavel && !palpiteAtual && !bloqueado;
   const bordaCopa = temaCopa ? 'border-[#ffdf00] shadow-[0_0_12px_rgba(255,223,0,0.2)]' : 'border-primaria';

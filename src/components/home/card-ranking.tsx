@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, Crown, Target, Zap, CircleDot, CircleOff, ChevronDown, ChevronRight, Check } from 'lucide-react';
@@ -284,11 +284,15 @@ export function CardRanking({
     ? filtroRodada.rankingRodada
     : ranking;
 
-  const rankingOrdenado = atribuirPosicoes(ordenarRanking(dadosRanking));
+  const rankingOrdenado = useMemo(
+    () => atribuirPosicoes(ordenarRanking(dadosRanking)),
+    [dadosRanking]
+  );
   const limite = mostrarTodos ? rankingOrdenado.length : 8;
   const rankingLimitado = rankingOrdenado.slice(0, limite);
   const top3 = rankingLimitado.slice(0, 3);
   const resto = rankingLimitado.slice(3);
+  const mostrarPodio = top3.length >= 3 && top3.some((e) => e.pontos > 0);
 
   const minhaEntrada = rankingOrdenado.find((e) => e.destaque);
   const lider = rankingOrdenado[0];
@@ -409,10 +413,10 @@ export function CardRanking({
         {!carregando && ranking.length > 0 && (
           <>
             {/* Pódio (só quando alguém pontuou e há 3+) */}
-            {top3.length >= 3 && top3.some((e) => e.pontos > 0) && <Podio top3={top3} />}
+            {mostrarPodio && <Podio top3={top3} />}
 
             {/* Lista quando sem pódio (< 3 participantes ou ninguém pontuou) */}
-            {(top3.length < 3 || !top3.some((e) => e.pontos > 0)) && (
+            {!mostrarPodio && (
               <div className="space-y-0.5">
                 {rankingLimitado.map((entrada, index) => (
                   <ItemRanking key={`item-${index}-${entrada.nome}`} entrada={entrada} />
@@ -421,7 +425,7 @@ export function CardRanking({
             )}
 
             {/* 4º em diante (só quando pódio visível) */}
-            {top3.length >= 3 && top3.some((e) => e.pontos > 0) && resto.length > 0 && (
+            {mostrarPodio && resto.length > 0 && (
               <div className="space-y-0.5 border-t border-white/[0.05] pt-2">
                 {resto.map((entrada, index) => (
                   <ItemRanking key={`resto-${index}-${entrada.nome}`} entrada={entrada} />

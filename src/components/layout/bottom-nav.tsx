@@ -35,10 +35,16 @@ export function BottomNav() {
               aria-current={ativo ? 'page' : undefined}
               data-testid={`nav-btn-${item.label.toLowerCase()}`}
             >
-              {ativo && (
-                <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primaria shadow-[0_0_6px_rgba(22,163,74,0.6)]" />
-              )}
-              <Icone size={24} strokeWidth={ativo ? 2.5 : 1.5} />
+              <span className="relative">
+                {ativo && (
+                  <span className="absolute inset-0 rounded-full bg-primaria/20 blur-md scale-150" />
+                )}
+                <Icone
+                  size={ativo ? 28 : 22}
+                  strokeWidth={ativo ? 2.5 : 1.5}
+                  className={`relative transition-all duration-200 ${ativo ? 'drop-shadow-[0_0_8px_rgba(22,163,74,0.7)]' : ''}`}
+                />
+              </span>
               <span className={`text-[10px] ${ativo ? 'font-semibold' : 'font-normal'}`}>
                 {item.label}
               </span>

@@ -51,11 +51,12 @@ export function useHomeData() {
 
   // Buscar próximo jogo de TODAS as temporadas quando não tem grupo
   const { data: dadosTodasTemporadas } = useQuery({
-    queryKey: ['dados-temporada-home-todas', temporadas?.map((t) => t.id).join(',')],
+    queryKey: ['dados-temporada-home-todas', temporadas?.map((t) => t.id) ?? []],
     queryFn: async () => {
       if (!temporadas || temporadas.length === 0) return null;
+      const recentes = temporadas.slice(0, 3);
       const resultados = await Promise.all(
-        temporadas.map(async (t) => {
+        recentes.map(async (t) => {
           const dados = await buscarDadosTemporada(t.id);
           return { temporadaId: t.id, ...dados };
         })
