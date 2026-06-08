@@ -95,7 +95,7 @@ export default function DetalhesGrupoPage() {
 
   const { data: rankingRodada } = useQuery({
     queryKey: ['grupo', grupoId, 'ranking', 'rodada', proximoJogo?.fase.id, rodadaSelecionada],
-    queryFn: () => obterRankingFase(grupoId, proximoJogo!.fase.id, rodadaSelecionada!),
+    queryFn: () => obterRankingFase(grupoId, proximoJogo?.fase.id ?? '', rodadaSelecionada ?? undefined),
     enabled: !!grupoId && !ehCopa && !!proximoJogo?.fase.id && rankingFiltro === 'rodada' && !!rodadaSelecionada,
   });
 
@@ -103,7 +103,7 @@ export default function DetalhesGrupoPage() {
   const rodadaAnterior = rodadaAtual && rodadaAtual > 1 ? rodadaAtual - 1 : null;
   const { data: rankingAnterior } = useQuery({
     queryKey: ['grupo', grupoId, 'ranking', 'ateRodada', proximoJogo?.fase.id, rodadaAnterior],
-    queryFn: () => obterRankingFase(grupoId, proximoJogo!.fase.id, undefined, rodadaAnterior!),
+    queryFn: () => obterRankingFase(grupoId, proximoJogo?.fase.id ?? '', undefined, rodadaAnterior ?? undefined),
     enabled: !!grupoId && !ehCopa && !!proximoJogo?.fase.id && !!rodadaAnterior,
   });
 
@@ -578,28 +578,40 @@ export default function DetalhesGrupoPage() {
                 {top3.length >= 3 && (
                   <div className="flex items-end justify-center gap-3 mb-4 pb-4 border-b border-white/[0.05]">
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-texto/40 font-bold mb-1">2</span>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-white/[0.12]">
+                      <span className="text-[10px] text-gray-400/80 font-bold mb-1">2</span>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-gray-400/50">
                         {top3[1].nomeUsuario.charAt(0)}
                       </div>
                       <span className="text-[10px] text-texto/60 font-medium mt-1">{top3[1].nomeUsuario.split(' ')[0]}</span>
                       <span className="text-[10px] text-primaria font-bold">{top3[1].pontuacaoTotal} pts</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[8px] text-sucesso/70">🎯{top3[1].acertosEmCheio ?? 0}</span>
+                        <span className="text-[8px] text-destaque/70">⚡{top3[1].acertosDeResultado ?? 0}</span>
+                      </div>
                     </div>
                     <div className="flex flex-col items-center -mt-3">
                       <span className="text-destaque text-sm mb-1">👑</span>
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primaria/20 text-primaria text-base font-bold border-2 border-primaria/50 shadow-[0_0_12px_rgba(34,211,94,0.2)]">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primaria/20 text-primaria text-base font-bold border-2 border-yellow-400/70 shadow-[0_0_16px_rgba(234,179,8,0.25)]">
                         {top3[0].nomeUsuario.charAt(0)}
                       </div>
                       <span className="text-[11px] text-texto/80 font-semibold mt-1">{top3[0].nomeUsuario.split(' ')[0]}</span>
                       <span className="text-[11px] text-primaria font-bold">{top3[0].pontuacaoTotal} pts</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[8px] text-sucesso/70">🎯{top3[0].acertosEmCheio ?? 0}</span>
+                        <span className="text-[8px] text-destaque/70">⚡{top3[0].acertosDeResultado ?? 0}</span>
+                      </div>
                     </div>
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-texto/40 font-bold mb-1">3</span>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-white/[0.12]">
+                      <span className="text-[10px] text-orange-500/80 font-bold mb-1">3</span>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-orange-500/50">
                         {top3[2].nomeUsuario.charAt(0)}
                       </div>
                       <span className="text-[10px] text-texto/60 font-medium mt-1">{top3[2].nomeUsuario.split(' ')[0]}</span>
                       <span className="text-[10px] text-texto/50 font-bold">{top3[2].pontuacaoTotal} pts</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[8px] text-sucesso/70">🎯{top3[2].acertosEmCheio ?? 0}</span>
+                        <span className="text-[8px] text-destaque/70">⚡{top3[2].acertosDeResultado ?? 0}</span>
+                      </div>
                     </div>
                   </div>
                 )}

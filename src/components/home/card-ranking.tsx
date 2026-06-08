@@ -28,6 +28,17 @@ interface PropsCardRanking {
   onTrocarGrupo: (grupoId: string) => void;
   carregando?: boolean;
   temaCopa?: boolean;
+  ocultarBotaoCompleto?: boolean;
+  mostrarTodos?: boolean;
+  filtroRodada?: {
+    ativo: boolean;
+    rodadaSelecionada: number | null;
+    rodadaMax: number;
+    onTrocarFiltro: (tipo: 'geral' | 'rodada') => void;
+    onTrocarRodada: (rodada: number) => void;
+    rankingRodada?: EntradaRanking[];
+    filtroAtivo: 'geral' | 'rodada';
+  };
 }
 
 function obterIniciais(nome: string): string {
@@ -57,11 +68,13 @@ function corPosicao(indice: number): string {
  * 2. Acertos em cheio (desc)
  * 3. Acertos parciais (desc)
  * 4. Total de palpites feitos (desc)
- * Se tudo zerado → mantém ordem original (ordem de entrada)
+ * Se todos com 0 pontos → mantém ordem original (sem distinção)
  */
 function ordenarRanking(ranking: EntradaRanking[]): EntradaRanking[] {
+  const alguemPontuou = ranking.some((e) => e.pontos > 0);
+  if (!alguemPontuou) return ranking;
+
   return [...ranking].sort((a, b) => {
-    if (a.pontos === 0 && b.pontos === 0) return 0;
     if (b.pontos !== a.pontos) return b.pontos - a.pontos;
     if (b.acertosEmCheio !== a.acertosEmCheio) return b.acertosEmCheio - a.acertosEmCheio;
     if (b.acertosDeResultado !== a.acertosDeResultado) return b.acertosDeResultado - a.acertosDeResultado;
@@ -70,10 +83,25 @@ function ordenarRanking(ranking: EntradaRanking[]): EntradaRanking[] {
 }
 
 function atribuirPosicoes(ranking: EntradaRanking[]): EntradaRanking[] {
-  return ranking.map((entrada, index) => ({
-    ...entrada,
-    posicao: index + 1,
-  }));
+  if (ranking.length === 0) return [];
+  const result: EntradaRanking[] = [];
+  let posicaoAtual = 1;
+
+  for (let i = 0; i < ranking.length; i++) {
+    if (i > 0) {
+      const prev = ranking[i - 1];
+      const curr = ranking[i];
+      const mesmoDesempenho =
+        curr.pontos === prev.pontos &&
+        curr.acertosEmCheio === prev.acertosEmCheio &&
+        curr.acertosDeResultado === prev.acertosDeResultado;
+      if (!mesmoDesempenho) {
+        posicaoAtual = i + 1;
+      }
+    }
+    result.push({ ...ranking[i], posicao: posicaoAtual });
+  }
+  return result;
 }
 
 /** Pódio visual: top 3 (2º | 1º | 3º) */
@@ -237,6 +265,9 @@ export function CardRanking({
   onTrocarGrupo,
   carregando,
   temaCopa,
+  ocultarBotaoCompleto,
+  mostrarTodos,
+  filtroRodada,
 }: Readonly<PropsCardRanking>) {
   const router = useRouter();
 
@@ -248,10 +279,16 @@ export function CardRanking({
     }
   }
 
-  const rankingOrdenado = atribuirPosicoes(ordenarRanking(ranking));
-  const top8 = rankingOrdenado.slice(0, 8);
-  const top3 = top8.slice(0, 3);
-  const resto = top8.slice(3);
+  // Usar ranking da rodada se filtro ativo
+  const dadosRanking = filtroRodada?.filtroAtivo === 'rodada' && filtroRodada.rankingRodada
+    ? filtroRodada.rankingRodada
+    : ranking;
+
+  const rankingOrdenado = atribuirPosicoes(ordenarRanking(dadosRanking));
+  const limite = mostrarTodos ? rankingOrdenado.length : 8;
+  const rankingLimitado = rankingOrdenado.slice(0, limite);
+  const top3 = rankingLimitado.slice(0, 3);
+  const resto = rankingLimitado.slice(3);
 
   const minhaEntrada = rankingOrdenado.find((e) => e.destaque);
   const lider = rankingOrdenado[0];
@@ -288,14 +325,69 @@ export function CardRanking({
             )}
           </div>
 
-          <button
-            onClick={irParaRanking}
-            className="text-[11px] text-primaria-claro font-medium hover:text-primaria transition-colors shrink-0"
-            data-testid="home-ver-ranking-completo"
-          >
-            Completo <ChevronRight size={14} className="inline" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Filtro Geral/Rodada */}
+            {filtroRodada?.ativo && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => filtroRodada.onTrocarFiltro('geral')}
+                  className={`text-[10px] px-2 py-1 rounded-md transition-colors ${
+                    filtroRodada.filtroAtivo === 'geral'
+                      ? 'bg-primaria/15 text-primaria-claro font-semibold border border-primaria/30'
+                      : 'text-texto/40 border border-white/[0.08] hover:text-texto/60'
+                  }`}
+                >
+                  Geral
+                </button>
+                <button
+                  onClick={() => filtroRodada.onTrocarFiltro('rodada')}
+                  className={`text-[10px] px-2 py-1 rounded-md transition-colors ${
+                    filtroRodada.filtroAtivo === 'rodada'
+                      ? 'bg-primaria/15 text-primaria-claro font-semibold border border-primaria/30'
+                      : 'text-texto/40 border border-white/[0.08] hover:text-texto/60'
+                  }`}
+                >
+                  Rodada
+                </button>
+              </div>
+            )}
+
+            {!ocultarBotaoCompleto && (
+              <button
+                onClick={irParaRanking}
+                className="text-[11px] text-primaria-claro font-medium hover:text-primaria transition-colors shrink-0"
+                data-testid="home-ver-ranking-completo"
+              >
+                Completo <ChevronRight size={14} className="inline" />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Seletor de rodada */}
+        {filtroRodada?.ativo && filtroRodada.filtroAtivo === 'rodada' && (
+          <div className="flex items-center justify-center gap-3 py-2 mb-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+            <button
+              type="button"
+              onClick={() => filtroRodada.onTrocarRodada(Math.max(1, (filtroRodada.rodadaSelecionada ?? 1) - 1))}
+              disabled={!filtroRodada.rodadaSelecionada || filtroRodada.rodadaSelecionada <= 1}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-primaria-claro hover:text-primaria disabled:opacity-20 transition-colors"
+            >
+              <ChevronRight size={20} className="rotate-180" />
+            </button>
+            <span className="text-[12px] text-texto/70 font-medium min-w-[100px] text-center">
+              {filtroRodada.rodadaSelecionada ? `Rodada ${filtroRodada.rodadaSelecionada}` : 'Selecione'}
+            </span>
+            <button
+              type="button"
+              onClick={() => filtroRodada.onTrocarRodada(Math.min(filtroRodada.rodadaMax, (filtroRodada.rodadaSelecionada ?? 0) + 1))}
+              disabled={filtroRodada.rodadaSelecionada === filtroRodada.rodadaMax}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-primaria-claro hover:text-primaria disabled:opacity-20 transition-colors"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        )}
 
         {/* Loading */}
         {carregando && (
@@ -316,20 +408,20 @@ export function CardRanking({
         {/* Ranking */}
         {!carregando && ranking.length > 0 && (
           <>
-            {/* Pódio (sempre top 3 quando há 3+) */}
-            {top3.length >= 3 && <Podio top3={top3} />}
+            {/* Pódio (só quando alguém pontuou e há 3+) */}
+            {top3.length >= 3 && top3.some((e) => e.pontos > 0) && <Podio top3={top3} />}
 
-            {/* Lista se < 3 */}
-            {top3.length < 3 && (
+            {/* Lista quando sem pódio (< 3 participantes ou ninguém pontuou) */}
+            {(top3.length < 3 || !top3.some((e) => e.pontos > 0)) && (
               <div className="space-y-0.5">
-                {top8.map((entrada, index) => (
+                {rankingLimitado.map((entrada, index) => (
                   <ItemRanking key={`item-${index}-${entrada.nome}`} entrada={entrada} />
                 ))}
               </div>
             )}
 
-            {/* 4º e 5º */}
-            {top3.length >= 3 && resto.length > 0 && (
+            {/* 4º em diante (só quando pódio visível) */}
+            {top3.length >= 3 && top3.some((e) => e.pontos > 0) && resto.length > 0 && (
               <div className="space-y-0.5 border-t border-white/[0.05] pt-2">
                 {resto.map((entrada, index) => (
                   <ItemRanking key={`resto-${index}-${entrada.nome}`} entrada={entrada} />
@@ -337,8 +429,8 @@ export function CardRanking({
               </div>
             )}
 
-            {/* Minha posição se fora do top 5 */}
-            {minhaEntrada && minhaEntrada.posicao > 5 && (
+            {/* Minha posição se fora da lista visível */}
+            {minhaEntrada && minhaEntrada.posicao > limite && (
               <div className="mt-2 pt-2 border-t border-white/[0.05]">
                 <ItemRanking entrada={minhaEntrada} />
               </div>

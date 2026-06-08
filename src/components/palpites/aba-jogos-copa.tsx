@@ -62,6 +62,21 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
 
   const palpitesPorJogo = palpitesBatch ?? {};
 
+  // Jogos palpitáveis para navegação sequencial na Copa
+  const todosJogosPalpitaveisNavegacao = jogosPorGrupo?.flatMap((g) => g.jogos).filter((j) => podePalpitar(j)) ?? [];
+
+  function proximoCardIdCopa(jogoAtualId: string): string | undefined {
+    const idx = todosJogosPalpitaveisNavegacao.findIndex((j) => j.id === jogoAtualId);
+    if (idx >= 0 && idx < todosJogosPalpitaveisNavegacao.length - 1) {
+      return todosJogosPalpitaveisNavegacao[idx + 1].id;
+    }
+    return undefined;
+  }
+
+  function ehUltimoPalpitavelCopa(jogoId: string): boolean {
+    return todosJogosPalpitaveisNavegacao.at(-1)?.id === jogoId;
+  }
+
   // Contar palpites feitos vs total de jogos palpitáveis
   const jogosPalpitaveis = todosJogos.filter((j) => podePalpitar(j));
   const totalPalpitaveis = jogosPalpitaveis.length;
@@ -171,6 +186,11 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
                     grupoId={grupoId}
                     ativo={cardAtivo === jogo.id}
                     onFoco={() => onFoco(jogo.id)}
+                    onProximoCard={() => {
+                      const proximo = proximoCardIdCopa(jogo.id);
+                      if (proximo) onFoco(proximo);
+                    }}
+                    ehUltimoCard={ehUltimoPalpitavelCopa(jogo.id)}
                     temaCopa
                   />
                 ))}

@@ -98,7 +98,12 @@ export function usePalpiteCard({ jogoId, grupoId, palpiteInicial }: UsePalpiteCa
     if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     blurTimeoutRef.current = setTimeout(() => {
       // Se o foco está em outro input dentro do mesmo container, não salvar ainda
-      if (inputsRef.current?.contains(document.activeElement)) return;
+      // Verifica de forma segura para evitar inconsistências no mobile
+      const activeEl = document.activeElement;
+      const containerEl = inputsRef.current;
+      if (containerEl && activeEl && containerEl.contains(activeEl) && activeEl.tagName === 'INPUT') {
+        return;
+      }
 
       const gols = golsRef.current;
 
@@ -125,7 +130,7 @@ export function usePalpiteCard({ jogoId, grupoId, palpiteInicial }: UsePalpiteCa
       } else {
         mutationCriar.mutate(golsValidados);
       }
-    }, 150);
+    }, 80);
   }
 
   function handleSetGolsCasa(valor: number | '') {

@@ -162,16 +162,21 @@ function CentroCard({
       if (raw === '') { onSetGolsFora(''); return; }
       const val = Number.parseInt(raw, 10);
       onSetGolsFora(Math.min(9, val));
-      // Auto-avançar para próximo card ou salvar
+      // Auto-avançar para próximo card após salvar
       setTimeout(() => {
         if (onProximoCard && !ehUltimoCard) {
-          onSalvar();
-          onProximoCard();
+          // Blur antes de avançar para evitar que salvar() detecte foco interno
+          inputForaRef.current?.blur();
+          // Aguardar blur processar e então avançar
+          setTimeout(() => {
+            onSalvar();
+            onProximoCard();
+          }, 50);
         } else {
           // Último card: blur para disparar salvar
           inputForaRef.current?.blur();
         }
-      }, 100);
+      }, 50);
     }
 
     return (
@@ -179,8 +184,10 @@ function CentroCard({
         <input
           type="text"
           inputMode="numeric"
-          pattern="[0-9]"
+          pattern="[0-9]*"
           maxLength={1}
+          enterKeyHint="next"
+          autoComplete="off"
           value={golsCasa === '' ? '' : golsCasa}
           placeholder="-"
           onChange={handleInputCasa}
@@ -195,8 +202,10 @@ function CentroCard({
           ref={inputForaRef}
           type="text"
           inputMode="numeric"
-          pattern="[0-9]"
+          pattern="[0-9]*"
           maxLength={1}
+          enterKeyHint={onProximoCard && !ehUltimoCard ? 'next' : 'done'}
+          autoComplete="off"
           value={golsFora === '' ? '' : golsFora}
           placeholder="-"
           onChange={handleInputFora}
@@ -277,8 +286,15 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
   useEffect(() => {
     if (ativo && cardRef.current) {
       cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Auto-focus no primeiro input ao avançar para este card
+      if (palpitavel && !bloqueado) {
+        setTimeout(() => {
+          const firstInput = inputsRef.current?.querySelector('input:not(:disabled)') as HTMLInputElement | null;
+          firstInput?.focus();
+        }, 300);
+      }
     }
-  }, [ativo]);
+  }, [ativo, palpitavel, bloqueado, inputsRef]);
 
   const emPreenchimento = palpitavel && !palpiteAtual && !bloqueado;
   const bordaCopa = temaCopa ? 'border-[#ffdf00] shadow-[0_0_12px_rgba(255,223,0,0.2)]' : 'border-primaria';
@@ -376,7 +392,15 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           {/* Estatísticas */}
           {expandido && (
             <div className="mt-2 pt-2 border-t border-white/[0.05]">
-              <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} />
+              {grupoId ? (
+                <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} />
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-2 text-center">
+                  <p className="text-[11px] text-texto/50 leading-relaxed">
+                    Entre em um grupo para ver como seus amigos palpitaram neste jogo!
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

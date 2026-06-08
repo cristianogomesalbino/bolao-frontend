@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Clock, Check, Users } from 'lucide-react';
+import { Clock, Check, Users, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface TimeInfo {
@@ -227,10 +227,10 @@ export function CardProximoJogo({
               <Button
                 onClick={irParaPalpite}
                 size="sm"
-                className={`${cores.botao} text-white font-bold text-xs px-4 h-9 rounded-lg`}
+                className={`${cores.botao} text-white font-bold text-xs pl-3 pr-1.5 h-8 rounded-lg gap-0`}
                 data-testid="home-btn-palpitar"
               >
-                PALPITAR &gt;
+                PALPITAR<ChevronRight size={14} className="-ml-0.5" />
               </Button>
             )}
           </div>
