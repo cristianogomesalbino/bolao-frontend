@@ -97,7 +97,7 @@ export default function InicioPage() {
             }}
             dataHora={proximoJogo.jogo.dataHora}
             totalPalpites={estatisticas?.total}
-            jaPalpitou={meuPalpite !== null && meuPalpite !== undefined}
+            jaPalpitou={!!meuPalpite?.id}
             grupoId={grupoFavoritoInicial}
             temaCopa={ehCopa}
           />
