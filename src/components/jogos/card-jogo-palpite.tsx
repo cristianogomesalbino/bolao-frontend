@@ -294,7 +294,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
         }, 300);
       }
     }
-  }, [ativo, palpitavel, bloqueado]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ativo, palpitavel, bloqueado]); // eslint-disable-line react-hooks/exhaustive-deps -- inputsRef é ref estável
 
   const emPreenchimento = palpitavel && !palpiteAtual && !bloqueado;
   const bordaCopa = temaCopa ? 'border-[#ffdf00] shadow-[0_0_12px_rgba(255,223,0,0.2)]' : 'border-primaria';

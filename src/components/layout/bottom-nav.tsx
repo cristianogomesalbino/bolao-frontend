@@ -37,15 +37,15 @@ export function BottomNav() {
             >
               <span className="relative">
                 {ativo && (
-                  <span className="absolute inset-0 rounded-full bg-primaria/20 blur-md scale-150" />
+                  <span className="absolute -inset-3 rounded-full bg-primaria/25 blur-xl" />
                 )}
                 <Icone
-                  size={ativo ? 28 : 22}
+                  size={ativo ? 32 : 22}
                   strokeWidth={ativo ? 2.5 : 1.5}
-                  className={`relative transition-all duration-200 ${ativo ? 'drop-shadow-[0_0_8px_rgba(22,163,74,0.7)]' : ''}`}
+                  className={`relative transition-all duration-200 ${ativo ? 'drop-shadow-[0_0_12px_rgba(22,163,74,0.8)]' : ''}`}
                 />
               </span>
-              <span className={`text-[10px] ${ativo ? 'font-semibold' : 'font-normal'}`}>
+              <span className="text-[10px] font-semibold">
                 {item.label}
               </span>
             </Link>
