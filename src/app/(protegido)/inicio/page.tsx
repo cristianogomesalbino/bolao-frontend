@@ -29,6 +29,7 @@ export default function InicioPage() {
     grupoSelecionadoId,
     setGrupoRankingId,
     proximoJogo,
+    proximoJogoPronto,
     estatisticas,
     meuPalpite,
     rankingFormatado,
@@ -82,7 +83,7 @@ export default function InicioPage() {
       {/* Feed */}
       <div className="mx-auto max-w-[480px] px-4 pt-4 pb-6 space-y-3">
         {/* Próximo jogo */}
-        {proximoJogo ? (
+        {proximoJogoPronto && proximoJogo ? (
           <CardProximoJogo
             jogoId={proximoJogo.jogo.id}
             timeCasa={{
