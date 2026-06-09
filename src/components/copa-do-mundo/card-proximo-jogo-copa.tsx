@@ -109,41 +109,53 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
             {palpitavel && !bloqueado && (
               <div ref={inputsRef} className="flex items-center gap-2">
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={0}
-                  max={9}
+                  pattern="[0-9]*"
+                  maxLength={1}
+                  enterKeyHint="next"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-form-type="other"
                   value={golsCasa === '' ? '' : golsCasa}
                   placeholder="-"
                   onChange={(e) => {
-                    const raw = e.target.value;
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
                     if (raw === '') { handleSetGolsCasa(''); return; }
                     const val = Number.parseInt(raw, 10);
-                    handleSetGolsCasa(Number.isNaN(val) ? '' : Math.max(0, Math.min(9, val)));
+                    handleSetGolsCasa(Number.isNaN(val) ? '' : Math.min(9, val));
                   }}
                   onFocus={(e) => e.target.select()}
                   onBlur={salvar}
-                  className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/30 text-center text-2xl font-bold text-[#ffdf00] placeholder:text-[#ffdf00]/30 outline-none focus:border-[#ffdf00] focus:ring-1 focus:ring-[#ffdf00] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/30 text-center text-2xl font-bold text-[#ffdf00] placeholder:text-[#ffdf00]/30 outline-none focus:border-[#ffdf00] focus:ring-1 focus:ring-[#ffdf00] transition-colors"
                   disabled={salvando}
                   data-testid="copa-input-gols-casa"
                 />
                 <span className="text-sm font-bold text-white/60">x</span>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={0}
-                  max={9}
+                  pattern="[0-9]*"
+                  maxLength={1}
+                  enterKeyHint="done"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-form-type="other"
                   value={golsFora === '' ? '' : golsFora}
                   placeholder="-"
                   onChange={(e) => {
-                    const raw = e.target.value;
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
                     if (raw === '') { handleSetGolsFora(''); return; }
                     const val = Number.parseInt(raw, 10);
-                    handleSetGolsFora(Number.isNaN(val) ? '' : Math.max(0, Math.min(9, val)));
+                    handleSetGolsFora(Number.isNaN(val) ? '' : Math.min(9, val));
                   }}
                   onFocus={(e) => e.target.select()}
                   onBlur={salvar}
-                  className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/30 text-center text-2xl font-bold text-[#ffdf00] placeholder:text-[#ffdf00]/30 outline-none focus:border-[#ffdf00] focus:ring-1 focus:ring-[#ffdf00] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-12 h-14 rounded-lg bg-black/60 border border-[#ffdf00]/30 text-center text-2xl font-bold text-[#ffdf00] placeholder:text-[#ffdf00]/30 outline-none focus:border-[#ffdf00] focus:ring-1 focus:ring-[#ffdf00] transition-colors"
                   disabled={salvando}
                   data-testid="copa-input-gols-fora"
                 />

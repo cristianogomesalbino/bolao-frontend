@@ -30,6 +30,11 @@ export async function buscarMeusPalpitesPorJogos(jogoIds: string[]): Promise<Pal
   }
 }
 
+export interface MembroStatusPalpite {
+  nome: string;
+  palpitou: boolean;
+}
+
 export interface EstatisticasPalpite {
   total: number;
   vitoriaCasa: number;
@@ -38,6 +43,8 @@ export interface EstatisticasPalpite {
   percentualCasa: number;
   percentualEmpate: number;
   percentualFora: number;
+  palpitaram: string[];
+  membrosStatus: MembroStatusPalpite[];
 }
 
 export async function buscarEstatisticasPalpite(

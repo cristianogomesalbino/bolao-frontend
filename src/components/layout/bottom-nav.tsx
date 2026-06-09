@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Trophy, User } from 'lucide-react';
@@ -14,6 +15,24 @@ const itens = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [tecladoAberto, setTecladoAberto] = useState(false);
+
+  useEffect(() => {
+    // Detectar teclado aberto via Visual Viewport API (mobile)
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    function handleResize() {
+      // Se a viewport visível é significativamente menor que a janela, teclado está aberto
+      const tecladoVisivel = viewport!.height < window.innerHeight * 0.75;
+      setTecladoAberto(tecladoVisivel);
+    }
+
+    viewport.addEventListener('resize', handleResize);
+    return () => viewport.removeEventListener('resize', handleResize);
+  }, []);
+
+  if (tecladoAberto) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-2 safe-area-bottom" data-testid="bottom-nav">
