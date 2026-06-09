@@ -188,6 +188,10 @@ function CentroCard({
           maxLength={1}
           enterKeyHint="next"
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-form-type="other"
           value={golsCasa === '' ? '' : golsCasa}
           placeholder="-"
           onChange={handleInputCasa}
@@ -206,6 +210,10 @@ function CentroCard({
           maxLength={1}
           enterKeyHint={onProximoCard && !ehUltimoCard ? 'next' : 'done'}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-form-type="other"
           value={golsFora === '' ? '' : golsFora}
           placeholder="-"
           onChange={handleInputFora}
@@ -234,6 +242,15 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
   if (!estatisticas || estatisticas.total === 0) {
     return <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>;
   }
+
+  const membros = estatisticas.membrosStatus ?? [];
+  // Ordenar: quem palpitou primeiro
+  const membrosOrdenados = [...membros].sort((a, b) => {
+    if (a.palpitou && !b.palpitou) return -1;
+    if (!a.palpitou && b.palpitou) return 1;
+    return 0;
+  });
+
   return (
     <>
       <div className="flex items-center justify-between mb-1">
@@ -259,7 +276,43 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
         )}
         <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
       </div>
-      <p className="text-[9px] text-texto/30 text-center mt-1">{estatisticas.total} palpites</p>
+
+      {/* Lista de membros - estilo WhatsApp */}
+      {membrosOrdenados.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-white/[0.05] space-y-1">
+          {membrosOrdenados.map((membro) => {
+            const iniciais = membro.nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+            const primeiroNome = membro.nome.split(' ')[0];
+
+            return (
+              <div
+                key={membro.nome}
+                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${membro.palpitou ? 'bg-primaria/[0.06]' : 'bg-white/[0.02]'}`}
+              >
+                {/* Indicador */}
+                <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${membro.palpitou ? 'bg-primaria shadow-[0_0_6px_rgba(34,197,94,0.6)]' : 'bg-texto/15'}`} />
+
+                {/* Avatar com iniciais */}
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 border ${membro.palpitou ? 'bg-primaria/20 border-primaria/40' : 'bg-white/[0.05] border-white/[0.08]'}`}>
+                  <span className={`text-[9px] font-bold ${membro.palpitou ? 'text-primaria-claro' : 'text-texto/40'}`}>
+                    {iniciais}
+                  </span>
+                </div>
+
+                {/* Nome */}
+                <span className={`text-[11px] flex-1 truncate font-medium ${membro.palpitou ? 'text-texto' : 'text-texto/40'}`}>
+                  {primeiroNome}
+                </span>
+
+                {/* Badge status */}
+                <span className={`text-[9px] font-semibold px-2.5 py-1 rounded-full ${membro.palpitou ? 'bg-primaria/20 text-primaria-claro' : 'bg-white/[0.04] text-texto/25 border border-white/[0.06]'}`}>
+                  {membro.palpitou ? '✓ Palpitou' : 'Pendente'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }
@@ -285,7 +338,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
 
   useEffect(() => {
     if (ativo && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       // Auto-focus no primeiro input ao avançar para este card
       if (palpitavel && !bloqueado) {
         setTimeout(() => {
@@ -299,9 +352,11 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
   const emPreenchimento = palpitavel && !palpiteAtual && !bloqueado;
   const bordaCopa = temaCopa ? 'border-[#ffdf00] shadow-[0_0_12px_rgba(255,223,0,0.2)]' : 'border-primaria';
   const bordaAtivaCopa = temaCopa
-    ? 'border-[#ffdf00] border-[3px] shadow-[0_0_30px_rgba(255,223,0,0.4)]'
-    : 'border-primaria border-[3px] shadow-[0_0_30px_rgba(34,197,94,0.35)]';
-  const cardBorda = ativo && emPreenchimento ? bordaAtivaCopa : bordaCopa;
+    ? 'border-[#ffdf00] shadow-[0_0_30px_rgba(255,223,0,0.4)]'
+    : 'border-primaria shadow-[0_0_30px_rgba(34,197,94,0.35)]';
+  // Todos os cards palpitáveis usam border-[3px] para evitar layout shift ao trocar de card ativo
+  const bordaPalpitavel = ativo && emPreenchimento ? bordaAtivaCopa : bordaCopa;
+  const cardBorda = palpitavel ? `border-[3px] ${bordaPalpitavel}` : bordaCopa;
 
   function handleSetCasa(valor: number | '') {
     onFoco?.();

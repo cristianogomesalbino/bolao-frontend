@@ -84,7 +84,7 @@ export function useHomeData() {
   const jogoId = proximoJogo?.jogo.id;
 
   // Estatísticas do próximo jogo
-  const { data: estatisticas } = useQuery({
+  const { data: estatisticas, isLoading: carregandoEstatisticas } = useQuery({
     queryKey: ['estatisticas-palpite-home', grupoFavoritoInicial, jogoId],
     queryFn: () => buscarEstatisticasPalpite(grupoFavoritoInicial ?? '', jogoId ?? ''),
     enabled: !!grupoFavoritoInicial && !!jogoId,
@@ -92,12 +92,17 @@ export function useHomeData() {
   });
 
   // Meu palpite no próximo jogo (só buscar se tem grupo — sem grupo não tem palpite)
-  const { data: meuPalpite } = useQuery({
+  const { data: meuPalpite, isLoading: carregandoMeuPalpite } = useQuery({
     queryKey: ['meu-palpite-home', jogoId],
     queryFn: () => buscarMeuPalpite(jogoId ?? ''),
     enabled: !!jogoId && temGrupo,
     staleTime: Infinity,
   });
+
+  // Card do próximo jogo só renderiza quando TODAS as queries dependentes resolveram
+  const queriesEstatisticasPendentes = !!grupoFavoritoInicial && !!jogoId && carregandoEstatisticas;
+  const queriesMeuPalpitePendentes = !!jogoId && temGrupo && carregandoMeuPalpite;
+  const proximoJogoPronto = !!proximoJogo && !queriesEstatisticasPendentes && !queriesMeuPalpitePendentes;
 
   // Ranking formatado
   const rankingFormatado = (ranking ?? []).slice(0, 8).map((entry) => ({
@@ -140,6 +145,7 @@ export function useHomeData() {
     grupoSelecionadoId,
     setGrupoRankingId,
     proximoJogo,
+    proximoJogoPronto,
     estatisticas,
     meuPalpite,
     rankingFormatado,
