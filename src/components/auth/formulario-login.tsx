@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useWarmUp } from '@/hooks/use-warm-up';
 
 interface PropsFormularioLogin {
   onSubmit: (dados: DadosLoginForm) => Promise<void>;
@@ -20,6 +21,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
   const [erroServidor, setErroServidor] = useState<string | null>(null);
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [shake, setShake] = useState(false);
+  const { status: statusServidor } = useWarmUp();
 
   const {
     register,
@@ -50,6 +52,23 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
   return (
     <Card className={shake ? 'animate-[shake_0.5s_ease-in-out]' : ''} data-testid="login-card">
       <CardContent className="pt-5 pb-4">
+        {(statusServidor === 'verificando' || statusServidor === 'acordando') && (
+          <div className="flex items-center gap-2.5 rounded-lg bg-primaria/10 border border-primaria/20 px-3 py-2.5 mb-3.5" data-testid="login-warmup-banner">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-primaria border-t-transparent shrink-0" />
+            <p className="text-xs text-texto/70">
+              {statusServidor === 'verificando'
+                ? 'Conectando ao servidor...'
+                : 'Servidor inicializando, aguarde alguns segundos...'}
+            </p>
+          </div>
+        )}
+        {statusServidor === 'offline' && (
+          <div className="flex items-center gap-2.5 rounded-lg bg-erro/10 border border-erro/20 px-3 py-2.5 mb-3.5">
+            <p className="text-xs text-erro/90">
+              Servidor indisponível. Tente novamente em alguns minutos.
+            </p>
+          </div>
+        )}
         <form onSubmit={handleSubmit(aoEnviar)} noValidate className="space-y-3.5" data-testid="login-form">
           {erroServidor && (
             <Alert variant="destructive" data-testid="login-alert-erro">
