@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 type StatusServidor = 'verificando' | 'online' | 'acordando' | 'offline';
 
-const HEALTH_URL = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/health`;
+const HEALTH_URL = `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/health`;
 const TIMEOUT_RAPIDO = 3000;
 const INTERVALO_RETRY = 5000;
 const MAX_TENTATIVAS = 12; // 12 * 5s = 60s máximo
