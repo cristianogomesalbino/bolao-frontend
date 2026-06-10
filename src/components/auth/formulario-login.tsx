@@ -38,7 +38,10 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
       await onSubmit(dados);
     } catch (error: any) {
       if (error?.statusCode === 0) {
-        setErroServidor('Servidor indisponível. Tente novamente em instantes.');
+        // Não duplicar mensagem se o warm-up já mostra offline
+        if (statusServidor !== 'offline') {
+          setErroServidor('Servidor indisponível. Tente novamente em instantes.');
+        }
       } else if (error?.statusCode === 401) {
         setErroServidor('Email ou senha inválidos');
       } else {
