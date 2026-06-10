@@ -1,73 +1,86 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 type StatusServidor = 'verificando' | 'online' | 'acordando' | 'offline';
 
 const HEALTH_URL = `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/health`;
-const TIMEOUT_RAPIDO = 3000;
-const INTERVALO_RETRY = 5000;
-const MAX_TENTATIVAS = 12; // 12 * 5s = 60s máximo
+const TIMEOUT_RAPIDO_MS = 3000;
+const INTERVALO_RETRY_MS = 5000;
+const MAX_TENTATIVAS = 12;
 
-function pararIntervalo(ref: React.RefObject<NodeJS.Timeout | null>) {
-  if (!ref.current) return;
-  clearInterval(ref.current);
-  ref.current = null;
+/**
+ * Faz fetch no /health com timeout de 10s.
+ * Usa fetch nativo (não apiClient) pois roda antes do auth estar configurado.
+ */
+async function verificarHealth(signal: AbortSignal): Promise<boolean> {
+  try {
+    const response = await fetch(HEALTH_URL, { signal, cache: 'no-store' });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Hook que verifica se o backend está online (warm-up).
- * - Se responder em <3s → online
- * - Se demorar >3s → mostra "acordando" e fica tentando a cada 5s
- * - Se não responder após 60s → offline
+ * - Resposta em <3s → online
+ * - Demora >3s → "acordando" com retry a cada 5s
+ * - Sem resposta após 60s → offline
  */
 export function useWarmUp() {
   const [status, setStatus] = useState<StatusServidor>('verificando');
   const tentativasRef = useRef(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const limparInterval = useCallback(() => {
+    if (!intervalRef.current) return;
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  }, []);
+
   useEffect(() => {
-    let cancelado = false;
+    let ativo = true;
 
     async function ping() {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
-        const response = await fetch(HEALTH_URL, {
-          signal: controller.signal,
-          cache: 'no-store',
-        });
-        clearTimeout(timeout);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const online = await verificarHealth(controller.signal);
+      clearTimeout(timeout);
 
-        if (cancelado || !response.ok) return;
+      if (!ativo) return;
 
+      if (online) {
         setStatus('online');
-        pararIntervalo(intervalRef);
-      } catch {
-        if (cancelado) return;
-
-        tentativasRef.current++;
-        if (tentativasRef.current < MAX_TENTATIVAS) return;
-
-        setStatus('offline');
-        pararIntervalo(intervalRef);
+        limparInterval();
+        return;
       }
+
+      tentativasRef.current++;
+      if (tentativasRef.current < MAX_TENTATIVAS) return;
+
+      setStatus('offline');
+      limparInterval();
     }
 
     ping();
 
-    const timeoutRapido = setTimeout(() => {
-      if (cancelado) return;
-      setStatus((prev) => (prev === 'verificando' ? 'acordando' : prev));
-      intervalRef.current = setInterval(ping, INTERVALO_RETRY);
-    }, TIMEOUT_RAPIDO);
+    const timeoutInicial = setTimeout(() => {
+      if (!ativo) return;
+
+      setStatus((prev) => {
+        if (prev !== 'verificando') return prev;
+        intervalRef.current = setInterval(ping, INTERVALO_RETRY_MS);
+        return 'acordando';
+      });
+    }, TIMEOUT_RAPIDO_MS);
 
     return () => {
-      cancelado = true;
-      clearTimeout(timeoutRapido);
-      pararIntervalo(intervalRef);
+      ativo = false;
+      clearTimeout(timeoutInicial);
+      limparInterval();
     };
-  }, []);
+  }, [limparInterval]);
 
   return { status, estaOnline: status === 'online' };
 }
