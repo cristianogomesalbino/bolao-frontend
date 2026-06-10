@@ -18,6 +18,9 @@ description: Convenções de código, padrões de componentes, services, tipos, 
 - **SEMPRE tratar erros de API com mensagens em português**
 - **SEMPRE usar o `apiClient` de `src/lib/api-client.ts`** — nunca instanciar axios diretamente
 - **SEMPRE usar `staleTime` adequado no React Query** — dados que mudam pouco (fases, temporadas, classificação): 5min+. Dados que mudam por ação do usuário (palpites): `Infinity` com invalidação manual. NUNCA `staleTime: 0` + `refetchOnWindowFocus: true` em queries pesadas
+- **SEMPRE usar early returns em vez de ifs aninhados** — reduz complexidade cognitiva e melhora legibilidade. Se a condição é de saída, retornar imediatamente
+- **SEMPRE extrair helpers quando lógica se repete ou quando um bloco if/else ultrapassa 3 linhas** — funções com nome descritivo no mesmo arquivo ou em `src/lib/`
+- **NUNCA aninhar mais de 2 níveis de if/else** — extrair em helper ou usar early return
 
 ## Componentes
 
