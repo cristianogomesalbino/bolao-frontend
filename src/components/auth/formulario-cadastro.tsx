@@ -44,7 +44,7 @@ export function FormularioCadastro({ onSubmit }: Readonly<PropsFormularioCadastr
   }
 
   return (
-    <Card>
+    <Card className="border-[#ffdf00] shadow-[0_0_32px_rgba(255,223,0,0.3)]">
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit(aoEnviar)} noValidate className="space-y-4">
           {erroServidor && (
@@ -60,6 +60,7 @@ export function FormularioCadastro({ onSubmit }: Readonly<PropsFormularioCadastr
               type="text"
               autoComplete="name"
               placeholder="Seu nome"
+              className={errors.nome ? 'border-erro' : 'border-[#1a4db5]/60 focus-visible:border-[#3b82f6] focus-visible:ring-[#3b82f6]/25 focus-visible:shadow-[0_0_16px_rgba(59,130,246,0.3)]'}
               aria-invalid={!!errors.nome}
               aria-describedby={errors.nome ? 'nome-error' : undefined}
               {...register('nome')}
@@ -79,6 +80,7 @@ export function FormularioCadastro({ onSubmit }: Readonly<PropsFormularioCadastr
               inputMode="email"
               autoComplete="email"
               placeholder="seu@email.com"
+              className={errors.email ? 'border-erro' : 'border-[#1a4db5]/60 focus-visible:border-[#3b82f6] focus-visible:ring-[#3b82f6]/25 focus-visible:shadow-[0_0_16px_rgba(59,130,246,0.3)]'}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
               {...register('email')}
@@ -98,7 +100,7 @@ export function FormularioCadastro({ onSubmit }: Readonly<PropsFormularioCadastr
                 type={mostrarSenha ? 'text' : 'password'}
                 autoComplete="new-password"
                 placeholder="Mínimo 6 caracteres"
-                className="pr-11"
+                className={`pr-11 ${errors.senha ? 'border-erro' : 'border-[#1a4db5]/60 focus-visible:border-[#3b82f6] focus-visible:ring-[#3b82f6]/25 focus-visible:shadow-[0_0_16px_rgba(59,130,246,0.3)]'}`}
                 aria-invalid={!!errors.senha}
                 aria-describedby={errors.senha ? 'senha-error' : undefined}
                 {...register('senha')}
@@ -128,7 +130,7 @@ export function FormularioCadastro({ onSubmit }: Readonly<PropsFormularioCadastr
                 type={mostrarConfirmar ? 'text' : 'password'}
                 autoComplete="new-password"
                 placeholder="Repita a senha"
-                className="pr-11"
+                className={`pr-11 ${errors.confirmarSenha ? 'border-erro' : 'border-[#1a4db5]/60 focus-visible:border-[#3b82f6] focus-visible:ring-[#3b82f6]/25 focus-visible:shadow-[0_0_16px_rgba(59,130,246,0.3)]'}`}
                 aria-invalid={!!errors.confirmarSenha}
                 aria-describedby={errors.confirmarSenha ? 'confirmarSenha-error' : undefined}
                 {...register('confirmarSenha')}
