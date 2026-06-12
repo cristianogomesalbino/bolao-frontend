@@ -233,9 +233,10 @@ function CentroCard({
 interface PropsConteudoExpandido {
   carregando: boolean;
   estatisticas: EstatisticasPalpite | null | undefined;
+  temaCopa?: boolean;
 }
 
-function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoExpandido>) {
+function ConteudoExpandido({ carregando, estatisticas, temaCopa }: Readonly<PropsConteudoExpandido>) {
   if (carregando) {
     return <div className="h-8 rounded-full bg-white/[0.03] animate-pulse" />;
   }
@@ -244,18 +245,25 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
   }
 
   const membros = estatisticas.membrosStatus ?? [];
-  // Ordenar: quem palpitou primeiro
   const membrosOrdenados = [...membros].sort((a, b) => {
     if (a.palpitou && !b.palpitou) return -1;
     if (!a.palpitou && b.palpitou) return 1;
     return 0;
   });
 
+  const corCasa = temaCopa ? 'text-[#009c3b]' : 'text-primaria';
+  const bgBarra = temaCopa ? 'bg-[#009c3b]' : 'bg-primaria';
+  const bgPalpitou = temaCopa ? 'bg-[#009c3b]/10' : 'bg-primaria/[0.06]';
+  const corBolinha = temaCopa ? 'bg-[#009c3b] shadow-[0_0_6px_rgba(0,156,59,0.6)]' : 'bg-primaria shadow-[0_0_6px_rgba(34,197,94,0.6)]';
+  const bgAvatar = temaCopa ? 'bg-[#009c3b]/20 border-[#009c3b]/40' : 'bg-primaria/20 border-primaria/40';
+  const corIniciais = temaCopa ? 'text-[#ffdf00]' : 'text-primaria-claro';
+  const bgBadge = temaCopa ? 'bg-[#009c3b]/20 text-[#ffdf00]' : 'bg-primaria/20 text-primaria-claro';
+
   return (
     <>
       <div className="flex items-center justify-between mb-1">
         <div className="text-left">
-          <span className="text-sm font-bold text-primaria">{estatisticas.percentualCasa}%</span>
+          <span className={`text-sm font-bold ${corCasa}`}>{estatisticas.percentualCasa}%</span>
           <p className="text-[9px] text-texto/40">da galera</p>
         </div>
         {estatisticas.percentualEmpate > 0 && (
@@ -270,14 +278,14 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
         </div>
       </div>
       <div className="h-2 rounded-full overflow-hidden flex">
-        <div className="h-full bg-primaria rounded-l-full" style={{ width: `${estatisticas.percentualCasa}%` }} />
+        <div className={`h-full ${bgBarra} rounded-l-full`} style={{ width: `${estatisticas.percentualCasa}%` }} />
         {estatisticas.percentualEmpate > 0 && (
           <div className="h-full bg-texto/30" style={{ width: `${estatisticas.percentualEmpate}%` }} />
         )}
         <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
       </div>
 
-      {/* Lista de membros - estilo WhatsApp */}
+      {/* Lista de membros */}
       {membrosOrdenados.length > 0 && (
         <div className="mt-2 pt-2 border-t border-white/[0.05] space-y-1">
           {membrosOrdenados.map((membro) => {
@@ -287,25 +295,18 @@ function ConteudoExpandido({ carregando, estatisticas }: Readonly<PropsConteudoE
             return (
               <div
                 key={membro.nome}
-                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${membro.palpitou ? 'bg-primaria/[0.06]' : 'bg-white/[0.02]'}`}
+                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${membro.palpitou ? bgPalpitou : 'bg-white/[0.02]'}`}
               >
-                {/* Indicador */}
-                <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${membro.palpitou ? 'bg-primaria shadow-[0_0_6px_rgba(34,197,94,0.6)]' : 'bg-texto/15'}`} />
-
-                {/* Avatar com iniciais */}
-                <div className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 border ${membro.palpitou ? 'bg-primaria/20 border-primaria/40' : 'bg-white/[0.05] border-white/[0.08]'}`}>
-                  <span className={`text-[9px] font-bold ${membro.palpitou ? 'text-primaria-claro' : 'text-texto/40'}`}>
+                <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${membro.palpitou ? corBolinha : 'bg-texto/15'}`} />
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 border ${membro.palpitou ? bgAvatar : 'bg-white/[0.05] border-white/[0.08]'}`}>
+                  <span className={`text-[9px] font-bold ${membro.palpitou ? corIniciais : 'text-texto/40'}`}>
                     {iniciais}
                   </span>
                 </div>
-
-                {/* Nome */}
                 <span className={`text-[11px] flex-1 truncate font-medium ${membro.palpitou ? 'text-texto' : 'text-texto/40'}`}>
                   {primeiroNome}
                 </span>
-
-                {/* Badge status */}
-                <span className={`text-[9px] font-semibold px-2.5 py-1 rounded-full ${membro.palpitou ? 'bg-primaria/20 text-primaria-claro' : 'bg-white/[0.04] text-texto/25 border border-white/[0.06]'}`}>
+                <span className={`text-[9px] font-semibold px-2.5 py-1 rounded-full ${membro.palpitou ? bgBadge : 'bg-white/[0.04] text-texto/25 border border-white/[0.06]'}`}>
                   {membro.palpitou ? '✓ Palpitou' : 'Pendente'}
                 </span>
               </div>
@@ -448,7 +449,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           {expandido && (
             <div className="mt-2 pt-2 border-t border-white/[0.05]">
               {grupoId ? (
-                <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} />
+                <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} temaCopa={temaCopa} />
               ) : (
                 <div className="flex flex-col items-center gap-2 py-2 text-center">
                   <p className="text-[11px] text-texto/50 leading-relaxed">
