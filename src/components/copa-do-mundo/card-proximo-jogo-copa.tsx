@@ -79,6 +79,11 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
   return (
     <Card className="border-[#009c3b] bg-gradient-to-b from-[#009c3b]/[0.08] to-[#ffdf00]/[0.04] overflow-hidden shadow-[0_0_20px_rgba(0,156,59,0.2)]" data-testid="card-proximo-jogo-copa">
       <CardContent className="p-4">
+        {/* Título */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[10px] text-[#ffdf00] font-bold uppercase tracking-wider">⚽ Próximo Jogo</span>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-[#ffdf00]/90 uppercase tracking-wider">
@@ -189,7 +194,7 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
           <ChevronDown size={20} className={`text-[#ffdf00]/60 transition-transform ${expandido ? 'rotate-180' : ''}`} />
         </button>
 
-        {/* Estatísticas */}
+        {/* Estatísticas + Quem palpitou */}
         {expandido && estatisticas && estatisticas.total > 0 && (
           <div className="mt-2 pt-2 border-t border-[#009c3b]/20">
             <div className="flex items-center justify-between mb-1">
@@ -215,9 +220,36 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
               )}
               <div className="h-full bg-erro rounded-r-full" style={{ width: `${estatisticas.percentualFora}%` }} />
             </div>
-            <p className="text-[10px] text-[#ffdf00] text-center mt-1.5 font-semibold">
-              🔥 {estatisticas.total} {estatisticas.total === 1 ? 'pessoa já palpitou' : 'pessoas já palpitaram'}!
-            </p>
+
+            {/* Lista de membros */}
+            {estatisticas.membrosStatus && estatisticas.membrosStatus.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-[#009c3b]/15 space-y-1">
+                {[...estatisticas.membrosStatus]
+                  .sort((a, b) => {
+                    if (a.palpitou === b.palpitou) return 0;
+                    return a.palpitou ? -1 : 1;
+                  })
+                  .map((membro) => {
+                    const iniciais = membro.nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+                    const primeiroNome = membro.nome.split(' ')[0];
+                    return (
+                      <div
+                        key={membro.nome}
+                        className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg ${membro.palpitou ? 'bg-[#009c3b]/10' : 'bg-white/[0.02]'}`}
+                      >
+                        <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${membro.palpitou ? 'bg-[#009c3b] shadow-[0_0_6px_rgba(0,156,59,0.6)]' : 'bg-white/15'}`} />
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 border ${membro.palpitou ? 'bg-[#009c3b]/20 border-[#009c3b]/40' : 'bg-white/[0.05] border-white/[0.08]'}`}>
+                          <span className={`text-[9px] font-bold ${membro.palpitou ? 'text-[#ffdf00]' : 'text-white/40'}`}>{iniciais}</span>
+                        </div>
+                        <span className={`text-[11px] flex-1 truncate font-medium ${membro.palpitou ? 'text-white' : 'text-white/40'}`}>{primeiroNome}</span>
+                        <span className={`text-[9px] font-semibold px-2.5 py-1 rounded-full ${membro.palpitou ? 'bg-[#009c3b]/20 text-[#ffdf00]' : 'bg-white/[0.04] text-white/25 border border-white/[0.06]'}`}>
+                          {membro.palpitou ? '✓ Palpitou' : 'Pendente'}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

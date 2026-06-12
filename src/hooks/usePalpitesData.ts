@@ -116,11 +116,16 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
 
-  // Filtrar jogos
+  // Filtrar jogos — finalizados do dia anterior não aparecem na aba "todos"
   const temJogoAoVivo = jogosAtual.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
+  const inicioDiaAtual = new Date();
+  inicioDiaAtual.setHours(0, 0, 0, 0);
+
   const jogosAtualFiltrados = jogosAtual.filter((j: Jogo) => {
-    if (temJogoAoVivo && j.status === 'FINALIZADO') return false;
-    return j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO' || j.status === 'FINALIZADO';
+    if (j.status !== 'AGENDADO' && j.status !== 'EM_ANDAMENTO' && j.status !== 'FINALIZADO') return false;
+    if (j.status === 'FINALIZADO' && temJogoAoVivo) return false;
+    if (j.status === 'FINALIZADO' && j.dataHora && new Date(j.dataHora).getTime() < inicioDiaAtual.getTime()) return false;
+    return true;
   });
 
   const jogosProximaVisiveis = jogosProxima.filter(
