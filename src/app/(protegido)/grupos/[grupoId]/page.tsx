@@ -5,10 +5,11 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Settings, Copy, Check,
-  Lock, Globe, ChevronRight, Trophy, Calendar, Minus, User
+  Lock, Globe, ChevronRight, ChevronDown, Trophy, Calendar, Minus, User
 } from 'lucide-react';
 import { buscarGrupo, sairDoGrupo, obterRankingGeral, obterRankingFase } from '@/services/grupo.service';
 import { buscarDadosTemporada } from '@/services/jogo.service';
+import { buscarEstatisticasPalpite } from '@/services/palpite.service';
 import { buscarClassificacao, obterPosicaoTime, obterUltimosJogos } from '@/services/classificacao.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,7 @@ export default function DetalhesGrupoPage() {
   const [rodadaListaAberta, setRodadaListaAberta] = useState(false);
   const [rankingExpandido, setRankingExpandido] = useState(false);
   const [abaCopa, setAbaCopa] = useState<AbaCopa>('dashboard');
+  const [expandidoProximoJogo, setExpandidoProximoJogo] = useState(false);
 
   const { data: grupo, isLoading: carregandoGrupo } = useQuery({
     queryKey: ['grupo', grupoId],
@@ -108,6 +110,15 @@ export default function DetalhesGrupoPage() {
   });
 
   const rankingAtivo = rankingFiltro === 'rodada' && rodadaSelecionada ? rankingRodada : rankingGeral;
+
+  // Estatísticas do próximo jogo (quem palpitou) — lazy loading
+  const jogoIdProximo = proximoJogo?.jogo.id;
+  const { data: estatisticasProximoJogo, isLoading: carregandoEstatisticas } = useQuery({
+    queryKey: ['estatisticas-palpite', grupoId, jogoIdProximo],
+    queryFn: () => buscarEstatisticasPalpite(grupoId, jogoIdProximo ?? ''),
+    enabled: !!grupoId && !!jogoIdProximo && expandidoProximoJogo,
+    staleTime: 1000 * 30,
+  });
 
   function obterVariacao(usuarioId: string): number {
     if (!rankingAnterior?.length || !rankingGeral) return 0;
@@ -447,6 +458,52 @@ export default function DetalhesGrupoPage() {
                     timeForaNome={proximoJogo.jogo.timeFora?.nome || 'Fora'}
                     disabled={countdown === 'encerrado'}
                   />
+
+                  {/* Chevron expandir - quem palpitou */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandidoProximoJogo(!expandidoProximoJogo)}
+                    className="w-full flex items-center justify-center mt-2 pt-1"
+                    data-testid="grupo-btn-expandir-quem-palpitou"
+                  >
+                    <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandidoProximoJogo ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {expandidoProximoJogo && (
+                    <div className="mt-2 pt-2 border-t border-white/[0.05]">
+                      {carregandoEstatisticas && (
+                        <div className="h-8 rounded-full bg-white/[0.03] animate-pulse" />
+                      )}
+                      {!carregandoEstatisticas && estatisticasProximoJogo?.membrosStatus && estatisticasProximoJogo.membrosStatus.length > 0 && (
+                        <div className="space-y-1">
+                          {[...estatisticasProximoJogo.membrosStatus]
+                            .sort((a, b) => (a.palpitou === b.palpitou ? 0 : a.palpitou ? -1 : 1))
+                            .map((membro) => {
+                              const iniciais = membro.nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+                              const primeiroNome = membro.nome.split(' ')[0];
+                              return (
+                                <div
+                                  key={membro.nome}
+                                  className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg ${membro.palpitou ? 'bg-primaria/[0.06]' : 'bg-white/[0.02]'}`}
+                                >
+                                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${membro.palpitou ? 'bg-primaria shadow-[0_0_6px_rgba(34,197,94,0.6)]' : 'bg-texto/15'}`} />
+                                  <div className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 border ${membro.palpitou ? 'bg-primaria/20 border-primaria/40' : 'bg-white/[0.05] border-white/[0.08]'}`}>
+                                    <span className={`text-[9px] font-bold ${membro.palpitou ? 'text-primaria-claro' : 'text-texto/40'}`}>{iniciais}</span>
+                                  </div>
+                                  <span className={`text-[11px] flex-1 truncate font-medium ${membro.palpitou ? 'text-texto' : 'text-texto/40'}`}>{primeiroNome}</span>
+                                  <span className={`text-[9px] font-semibold px-2.5 py-1 rounded-full ${membro.palpitou ? 'bg-primaria/20 text-primaria-claro' : 'bg-white/[0.04] text-texto/25 border border-white/[0.06]'}`}>
+                                    {membro.palpitou ? '✓ Palpitou' : 'Pendente'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                      {!carregandoEstatisticas && (!estatisticasProximoJogo?.membrosStatus || estatisticasProximoJogo.membrosStatus.length === 0) && (
+                        <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

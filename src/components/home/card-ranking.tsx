@@ -83,25 +83,7 @@ function ordenarRanking(ranking: EntradaRanking[]): EntradaRanking[] {
 }
 
 function atribuirPosicoes(ranking: EntradaRanking[]): EntradaRanking[] {
-  if (ranking.length === 0) return [];
-  const result: EntradaRanking[] = [];
-  let posicaoAtual = 1;
-
-  for (let i = 0; i < ranking.length; i++) {
-    if (i > 0) {
-      const prev = ranking[i - 1];
-      const curr = ranking[i];
-      const mesmoDesempenho =
-        curr.pontos === prev.pontos &&
-        curr.acertosEmCheio === prev.acertosEmCheio &&
-        curr.acertosDeResultado === prev.acertosDeResultado;
-      if (!mesmoDesempenho) {
-        posicaoAtual = i + 1;
-      }
-    }
-    result.push({ ...ranking[i], posicao: posicaoAtual });
-  }
-  return result;
+  return ranking.map((entry, i) => ({ ...entry, posicao: i + 1 }));
 }
 
 /** Pódio visual: top 3 (2º | 1º | 3º) */

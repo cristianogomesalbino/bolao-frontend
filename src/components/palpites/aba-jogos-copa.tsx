@@ -30,11 +30,18 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
     queryFn: async () => {
       const { listarJogosTemporada } = await import('@/services/jogo.service');
       const todosJogos = await listarJogosTemporada(temporadaId);
-      // Filtrar pela rodada selecionada e agrupar por fase
+      const inicioDiaAtual = new Date();
+      inicioDiaAtual.setHours(0, 0, 0, 0);
+
+      // Filtrar pela rodada selecionada, remover finalizados do dia anterior
       return fasesOrdenadas
         .map((fase) => ({
           fase,
-          jogos: todosJogos.filter((j) => j.faseId === fase.id && j.rodada === rodadaSelecionada),
+          jogos: todosJogos.filter((j) => {
+            if (j.faseId !== fase.id || j.rodada !== rodadaSelecionada) return false;
+            if (j.status === 'FINALIZADO' && j.dataHora && new Date(j.dataHora).getTime() < inicioDiaAtual.getTime()) return false;
+            return true;
+          }),
         }))
         .filter((r) => r.jogos.length > 0);
     },
