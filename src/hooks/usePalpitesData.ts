@@ -116,24 +116,19 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
 
-  // Filtrar e ordenar jogos
+  // Filtrar jogos
   const temJogoAoVivo = jogosAtual.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
-  const jogosAtualVisiveis = jogosAtual
-    .filter((j: Jogo) => {
-      if (temJogoAoVivo && j.status === 'FINALIZADO') return false;
-      return j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO' || j.status === 'FINALIZADO';
-    })
-    .sort((a: Jogo, b: Jogo) => {
-      const ordem: Record<string, number> = { EM_ANDAMENTO: 0, AGENDADO: 1, FINALIZADO: 2 };
-      return (ordem[a.status] ?? 3) - (ordem[b.status] ?? 3);
-    });
+  const jogosAtualFiltrados = jogosAtual.filter((j: Jogo) => {
+    if (temJogoAoVivo && j.status === 'FINALIZADO') return false;
+    return j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO' || j.status === 'FINALIZADO';
+  });
 
   const jogosProximaVisiveis = jogosProxima.filter(
     (j: Jogo) => j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO'
   );
 
   // Batch de palpites
-  const todosJogoIds = [...jogosAtualVisiveis, ...jogosProximaVisiveis].map((j) => j.id);
+  const todosJogoIds = [...jogosAtualFiltrados, ...jogosProximaVisiveis].map((j) => j.id);
 
   const { data: palpitesBatch, isFetching: carregandoBatch } = useQuery({
     queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada, usuario?.id],
@@ -153,6 +148,20 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
   });
 
   const palpitesPorJogo = palpitesBatch ?? {};
+
+  // Ordem por data/hora (padrão)
+  const jogosAtualVisiveis = [...jogosAtualFiltrados].sort((a: Jogo, b: Jogo) => {
+    const dataA = a.dataHora ? new Date(a.dataHora).getTime() : 0;
+    const dataB = b.dataHora ? new Date(b.dataHora).getTime() : 0;
+    return dataA - dataB;
+  });
+
+  // Primeiro jogo palpitável sem palpite (para auto-scroll)
+  const primeiroJogoPalpitavel = jogosAtualVisiveis.find(
+    (j) => podePalpitar(j) && !palpitesPorJogo[j.id]
+  )?.id ?? jogosProximaVisiveis.find(
+    (j) => podePalpitar(j) && !palpitesPorJogo[j.id]
+  )?.id ?? null;
 
   // Meus palpites anteriores
   const { data: meusPalpitesAnteriores, isLoading: carregandoPalpites, isFetching: buscandoPalpites } = useQuery({
@@ -200,5 +209,6 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     carregandoPalpites,
     buscandoPalpites,
     palpitesBatch,
+    primeiroJogoPalpitavel,
   };
 }
