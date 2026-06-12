@@ -94,13 +94,13 @@ function EscudoTime({ time }: Readonly<{ time: TimeInfo }>) {
 }
 
 export function CardProximoJogo({
-  jogoId: _jogoId,
+  jogoId,
   timeCasa,
   timeFora,
   dataHora,
   totalPalpites,
   jaPalpitou,
-  grupoId,
+  grupoId: _grupoId,
   temaCopa,
 }: Readonly<PropsCardProximoJogo>) {
   const router = useRouter();
@@ -114,11 +114,10 @@ export function CardProximoJogo({
   }, [dataHora]);
 
   function irParaPalpite() {
-    if (grupoId) {
-      router.push(`/grupos/${grupoId}/palpites`);
-    } else {
-      router.push('/palpites');
-    }
+    const campeonato = temaCopa ? 'copa-do-mundo-2026' : 'brasileirao';
+    const params = new URLSearchParams({ campeonato });
+    if (jogoId) params.set('foco', jogoId);
+    router.push(`/palpites?${params.toString()}`);
   }
 
   // Cores dinâmicas baseadas no tema

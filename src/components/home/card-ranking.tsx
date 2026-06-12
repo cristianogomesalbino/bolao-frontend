@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, Crown, Target, Zap, CircleDot, CircleOff, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { TrendingUp, Crown, Target, Zap, Clock, CircleDot, CircleOff, ChevronDown, ChevronRight, Check } from 'lucide-react';
 
 interface EntradaRanking {
   posicao: number;
@@ -471,7 +471,7 @@ export function CardRanking({
               </span>
               <span className="text-texto/20">→</span>
               <span className="flex items-center gap-0.5 text-texto/35">
-                <CircleDot size={9} /> feitos
+                <Clock size={9} /> hora do palpite
               </span>
             </div>
           </>
