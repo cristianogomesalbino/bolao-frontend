@@ -1,25 +1,101 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { usePalpitesData } from '@/hooks/usePalpitesData';
 import { AbaTodosJogos } from '@/components/palpites/aba-todos-jogos';
 import { AbaMeusPalpites } from '@/components/palpites/aba-meus-palpites';
 import { AbaJogosCopa } from '@/components/palpites/aba-jogos-copa';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 import { type CampeonatoSlug } from '@/types/jogo.types';
+import { listarTemporadas, buscarDadosTemporada } from '@/services/jogo.service';
 
 const SLUGS_VALIDOS = new Set<CampeonatoSlug>(['brasileirao', 'copa-do-mundo-2026']);
+
+/**
+ * Detecta qual campeonato tem o próximo jogo mais próximo.
+ * Se a Copa tem jogo antes do Brasileirão, retorna 'copa-do-mundo-2026'.
+ */
+function useCampeonatoComProximoJogo(): CampeonatoSlug | null {
+  const { data: temporadas } = useQuery({
+    queryKey: ['temporadas'],
+    queryFn: listarTemporadas,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const { data: campeonatoProximo } = useQuery({
+    queryKey: ['campeonato-proximo-jogo', temporadas?.map((t) => t.id)],
+    queryFn: async () => {
+      if (!temporadas || temporadas.length === 0) return null;
+      const agora = Date.now();
+
+      const resultados = await Promise.all(
+        temporadas.map(async (t) => {
+          const dados = await buscarDadosTemporada(t.id);
+          const dataJogoStr = dados.proximoJogo?.jogo.dataHora;
+          if (!dataJogoStr) return null;
+          const dataJogo = new Date(dataJogoStr).getTime();
+          if (dataJogo <= agora) return null;
+          const nomeCampeonato = t.campeonato?.nome?.toLowerCase() ?? '';
+          const ehCopa = nomeCampeonato.includes('copa') && nomeCampeonato.includes('mundo');
+          return { dataJogo, ehCopa };
+        })
+      );
+
+      let proximoCopa: number | null = null;
+      let proximoBrasileirao: number | null = null;
+
+      for (const r of resultados) {
+        if (!r) continue;
+        if (r.ehCopa && (!proximoCopa || r.dataJogo < proximoCopa)) {
+          proximoCopa = r.dataJogo;
+        } else if (!r.ehCopa && (!proximoBrasileirao || r.dataJogo < proximoBrasileirao)) {
+          proximoBrasileirao = r.dataJogo;
+        }
+      }
+
+      const copaEhMaisProxima = proximoCopa && (!proximoBrasileirao || proximoCopa < proximoBrasileirao);
+      return copaEhMaisProxima ? ('copa-do-mundo-2026' as CampeonatoSlug) : ('brasileirao' as CampeonatoSlug);
+    },
+    enabled: !!temporadas && temporadas.length > 0,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return campeonatoProximo ?? null;
+}
 
 export default function PalpitesPage() {
   const searchParams = useSearchParams();
   const paramCampeonato = searchParams.get('campeonato');
+  const paramFoco = searchParams.get('foco');
+  const campeonatoDetectado = useCampeonatoComProximoJogo();
+
   const campeonatoInicial: CampeonatoSlug = SLUGS_VALIDOS.has(paramCampeonato as CampeonatoSlug)
     ? (paramCampeonato as CampeonatoSlug)
     : 'brasileirao';
   const [abaAtiva, setAbaAtiva] = useState<'todos' | 'meus'>('todos');
-  const [cardAtivo, setCardAtivo] = useState<string | null>(null);
+  const [cardAtivo, setCardAtivo] = useState<string | null>(paramFoco);
   const [campeonato, setCampeonato] = useState<CampeonatoSlug>(campeonatoInicial);
+  const [jaAplicouDeteccao, setJaAplicouDeteccao] = useState(false);
+  const [mostrarVoltarTopo, setMostrarVoltarTopo] = useState(false);
+
+  // Detectar scroll para mostrar botão "voltar ao topo"
+  useEffect(() => {
+    function aoScrollar() {
+      setMostrarVoltarTopo(window.scrollY > 400);
+    }
+    window.addEventListener('scroll', aoScrollar, { passive: true });
+    return () => window.removeEventListener('scroll', aoScrollar);
+  }, []);
+
+  // Aplica a detecção automática apenas uma vez (sem param explícito na URL)
+  useEffect(() => {
+    if (!paramCampeonato && campeonatoDetectado && !jaAplicouDeteccao) {
+      setCampeonato(campeonatoDetectado);
+      setJaAplicouDeteccao(true);
+    }
+  }, [campeonatoDetectado, paramCampeonato, jaAplicouDeteccao]);
 
   const {
     temporadaId,
@@ -40,7 +116,15 @@ export default function PalpitesPage() {
     carregandoPalpites,
     buscandoPalpites,
     palpitesBatch,
+    primeiroJogoPalpitavel,
   } = usePalpitesData(abaAtiva, campeonato);
+
+  // Auto-posicionar no primeiro jogo palpitável quando batch carrega
+  useEffect(() => {
+    if (!paramFoco && primeiroJogoPalpitavel && !cardAtivo) {
+      setCardAtivo(primeiroJogoPalpitavel);
+    }
+  }, [primeiroJogoPalpitavel, paramFoco, cardAtivo]);
 
   if (!temporadaId) {
     return (
@@ -51,7 +135,7 @@ export default function PalpitesPage() {
   }
 
   return (
-    <div className={`min-h-screen pb-36 relative ${ehCopaMundo ? 'bg-[#003d1a]' : 'bg-fundo'}`}>
+    <div className={`min-h-screen pb-24 relative ${ehCopaMundo ? 'bg-[#003d1a]' : 'bg-fundo'}`}>
       {/* Fundo temático Copa */}
       {ehCopaMundo && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -164,6 +248,24 @@ export default function PalpitesPage() {
           />
         )}
       </div>
+
+      {/* Botão voltar ao topo */}
+      {mostrarVoltarTopo && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className={`fixed bottom-24 right-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border shadow-lg transition-all active:scale-90 ${
+            ehCopaMundo
+              ? 'bg-[#009c3b] border-[#ffdf00]/40 text-[#ffdf00] shadow-[0_4px_16px_rgba(0,156,59,0.4)]'
+              : 'bg-primaria border-primaria/30 text-white shadow-[0_4px_16px_rgba(34,197,94,0.4)]'
+          }`}
+          aria-label="Voltar ao topo"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 15l-6-6-6 6" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
