@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { buscarEstatisticasPalpite, EstatisticasPalpite } from '@/services/palpite.service';
+import { buscarEstatisticasPalpite, buscarDetalhamentoJogo, EstatisticasPalpite } from '@/services/palpite.service';
 import { calcularPontos } from '@/lib/pontuacao';
+import { formatarPontuacao } from '@/lib/pontuacao-formatada';
+import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
 import { Card, CardContent } from '@/components/ui/card';
 import { Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
@@ -233,13 +235,42 @@ function CentroCard({
 interface PropsConteudoExpandido {
   carregando: boolean;
   estatisticas: EstatisticasPalpite | null | undefined;
+  statusJogo?: string;
+  grupoId?: string;
+  jogoId?: string;
   temaCopa?: boolean;
 }
 
-function ConteudoExpandido({ carregando, estatisticas, temaCopa }: Readonly<PropsConteudoExpandido>) {
-  if (carregando) {
-    return <div className="h-8 rounded-full bg-white/[0.03] animate-pulse" />;
+function ConteudoExpandido({ carregando, estatisticas, statusJogo, grupoId, jogoId, temaCopa }: Readonly<PropsConteudoExpandido>) {
+  const jogoIniciouOuFinalizou = statusJogo === 'EM_ANDAMENTO' || statusJogo === 'FINALIZADO';
+
+  // Buscar detalhamento (palpites de cada membro) quando jogo já iniciou
+  const { data: detalhamento, isLoading: carregandoDetalhamento } = useQuery({
+    queryKey: ['detalhamento-jogo', grupoId, jogoId],
+    queryFn: () => buscarDetalhamentoJogo(grupoId ?? '', jogoId ?? ''),
+    enabled: !!grupoId && !!jogoId && jogoIniciouOuFinalizou,
+    staleTime: 1000 * 60,
+  });
+
+  if (carregando || carregandoDetalhamento) {
+    return (
+      <div className="flex items-center justify-center py-3">
+        <Loader2 size={16} className={`animate-spin ${temaCopa ? 'text-[#ffdf00]/60' : 'text-primaria-claro/60'}`} />
+      </div>
+    );
   }
+
+  // Quando jogo iniciou/finalizou e temos detalhamento, mostrar palpites de cada membro
+  if (jogoIniciouOuFinalizou && detalhamento && detalhamento.length > 0) {
+    return (
+      <ListaPalpitesMembros
+        detalhamento={detalhamento}
+        statusJogo={statusJogo ?? ''}
+        temaCopa={temaCopa}
+      />
+    );
+  }
+
   if (!estatisticas || estatisticas.total === 0) {
     return <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>;
   }
@@ -433,9 +464,9 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
             <div className="flex items-center justify-center mt-2 pt-2 border-t border-white/[0.05]">
               {(() => {
                 const pts = calcularPontos({ ...palpiteAtual, jogo: { golsCasa: jogo.golsCasa, golsFora: jogo.golsFora, status: jogo.status } });
-                if (pts === 3) return <span className="text-[10px] text-primaria font-semibold">+{pts} pts <span className="text-sm">🎯</span></span>;
-                if (pts > 0) return <span className="text-[10px] text-primaria font-semibold">+{pts} pts</span>;
-                return <span className="text-[10px] text-texto/30">0 pts</span>;
+                if (pts === 3) return <span className="text-[10px] text-primaria font-semibold">{formatarPontuacao(3)}</span>;
+                if (pts > 0) return <span className="text-[10px] text-primaria font-semibold">{formatarPontuacao(pts)}</span>;
+                return <span className="text-[10px] text-texto/30">{formatarPontuacao(0)}</span>;
               })()}
             </div>
           )}
@@ -449,7 +480,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           {expandido && (
             <div className="mt-2 pt-2 border-t border-white/[0.05]">
               {grupoId ? (
-                <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} temaCopa={temaCopa} />
+                <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} statusJogo={jogo.status} grupoId={grupoId} jogoId={jogo.id} temaCopa={temaCopa} />
               ) : (
                 <div className="flex flex-col items-center gap-2 py-2 text-center">
                   <p className="text-[11px] text-texto/50 leading-relaxed">

@@ -294,9 +294,6 @@ export function CardRanking({
         {/* Header com filtro dropdown inline */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${temaCopa ? 'bg-[#009c3b]/20' : 'bg-primaria/15'}`}>
-              <span className="text-sm">🏅</span>
-            </div>
             <span className={`text-xs font-bold uppercase tracking-wider ${temaCopa ? 'text-[#ffdf00]' : 'text-texto'}`}>
               Ranking
             </span>
@@ -434,7 +431,6 @@ export function CardRanking({
 
             {minhaEntrada && ptsAtras === 0 && minhaEntrada.posicao === 1 && (
               <div className="mt-3 pt-2 border-t border-white/[0.05] flex items-center gap-2">
-                <span className="text-sm">🔥</span>
                 <span className="text-[11px] text-primaria-claro font-medium">
                   Você está na liderança! Continue assim!
                 </span>

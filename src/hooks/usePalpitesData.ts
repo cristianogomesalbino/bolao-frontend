@@ -28,7 +28,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
   const { data: gruposData } = useQuery({
     queryKey: ['grupos'],
     queryFn: () => listarGrupos(),
-    select: (grupos) => grupos.map((g) => ({ id: g.id, temporadaId: g.temporadaId, campeonato: g.temporada?.campeonato?.nome })),
+    select: (grupos) => grupos.map((g) => ({ id: g.id, nome: g.nome, temporadaId: g.temporadaId, campeonato: g.temporada?.campeonato?.nome })),
   });
 
   // Label do campeonato Copa a partir do config
@@ -43,19 +43,48 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
   // Selecionar grupo correto baseado no campeonato selecionado
   const grupoParaCampeonato = (() => {
     if (!gruposData) return undefined;
-    if (campeonatoSelecionado === 'copa-do-mundo-2026') {
-      return gruposData.find((g) => ehGrupoCopa(g.campeonato));
-    }
-    // Brasileirão: grupo favorito ou primeiro que não é Copa
     const favoritoId = usuario?.grupoFavoritoId;
+
+    if (campeonatoSelecionado === 'copa-do-mundo-2026') {
+      const gruposCopa = gruposData.filter((g) => ehGrupoCopa(g.campeonato));
+      if (gruposCopa.length === 0) return undefined;
+      // Se tem favorito e é Copa, usa ele
+      if (favoritoId) {
+        const fav = gruposCopa.find((g) => g.id === favoritoId);
+        if (fav) return fav;
+      }
+      return gruposCopa[0];
+    }
+
+    // Brasileirão: grupo favorito ou primeiro que não é Copa
+    const gruposBrasileirao = gruposData.filter((g) => !ehGrupoCopa(g.campeonato));
+    if (gruposBrasileirao.length === 0) return undefined;
     if (favoritoId) {
-      const fav = gruposData.find((g) => g.id === favoritoId && !ehGrupoCopa(g.campeonato));
+      const fav = gruposBrasileirao.find((g) => g.id === favoritoId);
       if (fav) return fav;
     }
-    return gruposData.find((g) => !ehGrupoCopa(g.campeonato));
+    return gruposBrasileirao[0];
   })();
 
-  const grupoId = grupoParaCampeonato?.id ?? usuario?.grupoFavoritoId ?? gruposData?.[0]?.id ?? '';
+  const grupoId = grupoParaCampeonato?.id ?? '';
+
+  // Grupos disponíveis para o campeonato selecionado (para modal de favorito)
+  // Usa temporadaId como critério principal (mais confiável que nome do campeonato)
+  const gruposDisponiveis = (() => {
+    if (!gruposData || !grupoParaCampeonato) return [];
+    const temporadaAlvo = grupoParaCampeonato.temporadaId;
+    return gruposData
+      .filter((g) => g.temporadaId === temporadaAlvo)
+      .map((g) => ({ id: g.id, nome: g.nome }));
+  })();
+
+  // Indica se o favorito do usuário pertence ao campeonato ativo
+  const favoritoNoCampeonato = (() => {
+    if (gruposDisponiveis.length <= 1) return true; // Só 1 grupo, não precisa de escolha
+    const favoritoId = usuario?.grupoFavoritoId;
+    if (!favoritoId) return false;
+    return gruposDisponiveis.some((g) => g.id === favoritoId);
+  })();
 
   // Temporadas
   const { data: temporadas } = useQuery({
@@ -116,16 +145,9 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
 
-  // Filtrar jogos — finalizados do dia anterior não aparecem na aba "todos"
-  const temJogoAoVivo = jogosAtual.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
-  const inicioDiaAtual = new Date();
-  inicioDiaAtual.setHours(0, 0, 0, 0);
-
+  // Filtrar jogos — aba "Todos" mostra apenas agendados e em andamento
   const jogosAtualFiltrados = jogosAtual.filter((j: Jogo) => {
-    if (j.status !== 'AGENDADO' && j.status !== 'EM_ANDAMENTO' && j.status !== 'FINALIZADO') return false;
-    if (j.status === 'FINALIZADO' && temJogoAoVivo) return false;
-    if (j.status === 'FINALIZADO' && j.dataHora && new Date(j.dataHora).getTime() < inicioDiaAtual.getTime()) return false;
-    return true;
+    return j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO';
   });
 
   const jogosProximaVisiveis = jogosProxima.filter(
@@ -198,6 +220,8 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
   return {
     temporadaId,
     grupoId,
+    gruposDisponiveis,
+    favoritoNoCampeonato,
     faseAtual,
     fases,
     ehCopaMundo,

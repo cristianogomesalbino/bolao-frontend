@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
-import { listarMeusPalpites, buscarPalpitesGrupoJogo, PalpiteMembro } from '@/services/palpite.service';
-import { listarMembros } from '@/services/grupo.service';
+import { ChevronDown, Loader2 } from 'lucide-react';
+import { listarMeusPalpites, buscarDetalhamentoJogo } from '@/services/palpite.service';
+import { listarFases } from '@/services/jogo.service';
+import { formatarPontuacao } from '@/lib/pontuacao-formatada';
+import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
 import { PalpiteComJogo } from '@/types/palpite.types';
 
 interface PropsAbaMeusPalpitesCopa {
@@ -21,14 +23,8 @@ interface PalpiteAgrupado {
 function obterClassePalpite(acertouEmCheio: boolean, acertouResultado: boolean | undefined, jogoFinalizado: boolean): string {
   if (acertouEmCheio) return 'bg-[#22c55e]/20 text-[#22c55e]';
   if (acertouResultado) return 'bg-[#ffdf00]/15 text-[#ffdf00]';
-  if (jogoFinalizado) return 'bg-erro/10 text-erro/70';
+  if (jogoFinalizado) return 'bg-[#ff5500]/20 text-[#ff5500]';
   return 'bg-white/[0.06] text-white';
-}
-
-function obterClasseMembroPalpite(acertouEmCheio: boolean, acertouResultado: boolean | undefined): string {
-  if (acertouEmCheio) return 'bg-[#22c55e]/15 text-[#22c55e]';
-  if (acertouResultado) return 'bg-[#ffdf00]/10 text-[#ffdf00]';
-  return 'bg-white/[0.04] text-[#a8e6b0]/50';
 }
 
 function agruparPalpites(palpites: PalpiteComJogo[]): PalpiteAgrupado[] {
@@ -37,6 +33,9 @@ function agruparPalpites(palpites: PalpiteComJogo[]): PalpiteAgrupado[] {
   for (const palpite of palpites) {
     const jogo = palpite.jogo;
     if (!jogo) continue;
+
+    // Mostrar apenas jogos iniciados ou finalizados
+    if (jogo.status !== 'EM_ANDAMENTO' && jogo.status !== 'FINALIZADO') continue;
 
     const rodada = jogo.rodada ?? 0;
     const chave = `rodada-${rodada}`;
@@ -52,10 +51,25 @@ function agruparPalpites(palpites: PalpiteComJogo[]): PalpiteAgrupado[] {
   }
 
   return [...grupos.values()].sort((a, b) => {
-    const rodadaA = a.palpites[0]?.jogo?.rodada ?? 0;
-    const rodadaB = b.palpites[0]?.jogo?.rodada ?? 0;
-    return rodadaA - rodadaB;
-  });
+    // Ordenar rodadas por data do jogo mais recente (último finalizado primeiro)
+    const dataA = a.palpites.reduce((max, p) => {
+      const d = p.jogo?.dataHora ? new Date(p.jogo.dataHora).getTime() : 0;
+      return Math.max(d, max);
+    }, 0);
+    const dataB = b.palpites.reduce((max, p) => {
+      const d = p.jogo?.dataHora ? new Date(p.jogo.dataHora).getTime() : 0;
+      return Math.max(d, max);
+    }, 0);
+    return dataB - dataA;
+  }).map((grupo) => ({
+    ...grupo,
+    // Dentro de cada rodada: jogos mais recentes primeiro (decrescente por dataHora)
+    palpites: [...grupo.palpites].sort((a, b) => {
+      const dataA = a.jogo?.dataHora ? new Date(a.jogo.dataHora).getTime() : 0;
+      const dataB = b.jogo?.dataHora ? new Date(b.jogo.dataHora).getTime() : 0;
+      return dataB - dataA;
+    }),
+  }));
 }
 
 export function AbaMeusPalpitesCopa({ grupoId, temporadaId }: Readonly<PropsAbaMeusPalpitesCopa>) {
@@ -68,12 +82,19 @@ export function AbaMeusPalpitesCopa({ grupoId, temporadaId }: Readonly<PropsAbaM
     staleTime: Infinity,
   });
 
-  const { data: membros } = useQuery({
-    queryKey: ['grupo', grupoId, 'membros'],
-    queryFn: () => listarMembros(grupoId),
-    enabled: !!grupoId,
-    staleTime: 1000 * 60 * 5,
+  const { data: fases } = useQuery({
+    queryKey: ['fases', temporadaId],
+    queryFn: () => listarFases(temporadaId),
+    enabled: !!temporadaId,
+    staleTime: 1000 * 60 * 60,
   });
+
+  const fasesMap = new Map<string, string>();
+  if (fases) {
+    for (const f of fases) {
+      fasesMap.set(f.id, f.nome);
+    }
+  }
 
   const agrupados = palpites ? agruparPalpites(palpites) : [];
 
@@ -91,10 +112,8 @@ export function AbaMeusPalpitesCopa({ grupoId, temporadaId }: Readonly<PropsAbaM
 
   if (carregandoPalpites) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-16 rounded-xl bg-[#009c3b]/5 animate-pulse" />
-        ))}
+      <div className="flex items-center justify-center py-8">
+        <Loader2 size={20} className="animate-spin text-[#ffdf00]/60" />
       </div>
     );
   }
@@ -130,9 +149,9 @@ export function AbaMeusPalpitesCopa({ grupoId, temporadaId }: Readonly<PropsAbaM
               key={palpite.id}
               palpite={palpite}
               grupoId={grupoId}
-              membros={membros ?? []}
               expandido={expandidos.has(palpite.jogoId)}
               onToggle={() => toggleExpandido(palpite.jogoId)}
+              nomeFase={palpite.jogo?.faseId ? fasesMap.get(palpite.jogo.faseId) : undefined}
             />
           ))}
         </div>
@@ -144,19 +163,21 @@ export function AbaMeusPalpitesCopa({ grupoId, temporadaId }: Readonly<PropsAbaM
 interface PropsCardPalpiteCopa {
   palpite: PalpiteComJogo;
   grupoId: string;
-  membros: Array<{ id: string; usuarioId: string; usuario?: { id: string; nome: string } }>;
   expandido: boolean;
   onToggle: () => void;
+  nomeFase?: string;
 }
 
-function CardPalpiteCopa({ palpite, grupoId, membros, expandido, onToggle }: Readonly<PropsCardPalpiteCopa>) {
+function CardPalpiteCopa({ palpite, grupoId, expandido, onToggle, nomeFase }: Readonly<PropsCardPalpiteCopa>) {
   const jogo = palpite.jogo;
   const jogoFinalizado = jogo?.status === 'FINALIZADO';
+  const jogoEmAndamento = jogo?.status === 'EM_ANDAMENTO';
+  const jogoIniciouOuFinalizou = jogoFinalizado || jogoEmAndamento;
 
   const { data: palpitesMembros, isLoading: carregandoMembros } = useQuery({
-    queryKey: ['palpites-grupo', grupoId, palpite.jogoId],
-    queryFn: () => buscarPalpitesGrupoJogo(grupoId, palpite.jogoId),
-    enabled: expandido && jogoFinalizado,
+    queryKey: ['detalhamento-jogo', grupoId, palpite.jogoId],
+    queryFn: () => buscarDetalhamentoJogo(grupoId, palpite.jogoId),
+    enabled: expandido && jogoIniciouOuFinalizou,
     staleTime: 1000 * 60 * 10,
   });
 
@@ -169,26 +190,35 @@ function CardPalpiteCopa({ palpite, grupoId, membros, expandido, onToggle }: Rea
     return resultadoReal === resultadoPalpite;
   })();
 
-  function obterNomeMembro(usuarioId: string): string {
-    const membro = membros.find((m) => m.usuarioId === usuarioId);
-    return membro?.usuario?.nome?.split(' ')[0] ?? 'Membro';
-  }
-
   return (
-    <div className="rounded-xl border border-[#009c3b]/20 bg-[#009c3b]/[0.04] overflow-hidden">
+    <div className="rounded-xl border border-[#ffdf00]/30 bg-[#009c3b]/[0.06] overflow-hidden shadow-[0_0_12px_rgba(255,223,0,0.1)]">
+      {/* Data + Grupo */}
+      <div className="flex items-center justify-between px-3 pt-2">
+        <span className="text-[9px] text-[#ffdf00] font-bold">
+          {jogo.dataHora
+            ? new Date(jogo.dataHora).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' }).toUpperCase().replace('.', '')
+            : ''}
+          {jogo.dataHora && ' • '}
+          {jogo.dataHora && new Date(jogo.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}
+        </span>
+        <span className="text-[9px] text-[#ffdf00] font-bold">
+          {jogo.rodada ? `Rodada ${jogo.rodada}` : ''}{nomeFase ? ` — ${nomeFase}` : ''}
+        </span>
+      </div>
+
       {/* Card principal */}
       <button
         type="button"
         onClick={onToggle}
-        disabled={!jogoFinalizado}
-        className="w-full flex items-center gap-3 p-3 text-left disabled:cursor-default"
+        disabled={!jogoIniciouOuFinalizou}
+        className="w-full flex items-center gap-3 px-3 pb-3 pt-1.5 text-left disabled:cursor-default"
       >
         {/* Escudos */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {jogo.timeCasa?.escudo && (
-            <img src={jogo.timeCasa.escudo} alt="" className="h-6 w-6 object-contain shrink-0" />
+            <img src={jogo.timeCasa.escudo} alt="" className="h-7 w-7 object-contain shrink-0" />
           )}
-          <span className="text-[11px] text-[#ffdf00] font-medium truncate">
+          <span className="text-[11px] text-[#ffdf00] font-semibold truncate">
             {jogo.timeCasa?.sigla ?? '?'}
           </span>
         </div>
@@ -196,17 +226,17 @@ function CardPalpiteCopa({ palpite, grupoId, membros, expandido, onToggle }: Rea
         {/* Placar / Palpite */}
         <div className="flex flex-col items-center gap-0.5 shrink-0">
           {jogoFinalizado && (
-            <span className="text-[8px] text-[#a8e6b0]/40">Real: {jogo.golsCasa} × {jogo.golsFora}</span>
+            <span className="text-[9px] text-[#ffdf00] font-bold">PLACAR FINAL: {jogo.golsCasa} × {jogo.golsFora}</span>
           )}
           <div className="flex items-center gap-1">
             <span className={`text-sm font-bold px-2 py-0.5 rounded ${obterClassePalpite(acertouEmCheio, acertouResultado, jogoFinalizado)}`}>
               {palpite.golsCasa} × {palpite.golsFora}
             </span>
           </div>
-          {acertouEmCheio && <span className="text-[8px] text-[#22c55e] font-bold">+3 pts</span>}
-          {acertouResultado && <span className="text-[8px] text-[#ffdf00] font-bold">+1 pt</span>}
+          {acertouEmCheio && <span className="text-[9px] text-[#22c55e] font-bold">{formatarPontuacao(3)}</span>}
+          {acertouResultado && <span className="text-[9px] text-[#ffdf00] font-bold">{formatarPontuacao(1)}</span>}
           {jogoFinalizado && !acertouEmCheio && !acertouResultado && (
-            <span className="text-[8px] text-erro/50">0 pts</span>
+            <span className="text-[9px] text-[#ff5500] font-bold">{formatarPontuacao(0)}</span>
           )}
         </div>
 
@@ -216,39 +246,35 @@ function CardPalpiteCopa({ palpite, grupoId, membros, expandido, onToggle }: Rea
             {jogo.timeFora?.sigla ?? '?'}
           </span>
           {jogo.timeFora?.escudo && (
-            <img src={jogo.timeFora.escudo} alt="" className="h-6 w-6 object-contain shrink-0" />
+            <img src={jogo.timeFora.escudo} alt="" className="h-7 w-7 object-contain shrink-0" />
           )}
         </div>
 
-        {/* Chevron para expandir (só se finalizado) */}
-        {jogoFinalizado && (
+        {/* Chevron para expandir */}
+        {jogoIniciouOuFinalizou ? (
           <ChevronDown
-            size={14}
-            className={`text-[#a8e6b0]/40 transition-transform shrink-0 ${expandido ? 'rotate-180' : ''}`}
+            size={18}
+            className={`text-[#ffdf00] transition-transform shrink-0 ${expandido ? 'rotate-180' : ''}`}
           />
+        ) : (
+          <div className="w-[18px] shrink-0" />
         )}
       </button>
 
       {/* Dropdown: palpites dos outros membros */}
-      {expandido && jogoFinalizado && (
-        <div className="border-t border-[#009c3b]/15 bg-[#009c3b]/[0.02] px-3 py-2 space-y-1.5">
+      {expandido && jogoIniciouOuFinalizou && (
+        <div className="border-t border-[#009c3b]/15 bg-[#009c3b]/[0.03] px-3 py-2">
           {carregandoMembros && (
-            <div className="flex items-center justify-center py-2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#ffdf00] border-t-transparent" />
+            <div className="flex items-center justify-center py-3">
+              <Loader2 size={16} className="animate-spin text-[#ffdf00]/60" />
             </div>
           )}
           {palpitesMembros && palpitesMembros.length > 0 ? (
-            palpitesMembros
-              .filter((p) => p.usuarioId !== palpite.usuarioId)
-              .map((p) => (
-                <PalpiteMembroLinha
-                  key={p.id}
-                  palpite={p}
-                  nome={obterNomeMembro(p.usuarioId)}
-                  golsCasaReal={jogo.golsCasa}
-                  golsForaReal={jogo.golsFora}
-                />
-              ))
+            <ListaPalpitesMembros
+              detalhamento={palpitesMembros}
+              statusJogo={jogo.status}
+              temaCopa
+            />
           ) : (
             !carregandoMembros && (
               <p className="text-[10px] text-[#a8e6b0]/40 text-center py-1">
@@ -262,35 +288,3 @@ function CardPalpiteCopa({ palpite, grupoId, membros, expandido, onToggle }: Rea
   );
 }
 
-interface PropsPalpiteMembroLinha {
-  palpite: PalpiteMembro;
-  nome: string;
-  golsCasaReal: number | null;
-  golsForaReal: number | null;
-}
-
-function PalpiteMembroLinha({ palpite, nome, golsCasaReal, golsForaReal }: Readonly<PropsPalpiteMembroLinha>) {
-  const acertouEmCheio = golsCasaReal === palpite.golsCasa && golsForaReal === palpite.golsFora;
-  const acertouResultado = !acertouEmCheio && (() => {
-    const resultadoReal = Math.sign((golsCasaReal ?? 0) - (golsForaReal ?? 0));
-    const resultadoPalpite = Math.sign(palpite.golsCasa - palpite.golsFora);
-    return resultadoReal === resultadoPalpite;
-  })();
-
-  return (
-    <div className="flex items-center gap-2 py-1">
-      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#009c3b]/20 text-[#ffdf00] text-[8px] font-bold">
-        {nome.charAt(0)}
-      </div>
-      <span className="text-[10px] text-[#a8e6b0] flex-1 truncate">{nome}</span>
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${obterClasseMembroPalpite(acertouEmCheio, acertouResultado)}`}>
-        {palpite.golsCasa} × {palpite.golsFora}
-      </span>
-      <span className="text-[8px] w-8 text-right">
-        {acertouEmCheio && <span className="text-[#22c55e]">+3</span>}
-        {!acertouEmCheio && acertouResultado && <span className="text-[#ffdf00]">+1</span>}
-        {!acertouEmCheio && !acertouResultado && <span className="text-[#a8e6b0]/30">0</span>}
-      </span>
-    </div>
-  );
-}
