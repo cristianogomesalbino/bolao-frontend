@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Trophy, User } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CardRanking } from '@/components/home/card-ranking';
 import { CardProximoJogoCopa } from './card-proximo-jogo-copa';
@@ -105,10 +105,9 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
 
       {/* Card Sua Posição */}
       {minhaPosicao && (
-        <Card className="border-[#009c3b]/30 bg-[#009c3b]/[0.06]">
+        <Card className="border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
-              <User size={16} className="text-[#ffdf00]" />
               <span className="text-[11px] text-[#a8e6b0] uppercase tracking-wider font-semibold">
                 Sua Posição
               </span>
@@ -122,7 +121,7 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
                     <p className="text-[11px] text-[#a8e6b0]/60">{ptsAtrasDoLider} pts atrás do líder</p>
                   )}
                   {ptsAtrasDoLider === 0 && minhaPosicao.posicao === 1 && (
-                    <p className="text-[11px] text-[#ffdf00]/80">Você é o líder! 🏆</p>
+                    <p className="text-[11px] text-[#ffdf00]/80">Você é o líder!</p>
                   )}
                 </div>
               </div>

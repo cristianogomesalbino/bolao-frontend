@@ -92,3 +92,29 @@ export async function buscarPalpitesGrupoJogo(
     return [];
   }
 }
+
+export interface DetalhamentoPalpiteMembro {
+  usuarioId: string;
+  nomeUsuario: string;
+  golsCasaPalpite: number | null;
+  golsForaPalpite: number | null;
+  categoriaAcerto: string | null;
+  pontosBase: number | null;
+  multiplicador: number;
+  pontosFinais: number | null;
+  dobrado: boolean;
+}
+
+export async function buscarDetalhamentoJogo(
+  grupoId: string,
+  jogoId: string,
+): Promise<DetalhamentoPalpiteMembro[]> {
+  try {
+    const response = await apiClient.get<DetalhamentoPalpiteMembro[]>(
+      `/grupos/${grupoId}/ranking/jogos/${jogoId}`,
+    );
+    return response.data;
+  } catch {
+    return [];
+  }
+}

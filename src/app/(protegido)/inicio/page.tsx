@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useHomeData } from '@/hooks/useHomeData';
 import { CardProximoJogo } from '@/components/home/card-proximo-jogo';
 import { CardMeusGrupos } from '@/components/home/card-meus-grupos';
+import { CardAvisos } from '@/components/home/card-avisos';
 import { CardRanking } from '@/components/home/card-ranking';
 
 function obterIniciais(nome: string): string {
@@ -56,7 +57,7 @@ export default function InicioPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-texto">
-              Olá, <span className="text-primaria-claro">{primeiroNome}</span> 👋
+              Olá, <span className="text-primaria-claro">{primeiroNome}</span>
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -82,6 +83,9 @@ export default function InicioPage() {
 
       {/* Feed */}
       <div className="mx-auto max-w-[480px] px-4 pt-4 pb-6 space-y-3">
+        {/* Avisos do admin */}
+        <CardAvisos />
+
         {/* Próximo jogo */}
         {proximoJogoPronto && proximoJogo ? (
           <CardProximoJogo
@@ -112,7 +116,8 @@ export default function InicioPage() {
           grupos={(grupos ?? []).map((g) => ({
             id: g.id,
             nome: g.nome,
-            icone: g.icone,
+            campeonato: g.temporada?.campeonato?.nome ?? '',
+            ano: g.temporada?.ano,
             participantes: g.totalParticipantes ?? 0,
             ehFavorito: g.id === usuario?.grupoFavoritoId,
           }))}
