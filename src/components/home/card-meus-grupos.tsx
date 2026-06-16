@@ -7,7 +7,8 @@ import { Users, ChevronRight, Star } from 'lucide-react';
 interface GrupoHome {
   id: string;
   nome: string;
-  icone?: string | null;
+  campeonato?: string;
+  ano?: number;
   participantes: number;
   ehFavorito?: boolean;
 }
@@ -15,26 +16,6 @@ interface GrupoHome {
 interface PropsCardMeusGrupos {
   grupos: GrupoHome[];
   carregando?: boolean;
-}
-
-const ICONES_GRUPO: Record<string, string> = {
-  bola: '⚽',
-  trofeu: '🏆',
-  coroa: '👑',
-  chuteira: '👟',
-  medalha: '🥇',
-  bandeira: '🏁',
-  estrela: '⭐',
-  campo: '🏟️',
-  luva: '🧤',
-  apito: '📣',
-  escudo: '🛡️',
-  fogo: '🔥',
-};
-
-function obterEmojiGrupo(icone: string | null | undefined): string {
-  if (!icone) return '⚽';
-  return ICONES_GRUPO[icone] ?? '⚽';
 }
 
 export function CardMeusGrupos({ grupos, carregando }: Readonly<PropsCardMeusGrupos>) {
@@ -46,9 +27,6 @@ export function CardMeusGrupos({ grupos, carregando }: Readonly<PropsCardMeusGru
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primaria/15">
-              <Users size={14} className="text-primaria" />
-            </div>
             <span className="text-xs text-texto font-bold uppercase tracking-wider">
               Meus grupos
             </span>
@@ -90,11 +68,6 @@ export function CardMeusGrupos({ grupos, carregando }: Readonly<PropsCardMeusGru
                 }`}
                 data-testid={`home-grupo-${grupo.id}`}
               >
-                {/* Ícone do grupo */}
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05] border border-white/[0.1] shrink-0">
-                  <span className="text-lg">{obterEmojiGrupo(grupo.icone)}</span>
-                </div>
-
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -108,6 +81,14 @@ export function CardMeusGrupos({ grupos, carregando }: Readonly<PropsCardMeusGru
                   <div className="flex items-center gap-1 mt-0.5 text-texto/40">
                     <Users size={11} />
                     <span className="text-[11px]">{grupo.participantes} membros</span>
+                    {grupo.campeonato && (
+                      <>
+                        <span className="mx-0.5">•</span>
+                        <span className="text-[10px] text-primaria-claro/70">
+                          {grupo.campeonato}{grupo.ano ? ` ${grupo.ano}` : ''}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 

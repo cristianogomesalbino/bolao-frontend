@@ -21,6 +21,7 @@ export interface DadosAtualizarPalpite {
 export interface PalpiteComJogo extends Palpite {
   jogo: {
     id: string;
+    faseId?: string;
     rodada: number | null;
     status: string;
     dataHora: string | null;

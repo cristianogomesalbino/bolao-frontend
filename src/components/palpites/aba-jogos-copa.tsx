@@ -25,33 +25,32 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
   const fasesOrdenadas = [...fases].sort((a, b) => a.ordem - b.ordem);
 
   // Buscar jogos de TODAS as fases da rodada selecionada — 1 request via listarJogosTemporada
-  const { data: jogosPorGrupo, isLoading: carregandoJogos } = useQuery({
+  const { data: dadosRodada, isLoading: carregandoJogos } = useQuery({
     queryKey: ['jogos-copa-todos-grupos', temporadaId, rodadaSelecionada],
     queryFn: async () => {
       const { listarJogosTemporada } = await import('@/services/jogo.service');
-      const todosJogos = await listarJogosTemporada(temporadaId);
-      const inicioDiaAtual = new Date();
-      inicioDiaAtual.setHours(0, 0, 0, 0);
-
-      // Filtrar pela rodada selecionada, remover finalizados do dia anterior
-      return fasesOrdenadas
+      const todosJogosTempo = await listarJogosTemporada(temporadaId);
+      // Todos os jogos da rodada (para contador)
+      const jogosDaRodada = todosJogosTempo.filter((j) => j.rodada === rodadaSelecionada);
+      // Jogos visíveis (excluir finalizados) agrupados por fase
+      const gruposFases = fasesOrdenadas
         .map((fase) => ({
           fase,
-          jogos: todosJogos.filter((j) => {
-            if (j.faseId !== fase.id || j.rodada !== rodadaSelecionada) return false;
-            if (j.status === 'FINALIZADO' && j.dataHora && new Date(j.dataHora).getTime() < inicioDiaAtual.getTime()) return false;
-            return true;
-          }),
+          jogos: jogosDaRodada.filter((j) => j.faseId === fase.id && j.status !== 'FINALIZADO'),
         }))
         .filter((r) => r.jogos.length > 0);
+      return { gruposFases, totalRodada: jogosDaRodada.length, jogoIdsDaRodada: jogosDaRodada.map((j) => j.id) };
     },
     enabled: fasesOrdenadas.length > 0,
     staleTime: 1000 * 60 * 5,
   });
 
-  // Coletar todos os IDs de jogos para batch de palpites
-  const todosJogos = jogosPorGrupo?.flatMap((g) => g.jogos) ?? [];
-  const jogoIds = todosJogos.map((j) => j.id);
+  const jogosPorGrupo = dadosRodada?.gruposFases ?? [];
+  const totalJogosRodada = dadosRodada?.totalRodada ?? 0;
+  const jogoIdsDaRodadaCompleta = dadosRodada?.jogoIdsDaRodada ?? [];
+
+  // IDs de jogos da rodada inteira para batch de palpites e contador
+  const jogoIds = jogoIdsDaRodadaCompleta;
 
   const { data: palpitesBatch } = useQuery({
     queryKey: ['palpites-copa-batch', temporadaId, rodadaSelecionada],
@@ -70,7 +69,7 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
   const palpitesPorJogo = palpitesBatch ?? {};
 
   // Jogos palpitáveis para navegação sequencial na Copa
-  const todosJogosPalpitaveisNavegacao = jogosPorGrupo?.flatMap((g) => g.jogos).filter((j) => podePalpitar(j)) ?? [];
+  const todosJogosPalpitaveisNavegacao = jogosPorGrupo.flatMap((g) => g.jogos).filter((j) => podePalpitar(j));
 
   function proximoCardIdCopa(jogoAtualId: string): string | undefined {
     const idx = todosJogosPalpitaveisNavegacao.findIndex((j) => j.id === jogoAtualId);
@@ -84,10 +83,9 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
     return todosJogosPalpitaveisNavegacao.at(-1)?.id === jogoId;
   }
 
-  // Contar palpites feitos vs total de jogos palpitáveis
-  const jogosPalpitaveis = todosJogos.filter((j) => podePalpitar(j));
-  const totalPalpitaveis = jogosPalpitaveis.length;
-  const palpitesFeitos = jogosPalpitaveis.filter((j) => !!palpitesPorJogo[j.id]).length;
+  // Contar palpites feitos vs total da rodada inteira
+  const palpitesFeitos = jogoIdsDaRodadaCompleta.filter((id) => !!palpitesPorJogo[id]).length;
+  const totalPalpitaveis = totalJogosRodada;
 
   return (
     <div className="space-y-4">
@@ -114,11 +112,11 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
           </div>
           {/* Barra de progresso */}
           <div className="flex gap-[2px] h-2">
-            {jogosPalpitaveis.map((jogo) => (
+            {jogoIdsDaRodadaCompleta.map((jogoId) => (
               <div
-                key={jogo.id}
+                key={jogoId}
                 className={`flex-1 rounded-sm transition-colors ${
-                  palpitesPorJogo[jogo.id] ? 'bg-[#009c3b]' : 'bg-white/[0.12]'
+                  palpitesPorJogo[jogoId] ? 'bg-[#009c3b]' : 'bg-white/[0.12]'
                 }`}
               />
             ))}

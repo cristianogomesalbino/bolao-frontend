@@ -158,6 +158,12 @@ Deploy: Vercel (branch main)
 
 ### 5. Admin (temporário)
 - Rota: `/admin/importar` — importar jogos da API do GE
+- Seleção de campeonato (Brasileirão / Copa do Mundo 2026)
+- Seleção de fase (Fase de Grupos, 32 Avos, Oitavas, etc.)
+- Importação por rodada ou "Todas"
+- **Sincronização:** ao selecionar "Fase de Grupos" da Copa, o frontend envia o `faseId` do primeiro grupo (Grupo A), mas o backend sincroniza automaticamente TODOS os 12 grupos de uma vez
+- Para fases eliminatórias: precisa selecionar a fase destino específica no banco
+- `faseBancoEfetiva`: para Copa grupos e Brasileirão, auto-seleciona a primeira fase `PONTOS_CORRIDOS`
 
 ## Services e Endpoints Utilizados
 

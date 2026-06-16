@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { buscarEstatisticasPalpite } from '@/services/palpite.service';
+import { buscarEstatisticasPalpite, buscarDetalhamentoJogo } from '@/services/palpite.service';
+import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
 import { Jogo, Fase } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
 import { usePalpiteCard } from '@/hooks/usePalpiteCard';
@@ -54,11 +55,19 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
     return () => clearInterval(interval);
   }, [jogo.dataHora]);
 
-  const { data: estatisticas } = useQuery({
+  const { data: estatisticas, isLoading: carregandoEstatisticas } = useQuery({
     queryKey: ['estatisticas-palpite', grupoId, jogo.id],
     queryFn: () => buscarEstatisticasPalpite(grupoId ?? '', jogo.id),
     enabled: !!grupoId && expandido,
     staleTime: 1000 * 30,
+  });
+
+  const jogoIniciouOuFinalizou = jogo.status === 'EM_ANDAMENTO' || jogo.status === 'FINALIZADO';
+  const { data: detalhamento, isLoading: carregandoDetalhamento } = useQuery({
+    queryKey: ['detalhamento-jogo', grupoId, jogo.id],
+    queryFn: () => buscarDetalhamentoJogo(grupoId ?? '', jogo.id),
+    enabled: !!grupoId && expandido && jogoIniciouOuFinalizou,
+    staleTime: 1000 * 60,
   });
 
   const palpitavel = jogo.status === 'AGENDADO' || jogo.status === 'ADIADO';
@@ -77,7 +86,7 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
     : '--:--';
 
   return (
-    <Card className="border-[#009c3b] bg-gradient-to-b from-[#009c3b]/[0.08] to-[#ffdf00]/[0.04] overflow-hidden shadow-[0_0_20px_rgba(0,156,59,0.2)]" data-testid="card-proximo-jogo-copa">
+    <Card className="border-[#ffdf00] bg-gradient-to-b from-[#009c3b]/[0.08] to-[#ffdf00]/[0.04] overflow-hidden shadow-[0_0_24px_rgba(255,223,0,0.3)]" data-testid="card-proximo-jogo-copa">
       <CardContent className="p-4">
         {/* Título */}
         <div className="flex items-center gap-2 mb-2">
@@ -87,7 +96,7 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
         {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-[#ffdf00]/90 uppercase tracking-wider">
-            🏆 {fase.nome}
+            {fase.nome}
           </span>
           <span className="text-[13px] text-[#ffdf00] font-bold">
             {dataFormatada} • {horaFormatada}
@@ -194,8 +203,26 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
           <ChevronDown size={20} className={`text-[#ffdf00]/60 transition-transform ${expandido ? 'rotate-180' : ''}`} />
         </button>
 
-        {/* Estatísticas + Quem palpitou */}
-        {expandido && estatisticas && estatisticas.total > 0 && (
+        {/* Loading do conteúdo expandido */}
+        {expandido && (carregandoDetalhamento || carregandoEstatisticas) && (
+          <div className="mt-2 pt-2 border-t border-[#009c3b]/20 flex items-center justify-center py-3">
+            <Loader2 size={16} className="animate-spin text-[#ffdf00]/60" />
+          </div>
+        )}
+
+        {/* Palpites revelados dos membros */}
+        {expandido && jogoIniciouOuFinalizou && !carregandoDetalhamento && detalhamento && detalhamento.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-[#009c3b]/20">
+            <ListaPalpitesMembros
+              detalhamento={detalhamento}
+              statusJogo={jogo.status}
+              temaCopa
+            />
+          </div>
+        )}
+
+        {/* Estatísticas pré-jogo (antes de iniciar) */}
+        {expandido && !jogoIniciouOuFinalizou && !carregandoEstatisticas && estatisticas && estatisticas.total > 0 && (
           <div className="mt-2 pt-2 border-t border-[#009c3b]/20">
             <div className="flex items-center justify-between mb-1">
               <div className="text-left">

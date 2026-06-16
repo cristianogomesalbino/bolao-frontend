@@ -161,7 +161,6 @@ export function CardProximoJogo({
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm">{cores.icone}</span>
             <span className={`text-xs uppercase tracking-wider font-bold ${cores.titulo}`}>
               Próximo jogo
             </span>

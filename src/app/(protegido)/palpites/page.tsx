@@ -7,6 +7,7 @@ import { usePalpitesData } from '@/hooks/usePalpitesData';
 import { AbaTodosJogos } from '@/components/palpites/aba-todos-jogos';
 import { AbaMeusPalpites } from '@/components/palpites/aba-meus-palpites';
 import { AbaJogosCopa } from '@/components/palpites/aba-jogos-copa';
+import { ModalEscolherGrupo } from '@/components/palpites/modal-escolher-grupo';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 import { type CampeonatoSlug } from '@/types/jogo.types';
 import { listarTemporadas, buscarDadosTemporada } from '@/services/jogo.service';
@@ -100,6 +101,8 @@ export default function PalpitesPage() {
   const {
     temporadaId,
     grupoId,
+    gruposDisponiveis,
+    favoritoNoCampeonato,
     faseAtual,
     fases,
     ehCopaMundo,
@@ -118,6 +121,12 @@ export default function PalpitesPage() {
     palpitesBatch,
     primeiroJogoPalpitavel,
   } = usePalpitesData(abaAtiva, campeonato);
+
+  // Modal obrigatório: aparece quando tem 2+ grupos no campeonato ativo e o favorito não pertence a ele
+  // Não mostra durante detecção automática de campeonato (evita flash do modal errado)
+  const [campeonatosResolvidos, setCampeonatosResolvidos] = useState<Set<string>>(new Set());
+  const aguardandoDeteccao = !paramCampeonato && !jaAplicouDeteccao;
+  const deveExibirModal = !aguardandoDeteccao && !favoritoNoCampeonato && gruposDisponiveis.length > 1 && !campeonatosResolvidos.has(campeonato);
 
   // Auto-posicionar no primeiro jogo palpitável quando batch carrega
   useEffect(() => {
@@ -164,7 +173,7 @@ export default function PalpitesPage() {
                   : 'bg-white/[0.03] text-texto/40 border border-white/[0.06]'
               }`}
             >
-              ⚽ Brasileirão
+              Brasileirão
             </button>
             <button
               type="button"
@@ -175,13 +184,24 @@ export default function PalpitesPage() {
                   : 'bg-white/[0.03] text-texto/40 border border-white/[0.06]'
               }`}
             >
-              🏆 Copa do Mundo
+              Copa do Mundo
             </button>
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 pt-3">
+        {/* Modal obrigatório para escolher grupo favorito */}
+        {deveExibirModal && (
+          <ModalEscolherGrupo
+            gruposDisponiveis={gruposDisponiveis}
+            temaCopa={ehCopaMundo}
+            onEscolher={() => {
+              setCampeonatosResolvidos((prev) => new Set(prev).add(campeonato));
+            }}
+          />
+        )}
+
         {/* Abas */}
         <div className="flex items-center gap-0 border-b border-white/[0.06] mb-4">
           <button
@@ -190,7 +210,7 @@ export default function PalpitesPage() {
               abaAtiva === 'todos' ? 'text-texto border-primaria-claro' : 'text-texto/40 border-transparent'
             }`}
           >
-            Todos os jogos
+            Próximos Jogos
           </button>
           <button
             onClick={() => setAbaAtiva('meus')}
@@ -211,7 +231,7 @@ export default function PalpitesPage() {
           </div>
         )}
 
-        {/* Aba "Todos os jogos" */}
+        {/* Aba Próximos Jogos */}
         {!isLoading && !(carregandoBatch && !palpitesBatch) && abaAtiva === 'todos' && ehCopaMundo && fases && fases.length > 0 && (
           <AbaJogosCopa
             fases={fases}

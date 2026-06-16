@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Calendar, Crosshair, Trophy, TrendingUp } from 'lucide-react';
 import Image from 'next/image';
 import { calcularPontos, PONTOS } from '@/lib/pontuacao';
+import { formatarPontuacao } from '@/lib/pontuacao-formatada';
 import { PalpiteComJogo } from '@/types/palpite.types';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 
@@ -161,9 +162,9 @@ function CardPalpiteHistorico({ palpite: p }: Readonly<{ palpite: PalpiteComJogo
           </div>
           <div className="mt-1.5">
             {temPontos ? (
-              <span className="text-[10px] text-primaria font-semibold flex items-center gap-1">+{pts} {pts > 1 ? 'pontos' : 'ponto'} {pts === PONTOS.ACERTO_EM_CHEIO ? '🎯' : '✓'}</span>
+              <span className="text-[10px] text-primaria font-semibold flex items-center gap-1">{formatarPontuacao(pts)} {pts === PONTOS.ACERTO_EM_CHEIO ? '🎯' : '✓'}</span>
             ) : (
-              <span className="text-[10px] text-texto/30">0 pontos</span>
+              <span className="text-[10px] text-texto/30">{formatarPontuacao(0)}</span>
             )}
           </div>
         </div>

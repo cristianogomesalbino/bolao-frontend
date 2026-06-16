@@ -5,8 +5,9 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Settings, Copy, Check,
-  Lock, Globe, ChevronRight, ChevronDown, Trophy, Calendar, Minus, User
+  Lock, Globe, ChevronRight, Trophy, Calendar, Minus
 } from 'lucide-react';
+import Image from 'next/image';
 import { buscarGrupo, sairDoGrupo, obterRankingGeral, obterRankingFase } from '@/services/grupo.service';
 import { buscarDadosTemporada } from '@/services/jogo.service';
 import { buscarEstatisticasPalpite } from '@/services/palpite.service';
@@ -22,24 +23,10 @@ import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpite
 
 type AbaCopa = 'dashboard' | 'classificacao' | 'palpites';
 
-const ICONES_GRUPO: Record<string, string> = {
-  bola: '⚽',
-  trofeu: '🏆',
-  coroa: '👑',
-  chuteira: '👟',
-  medalha: '🥇',
-  bandeira: '🚩',
-  estrela: '⭐',
-  campo: '🏟️',
-  luva: '🧤',
-  apito: '📣',
-  escudo: '🛡️',
-  fogo: '🔥',
-};
-
-function obterEmojiGrupo(icone: string | null | undefined): string {
-  if (!icone) return '⚽';
-  return ICONES_GRUPO[icone] ?? '⚽';
+function obterClasseResultado(resultado: string): string {
+  if (resultado === 'V') return 'bg-primaria text-white';
+  if (resultado === 'E') return 'bg-destaque text-white';
+  return 'bg-erro text-white';
 }
 
 export default function DetalhesGrupoPage() {
@@ -210,13 +197,9 @@ export default function DetalhesGrupoPage() {
           <ArrowLeft size={20} />
         </Button>
         <div className="flex items-center gap-2.5 flex-1">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primaria/15 text-primaria text-sm font-bold">
-            {grupo.nome.charAt(0)}
-          </div>
           <div>
             <div className="flex items-center gap-1.5">
               <h1 className="text-base font-semibold text-texto" data-testid="grupo-detalhe-nome">{grupo.nome}</h1>
-              <span className="text-xs">{obterEmojiGrupo(grupo.icone)}</span>
             </div>
             <p className="text-[10px] text-texto/35 flex items-center gap-1">
               {grupo.privado ? <Lock size={9} /> : <Globe size={9} />}
@@ -271,7 +254,7 @@ export default function DetalhesGrupoPage() {
                     : 'text-white/60 hover:text-white/80'
                 }`}
               >
-                🏠 Dashboard
+                Dashboard
               </button>
               <button
                 type="button"
@@ -282,7 +265,7 @@ export default function DetalhesGrupoPage() {
                     : 'text-white/60 hover:text-white/80'
                 }`}
               >
-                📊 Classificação
+                Classificação
               </button>
               <button
                 type="button"
@@ -293,7 +276,7 @@ export default function DetalhesGrupoPage() {
                     : 'text-white/60 hover:text-white/80'
                 }`}
               >
-                🎯 Meus Palpites
+                Meus Palpites
               </button>
             </div>
 
@@ -333,7 +316,7 @@ export default function DetalhesGrupoPage() {
 
             {/* Próximo Jogo */}
             {proximoJogo && (
-              <Card data-testid="grupo-card-proximo-jogo">
+              <Card data-testid="grupo-card-proximo-jogo" className="border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -359,7 +342,7 @@ export default function DetalhesGrupoPage() {
                     <div className="flex flex-col items-center gap-1 flex-1">
                       <div className="h-[72px] w-[72px] flex items-center justify-center">
                         {proximoJogo.jogo.timeCasa?.escudo ? (
-                          <img src={proximoJogo.jogo.timeCasa.escudo} alt={proximoJogo.jogo.timeCasa.nome} className="h-[64px] w-[64px] object-contain drop-shadow-[0_0_24px_rgba(255,255,255,0.4)] brightness-110 saturate-[1.2]" />
+                          <Image src={proximoJogo.jogo.timeCasa.escudo} alt={proximoJogo.jogo.timeCasa.nome} width={64} height={64} className="h-[64px] w-[64px] object-contain drop-shadow-[0_0_24px_rgba(255,255,255,0.4)] brightness-110 saturate-[1.2]" unoptimized />
                         ) : (
                           <span className="text-xl font-bold text-texto/50">{proximoJogo.jogo.timeCasa?.sigla || '?'}</span>
                         )}
@@ -393,7 +376,7 @@ export default function DetalhesGrupoPage() {
                     <div className="flex flex-col items-center gap-1 flex-1">
                       <div className="h-[72px] w-[72px] flex items-center justify-center">
                         {proximoJogo.jogo.timeFora?.escudo ? (
-                          <img src={proximoJogo.jogo.timeFora.escudo} alt={proximoJogo.jogo.timeFora.nome} className="h-[64px] w-[64px] object-contain drop-shadow-[0_0_24px_rgba(255,255,255,0.4)] brightness-110 saturate-[1.2]" />
+                          <Image src={proximoJogo.jogo.timeFora.escudo} alt={proximoJogo.jogo.timeFora.nome} width={64} height={64} className="h-[64px] w-[64px] object-contain drop-shadow-[0_0_24px_rgba(255,255,255,0.4)] brightness-110 saturate-[1.2]" unoptimized />
                         ) : (
                           <span className="text-xl font-bold text-texto/50">{proximoJogo.jogo.timeFora?.sigla || '?'}</span>
                         )}
@@ -418,11 +401,7 @@ export default function DetalhesGrupoPage() {
                           ? obterUltimosJogos(classificacao, proximoJogo.jogo.timeCasa.nome)
                           : []
                         ).map((r, i) => (
-                          <span key={`casa-${i}`} className={`text-[8px] font-bold h-4 w-4 flex items-center justify-center rounded ${
-                            r === 'V' ? 'bg-primaria text-white' :
-                            r === 'E' ? 'bg-destaque text-white' :
-                            'bg-erro text-white'
-                          }`}>{r}</span>
+                          <span key={`casa-${i}`} className={`text-[8px] font-bold h-4 w-4 flex items-center justify-center rounded ${obterClasseResultado(r)}`}>{r}</span>
                         ))}
                       </div>
                     </div>
@@ -441,11 +420,7 @@ export default function DetalhesGrupoPage() {
                           ? obterUltimosJogos(classificacao, proximoJogo.jogo.timeFora.nome)
                           : []
                         ).map((r, i) => (
-                          <span key={`fora-${i}`} className={`text-[8px] font-bold h-4 w-4 flex items-center justify-center rounded ${
-                            r === 'V' ? 'bg-primaria text-white' :
-                            r === 'E' ? 'bg-destaque text-white' :
-                            'bg-erro text-white'
-                          }`}>{r}</span>
+                          <span key={`fora-${i}`} className={`text-[8px] font-bold h-4 w-4 flex items-center justify-center rounded ${obterClasseResultado(r)}`}>{r}</span>
                         ))}
                       </div>
                     </div>
@@ -518,10 +493,9 @@ export default function DetalhesGrupoPage() {
 
             {/* Sua Posição */}
             {minhaPosicao && (
-              <Card data-testid="grupo-card-minha-posicao">
+              <Card data-testid="grupo-card-minha-posicao" className="border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <User size={16} className="text-primaria-claro" />
                     <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
                       Sua Posição
                     </span>
@@ -535,7 +509,7 @@ export default function DetalhesGrupoPage() {
                           <p className="text-[11px] text-texto/40">{ptsAtrasDoLider} pts atrás do líder</p>
                         )}
                         {ptsAtrasDoLider === 0 && minhaPosicao.posicao === 1 && (
-                          <p className="text-[11px] text-primaria/70">Você é o líder! 🏆</p>
+                          <p className="text-[11px] text-primaria/70">Você é o líder!</p>
                         )}
                       </div>
                     </div>
@@ -548,10 +522,9 @@ export default function DetalhesGrupoPage() {
             )}
 
             {/* Ranking */}
-            <Card data-testid="grupo-card-ranking">
+            <Card data-testid="grupo-card-ranking" className="border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Trophy size={16} className="text-primaria-claro" />
                   <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
                     Ranking
                   </span>
