@@ -131,7 +131,6 @@ export function CardProximoJogo({
         palpites: 'text-[#ffdf00]',
         botao: 'bg-[#009c3b] hover:bg-[#009c3b]/80 shadow-[0_0_12px_rgba(0,156,59,0.4)]',
         divider: 'border-[#009c3b]/20',
-        icone: '🏆',
       }
     : {
         border: 'border-primaria/40 shadow-[0_0_16px_rgba(22,163,74,0.15)]',
@@ -142,7 +141,6 @@ export function CardProximoJogo({
         palpites: 'text-primaria-claro',
         botao: 'bg-primaria hover:bg-primaria-claro shadow-[0_0_12px_rgba(22,163,74,0.3)]',
         divider: 'border-white/[0.06]',
-        icone: '⚽',
       };
 
   return (
