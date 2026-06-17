@@ -17,7 +17,6 @@ export interface DadosResetarSenha {
 
 export interface RespostaTokens {
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface ErroApi {
