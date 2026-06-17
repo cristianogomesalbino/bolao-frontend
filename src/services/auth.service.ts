@@ -6,13 +6,13 @@ export async function login(dados: DadosLogin): Promise<RespostaTokens> {
   return response.data;
 }
 
-export async function refresh(refreshToken: string): Promise<RespostaTokens> {
-  const response = await apiClient.post<RespostaTokens>('/auth/refresh', { refreshToken });
+export async function refresh(): Promise<RespostaTokens> {
+  const response = await apiClient.post<RespostaTokens>('/auth/refresh');
   return response.data;
 }
 
-export async function logout(refreshToken: string): Promise<void> {
-  await apiClient.post('/auth/logout', { refreshToken });
+export async function logout(): Promise<void> {
+  await apiClient.post('/auth/logout');
 }
 
 export async function esqueciSenha(email: string): Promise<{ mensagem: string }> {
@@ -20,7 +20,13 @@ export async function esqueciSenha(email: string): Promise<{ mensagem: string }>
   return response.data;
 }
 
-export async function resetarSenha(token: string, novaSenha: string): Promise<{ mensagem: string }> {
-  const response = await apiClient.post<{ mensagem: string }>('/auth/resetar-senha', { token, novaSenha });
+export async function resetarSenha(
+  token: string,
+  novaSenha: string,
+): Promise<{ mensagem: string }> {
+  const response = await apiClient.post<{ mensagem: string }>('/auth/resetar-senha', {
+    token,
+    novaSenha,
+  });
   return response.data;
 }

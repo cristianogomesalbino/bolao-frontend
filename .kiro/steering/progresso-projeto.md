@@ -34,11 +34,11 @@ Deploy: Vercel (branch main)
 - Header sticky com blur
 - Avatar com iniciais
 
-### 3. Home ✅ (Redesenhada — Sessão Atual)
-- Header: "Olá, Cristiano 👋" com nome em verde + avatar com borda/glow verde
-- Ícone notificação com badge verde pulsante
+### 3. Home ✅ (Redesenhada)
+- Header: "Olá, Cristiano" com nome em verde + avatar com borda/glow verde
 - Botão logout discreto (cinza → vermelho no hover)
 - Sem badge de campeonato no header (removido)
+- **Card Avisos (`card-avisos.tsx`):** avisos do admin com expiração, dispensáveis via localStorage
 
 **Card Próximo Jogo (`card-proximo-jogo.tsx`):**
 - Dados reais via `buscarDadosTemporada` (endpoint otimizado)
@@ -47,15 +47,18 @@ Deploy: Vercel (branch main)
 - Total palpites real via `buscarEstatisticasPalpite` → "X palpitaram" (ícone Users)
 - Palpite do usuário via `buscarMeuPalpite` → "Você já palpitou ✓" ou "• Sem palpite"
 - Botão "PALPITAR >" com glow verde
+- Header sem emojis (apenas texto "Próximo jogo")
 - **Tema Copa:** fundo verde escuro/amarelo, borda amarela sólida, textos amarelos, countdown laranja
 - **Tema Brasileirão:** fundo superfície, borda verde vibrante, textos brancos/verdes
 
 **Card Meus Grupos (`card-meus-grupos.tsx`):**
 - Dados reais via `listarGrupos`
 - Mostra **todos** os grupos (sem limite)
-- Ícone temático baseado no campo `icone` do grupo (mapa: bola→⚽, trofeu→🏆, bandeira→🏁, etc.)
+- Sem ícone à esquerda (emojis removidos)
+- Exibe campeonato + ano abaixo da contagem de membros (ex: "4 membros • Copa do Mundo 2026")
 - Estrela ⭐ ao lado do nome do grupo favorito
 - Espaçamentos compactos (p-3, separadores border-b)
+- Header: apenas texto "Meus grupos" (sem ícone Users)
 - Link "Ver todos" com ChevronRight
 - Borda verde vibrante sólida + glow
 
@@ -71,11 +74,12 @@ Deploy: Vercel (branch main)
   - Coroa no 1º lugar
 - **Lista 4º e 5º:** com badges coloridos (cheio verde, parcial âmbar, feitos neutro, esquecidos vermelho)
 - Pontos em destaque grande à direita com "pts" abaixo
-- **Motivação:** "Faltam X pts para o 1º lugar!" ou "🔥 Você está na liderança!"
-- **Legenda desempate:** ícones coloridos (Target cheio → Zap parcial → CircleDot feitos)
+- **Motivação:** "Faltam X pts para o 1º lugar!" ou "Você está na liderança! Continue assim!" (sem emojis)
+- **Legenda desempate:** ícones coloridos (Target cheio → Zap parcial → Clock hora do palpite)
+- Header: apenas texto "Ranking" (sem emoji 🏅)
 - **Tema Copa:** borda amarela sólida, fundo verde/amarelo, título amarelo
 - **Tema Brasileirão:** borda verde sólida + glow
-- Critérios de ordenação: pontuação → acertos em cheio → acertos parciais → total palpites feitos
+- Critérios de ordenação: pontuação → acertos em cheio → acertos parciais → hora do palpite
 - Quando pontuação zerada: posição por ordem de entrada no grupo
 
 **Regras de Ranking (frontend):**
@@ -99,7 +103,11 @@ Deploy: Vercel (branch main)
 - Formulário entrar por código de convite
 
 #### Detalhes do grupo (`/grupos/[grupoId]`)
-- Header: avatar com inicial, nome + coroa, privado/membros, código de convite (copiar), engrenagem
+- Header: nome do grupo (sem avatar com inicial, sem emoji do ícone), privado/membros, código de convite (copiar), engrenagem
+- **Modo Copa:** 3 abas sem emojis: "Dashboard" | "Classificação" | "Meus Palpites"
+- **Modo Copa:** cards com borda amarela padronizada (`border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]`)
+- Card "Sua Posição": posição + pontos + "Você é o líder!" (sem emoji 🏆)
+- Card "Ranking": sem emoji 🏅 no título
 
 **Card Próximo Jogo:**
 - Escudos grandes sem fundo circular, com glow forte (drop-shadow 24px, saturação 1.2)
@@ -241,6 +249,41 @@ Deploy: Vercel (branch main)
 - Usa React Query para buscar/criar/atualizar palpite
 - Botões +/- com contorno verde, tamanho h-9 w-9
 
+### `src/components/palpites/lista-palpites-membros.tsx` ✅ (novo)
+- Componente compartilhado para exibir lista de palpites dos membros no chevron expandido
+- Usado em: `card-jogo-palpite.tsx`, `card-proximo-jogo-copa.tsx`, `aba-meus-palpites-copa.tsx`
+- Props: `detalhamento`, `statusJogo`, `temaCopa`
+- Mostra: avatar iniciais, nome, placar, pontuação (com cor por categoria)
+- Cores adaptativas por tema (Copa: verde/amarelo, Padrão: primaria/texto)
+
+### `src/components/palpites/modal-escolher-grupo.tsx` ✅ (novo)
+- Modal obrigatório: aparece quando favorito do usuário não pertence ao campeonato ativo e há 2+ grupos
+- Só fecha ao definir favorito (sem botão "Pular")
+- Salva via `PATCH /usuarios/me/grupo-favorito` e atualiza auth store
+- Visual: card com lista de opções selecionáveis + botão "Definir como favorito"
+
+### `src/components/home/card-avisos.tsx` ✅ (novo)
+- Exibe avisos não lidos do admin na home
+- Avisos definidos em `src/lib/avisos.ts` (array estático com `expiraEm`)
+- Dispensáveis individualmente (salva no localStorage)
+- Não reaparece após dispensar ou após data de expiração
+- Visual: card amarelo com ícone Megaphone, botão X para dispensar
+- Suporta quebra de linha (`\n`) via `whitespace-pre-line`
+
+### `src/lib/avisos.ts` ✅ (novo)
+- Array `AVISOS` com interface: `{ id, titulo, mensagem, criadoEm, expiraEm }`
+- Funções: `obterAvisosNaoLidos()`, `marcarAvisoComoLido(id)`, `obterAvisosLidos()`
+- Persistência: localStorage (key: `avisos-lidos`)
+
+### `src/lib/pontuacao-formatada.ts` ✅ (novo)
+- `formatarPontuacao(pontos)` → "0 ponto", "1 ponto", "3 pontos"
+- Regra: singular para ≤1, plural para >1 (português correto)
+- Sem emojis, sem "+", sem "pts"
+- Usado por todos os componentes de palpites
+
+### Componente removido: `src/components/palpites/seletor-grupo-palpites.tsx`
+- Substituído pelo modal obrigatório + lógica de favorito no hook
+
 ## Infraestrutura / Deploy
 
 ### Vercel
@@ -359,12 +402,17 @@ Deploy: Vercel (branch main)
 
 ### Tela `/palpites` (nova — aba da bottom nav)
 - Rota: `/palpites` (renomeada de `/jogos`)
-- Header: ícone bola de futebol customizado + "Palpites" + subtítulo
-- Card da rodada: número da rodada, badge "Em andamento"/"Agendada", barra de progresso de palpites
-- 3 abas: "Todos os jogos" | "Meus palpites" | "Ao vivo" (com bolinha pulsante)
+- Header: ícone bola de futebol customizado + "Palpites"
+- Seletor de campeonato: "Brasileirão" | "Copa do Mundo" (sem emojis)
+- 2 abas: "Próximos Jogos" | "Meus palpites"
+- **Aba Próximos Jogos:** mostra apenas jogos AGENDADO + EM_ANDAMENTO (finalizados excluídos)
+- **Aba Meus Palpites:** mostra apenas jogos EM_ANDAMENTO + FINALIZADO (ordem decrescente por data)
 - Mostra 2 rodadas (atual + próxima) com separador "Rodada X"
-- Jogos agendados + em andamento + finalizados da rodada
 - Loading skeleton
+- **Modal obrigatório** (`modal-escolher-grupo.tsx`): aparece quando usuário tem 2+ grupos no campeonato ativo e o favorito não pertence a ele. Só fecha ao definir favorito via API
+- **Detecção automática de campeonato:** abre na aba do campeonato com próximo jogo mais próximo
+- Contador de palpites reflete a rodada toda (incluindo finalizados)
+- Barra de progresso: bloquinhos por jogo da rodada inteira
 
 ### Componente `CardJogoPalpite` (refatorado)
 - Data/hora centralizada no topo
