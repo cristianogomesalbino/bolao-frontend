@@ -11,27 +11,12 @@ export function obterAccessToken(): string | null {
   return accessToken;
 }
 
-export function obterRefreshToken(): string | null {
-  if (globalThis.window === undefined) return null;
-  return localStorage.getItem('refreshToken');
-}
-
-export function salvarTokens(novoAccessToken: string, novoRefreshToken: string): void {
-  accessToken = novoAccessToken;
-  if (globalThis.window !== undefined) {
-    localStorage.setItem('refreshToken', novoRefreshToken);
-  }
-}
-
 export function atualizarAccessToken(novoAccessToken: string): void {
   accessToken = novoAccessToken;
 }
 
 export function limparTokens(): void {
   accessToken = null;
-  if (globalThis.window !== undefined) {
-    localStorage.removeItem('refreshToken');
-  }
 }
 
 // --- Auth Store ---
@@ -49,9 +34,8 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
   // Wire up API client token handlers
   configurarTokenHandlers({
     obterAccessToken,
-    obterRefreshToken,
-    aoAtualizarTokens: (newAccess: string, newRefresh: string) => {
-      salvarTokens(newAccess, newRefresh);
+    aoAtualizarAccessToken: (newAccess: string) => {
+      atualizarAccessToken(newAccess);
     },
     aoFalharRefresh: () => {
       limparTokens();
@@ -71,8 +55,8 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
     login: async (dados: DadosLogin) => {
       queryClient.removeQueries();
       const response = await apiClient.post('/auth/login', dados);
-      const { accessToken: newAccess, refreshToken: newRefresh } = response.data;
-      salvarTokens(newAccess, newRefresh);
+      const { accessToken: newAccess } = response.data;
+      atualizarAccessToken(newAccess);
 
       // Fetch user profile
       const perfilResponse = await apiClient.get('/usuarios/me');
@@ -84,10 +68,7 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
 
     logout: async () => {
       try {
-        const refresh = obterRefreshToken();
-        if (refresh) {
-          await apiClient.post('/auth/logout', { refreshToken: refresh });
-        }
+        await apiClient.post('/auth/logout');
       } catch {
         // Ignore logout errors
       } finally {
@@ -111,17 +92,11 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
         return;
       }
 
-      const refresh = obterRefreshToken();
-      if (!refresh) {
-        set({ estaCarregando: false, estaAutenticado: false });
-        return;
-      }
-
       try {
-        // Try to get new access token
-        const response = await apiClient.post('/auth/refresh', { refreshToken: refresh });
-        const { accessToken: newAccess, refreshToken: newRefresh } = response.data;
-        salvarTokens(newAccess, newRefresh || refresh);
+        // Try to get new access token via cookie (browser envia automaticamente)
+        const response = await apiClient.post('/auth/refresh');
+        const { accessToken: newAccess } = response.data;
+        atualizarAccessToken(newAccess);
 
         // Fetch user profile
         const perfilResponse = await apiClient.get('/usuarios/me');

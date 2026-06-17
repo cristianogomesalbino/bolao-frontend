@@ -3,25 +3,23 @@ import { ErroApi } from '@/types/auth.types';
 
 // Token getter/setter functions - will be set by the auth store
 let obterAccessToken: () => string | null = () => null;
-let obterRefreshToken: () => string | null = () => null;
-let aoAtualizarTokens: (accessToken: string, refreshToken: string) => void = () => {};
+let aoAtualizarAccessToken: (accessToken: string) => void = () => {};
 let aoFalharRefresh: () => void = () => {};
 
 export function configurarTokenHandlers(handlers: {
   obterAccessToken: () => string | null;
-  obterRefreshToken: () => string | null;
-  aoAtualizarTokens: (accessToken: string, refreshToken: string) => void;
+  aoAtualizarAccessToken: (accessToken: string) => void;
   aoFalharRefresh: () => void;
 }) {
   obterAccessToken = handlers.obterAccessToken;
-  obterRefreshToken = handlers.obterRefreshToken;
-  aoAtualizarTokens = handlers.aoAtualizarTokens;
+  aoAtualizarAccessToken = handlers.aoAtualizarAccessToken;
   aoFalharRefresh = handlers.aoFalharRefresh;
 }
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
   timeout: 60000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -36,7 +34,7 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor - handle 401 with refresh
@@ -68,7 +66,11 @@ apiClient.interceptors.response.use(
 
     // Don't try refresh for auth endpoints (login, refresh itself)
     const url = requisicaoOriginal.url || '';
-    if (url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/resetar-senha')) {
+    if (
+      url.includes('/auth/login') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/resetar-senha')
+    ) {
       throw transformarErro(error);
     }
 
@@ -94,18 +96,15 @@ apiClient.interceptors.response.use(
     estaRenovando = true;
 
     try {
-      const refreshToken = obterRefreshToken();
-      if (!refreshToken) {
-        throw new Error('Sem refresh token');
-      }
-
+      // Cookie é enviado automaticamente com withCredentials: true
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`,
-        { refreshToken }
+        {},
+        { withCredentials: true },
       );
 
-      const { accessToken, refreshToken: novoRefreshToken } = response.data;
-      aoAtualizarTokens(accessToken, novoRefreshToken || refreshToken);
+      const { accessToken } = response.data;
+      aoAtualizarAccessToken(accessToken);
 
       processarFila(accessToken);
 
@@ -118,7 +117,7 @@ apiClient.interceptors.response.use(
     } finally {
       estaRenovando = false;
     }
-  }
+  },
 );
 
 function transformarErro(error: AxiosError): ErroApi {
