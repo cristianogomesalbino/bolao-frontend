@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Fase, Jogo } from '@/types/jogo.types';
@@ -19,35 +19,52 @@ interface PropsAbaJogosCopa {
 }
 
 export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }: Readonly<PropsAbaJogosCopa>) {
-  const [rodadaSelecionada, setRodadaSelecionada] = useState<number>(1);
+  const [rodadaSelecionada, setRodadaSelecionada] = useState<number | null>(null);
 
   // Todas as fases (grupos + eliminatórias juntas, ordenadas por ordem)
   const fasesOrdenadas = [...fases].sort((a, b) => a.ordem - b.ordem);
 
-  // Buscar jogos de TODAS as fases da rodada selecionada — 1 request via listarJogosTemporada
-  const { data: dadosRodada, isLoading: carregandoJogos } = useQuery({
-    queryKey: ['jogos-copa-todos-grupos', temporadaId, rodadaSelecionada],
+  // Buscar todos os jogos da temporada (1 request)
+  const { data: todosJogosTemporada } = useQuery({
+    queryKey: ['jogos-copa-todos', temporadaId],
     queryFn: async () => {
       const { listarJogosTemporada } = await import('@/services/jogo.service');
-      const todosJogosTempo = await listarJogosTemporada(temporadaId);
-      // Todos os jogos da rodada (para contador)
-      const jogosDaRodada = todosJogosTempo.filter((j) => j.rodada === rodadaSelecionada);
-      // Jogos visíveis (excluir finalizados) agrupados por fase
-      const gruposFases = fasesOrdenadas
-        .map((fase) => ({
-          fase,
-          jogos: jogosDaRodada.filter((j) => j.faseId === fase.id && j.status !== 'FINALIZADO'),
-        }))
-        .filter((r) => r.jogos.length > 0);
-      return { gruposFases, totalRodada: jogosDaRodada.length, jogoIdsDaRodada: jogosDaRodada.map((j) => j.id) };
+      return listarJogosTemporada(temporadaId);
     },
     enabled: fasesOrdenadas.length > 0,
     staleTime: 1000 * 60 * 5,
   });
 
+  // Detectar rodada correta ao carregar
+  useEffect(() => {
+    if (rodadaSelecionada !== null || !todosJogosTemporada) return;
+    const rodadas = [...new Set(todosJogosTemporada.map((j) => j.rodada).filter(Boolean))] as number[];
+    rodadas.sort((a, b) => a - b);
+    const rodadaComJogos = rodadas.find((r) =>
+      todosJogosTemporada.some((j) => j.rodada === r && j.status !== 'FINALIZADO')
+    );
+    setRodadaSelecionada(rodadaComJogos ?? rodadas.at(-1) ?? 1);
+  }, [todosJogosTemporada, rodadaSelecionada]);
+
+  // Derivar dados da rodada selecionada
+  const dadosRodada = (() => {
+    if (!todosJogosTemporada || rodadaSelecionada === null) return null;
+    const jogosDaRodada = todosJogosTemporada.filter((j) => j.rodada === rodadaSelecionada);
+    const gruposFases = fasesOrdenadas
+      .map((fase) => ({
+        fase,
+        jogos: jogosDaRodada.filter((j) => j.faseId === fase.id && j.status !== 'FINALIZADO'),
+      }))
+      .filter((r) => r.jogos.length > 0);
+    return { gruposFases, totalRodada: jogosDaRodada.length, jogoIdsDaRodada: jogosDaRodada.map((j) => j.id) };
+  })();
+
+  const carregandoJogos = !todosJogosTemporada || rodadaSelecionada === null;
+
   const jogosPorGrupo = dadosRodada?.gruposFases ?? [];
   const totalJogosRodada = dadosRodada?.totalRodada ?? 0;
   const jogoIdsDaRodadaCompleta = dadosRodada?.jogoIdsDaRodada ?? [];
+  const rodadaExibida = rodadaSelecionada ?? 1;
 
   // IDs de jogos da rodada inteira para batch de palpites e contador
   const jogoIds = jogoIdsDaRodadaCompleta;
@@ -93,8 +110,8 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => setRodadaSelecionada(Math.max(1, rodadaSelecionada - 1))}
-          disabled={rodadaSelecionada <= 1}
+          onClick={() => setRodadaSelecionada(Math.max(1, rodadaExibida - 1))}
+          disabled={rodadaExibida <= 1}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           aria-label="Rodada anterior"
         >
@@ -104,7 +121,7 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-[#ffdf00] uppercase tracking-wide">
-              Rodada {rodadaSelecionada}
+              Rodada {rodadaExibida}
             </span>
             <span className="text-[11px] text-[#009c3b] font-semibold">
               {palpitesFeitos}/{totalPalpitaveis} palpites feitos
@@ -128,8 +145,8 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
 
         <button
           type="button"
-          onClick={() => setRodadaSelecionada(Math.min(3, rodadaSelecionada + 1))}
-          disabled={rodadaSelecionada >= 3}
+          onClick={() => setRodadaSelecionada(Math.min(3, rodadaExibida + 1))}
+          disabled={rodadaExibida >= 3}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           aria-label="Próxima rodada"
         >
@@ -145,7 +162,7 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
             type="button"
             onClick={() => setRodadaSelecionada(r)}
             className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all ${
-              rodadaSelecionada === r
+              rodadaExibida === r
                 ? 'bg-[#009c3b]/30 text-[#ffdf00] border border-[#009c3b]/50 shadow-[0_0_12px_rgba(0,156,59,0.3)]'
                 : 'bg-[#009c3b]/[0.06] text-[#a8e6b0]/60 border border-[#009c3b]/20 hover:bg-[#009c3b]/15 hover:text-[#ffdf00]/80'
             }`}
@@ -174,7 +191,7 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
                 <span className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
                 <span className="text-[11px] text-[#ffdf00] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[#ffdf00]/30 bg-[#ffdf00]/10">
                   <Trophy size={10} className="inline mr-1 -mt-0.5" />
-                  Rodada {rodadaSelecionada} — {fase.nome}
+                  Rodada {rodadaExibida} — {fase.nome}
                 </span>
                 <span className="h-[2px] flex-1 bg-gradient-to-l from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
               </div>
