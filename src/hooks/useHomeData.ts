@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { listarGrupos, obterRankingGeral } from '@/services/grupo.service';
 import { buscarDadosTemporada, listarTemporadas } from '@/services/jogo.service';
-import { buscarEstatisticasPalpite, buscarMeuPalpite } from '@/services/palpite.service';
-import { CAMPEONATOS } from '@/types/jogo.types';
+import { buscarMeuPalpite } from '@/services/palpite.service';
+import { ehCampeonatoCopa } from '@/lib/jogo-helpers';
 
 export function useHomeData() {
   const usuario = useAuthStore((state) => state.usuario);
@@ -73,7 +73,7 @@ export function useHomeData() {
       const futuro = comJogo.find((r) => new Date(r.proximoJogo?.jogo.dataHora ?? '').getTime() > agora);
       return futuro ?? comJogo[0] ?? resultados[0] ?? null;
     },
-    enabled: !temGrupo && !!temporadas && temporadas.length > 0,
+    enabled: !temGrupo && !carregandoGrupos && !!temporadas && temporadas.length > 0,
     staleTime: 60_000,
   });
 
@@ -81,28 +81,27 @@ export function useHomeData() {
   const dadosTemporada = temGrupo ? dadosTemporadaGrupo : dadosTodasTemporadas;
 
   const proximoJogo = dadosTemporada?.proximoJogo;
+  // Fallback: se backend não retornar proximosJogos, usa o proximoJogo como array de 1
+  const proximosJogosRaw = dadosTemporada?.proximosJogos;
+  const temProximosJogos = proximosJogosRaw && proximosJogosRaw.length > 0;
+  const fallbackProximoJogo = proximoJogo ? [proximoJogo] : [];
+  // Mostrar múltiplos jogos apenas se estão EM_ANDAMENTO (ao vivo)
+  const proximosJogosFull = temProximosJogos ? proximosJogosRaw : fallbackProximoJogo;
+  const proximosJogos = proximosJogosFull[0]?.jogo.status === 'EM_ANDAMENTO'
+    ? proximosJogosFull
+    : proximosJogosFull.slice(0, 1);
   const jogoId = proximoJogo?.jogo.id;
 
-  // Estatísticas do próximo jogo
-  const { data: estatisticas, isLoading: carregandoEstatisticas } = useQuery({
-    queryKey: ['estatisticas-palpite-home', grupoFavoritoInicial, jogoId],
-    queryFn: () => buscarEstatisticasPalpite(grupoFavoritoInicial ?? '', jogoId ?? ''),
-    enabled: !!grupoFavoritoInicial && !!jogoId,
-    staleTime: 30_000,
-  });
-
   // Meu palpite no próximo jogo (só buscar se tem grupo — sem grupo não tem palpite)
-  const { data: meuPalpite, isLoading: carregandoMeuPalpite } = useQuery({
+  const { data: meuPalpite } = useQuery({
     queryKey: ['meu-palpite-home', jogoId],
     queryFn: () => buscarMeuPalpite(jogoId ?? ''),
     enabled: !!jogoId && temGrupo,
     staleTime: Infinity,
   });
 
-  // Card do próximo jogo só renderiza quando TODAS as queries dependentes resolveram
-  const queriesEstatisticasPendentes = !!grupoFavoritoInicial && !!jogoId && carregandoEstatisticas;
-  const queriesMeuPalpitePendentes = !!jogoId && temGrupo && carregandoMeuPalpite;
-  const proximoJogoPronto = !!proximoJogo && !queriesEstatisticasPendentes && !queriesMeuPalpitePendentes;
+  // Card do próximo jogo renderiza assim que tiver os dados do jogo
+  const proximoJogoPronto = !!proximoJogo;
 
   // Ranking formatado
   const rankingFormatado = (ranking ?? []).slice(0, 8).map((entry) => ({
@@ -118,15 +117,6 @@ export function useHomeData() {
 
   // Opções de grupo para filtro
   const gruposOpcoes = (grupos ?? []).map((g) => ({ id: g.id, nome: g.nome }));
-
-  // Detecção de Copa — usa label do config como padrão de busca (case-insensitive)
-  const labelCopa = CAMPEONATOS.find((c) => c.slug === 'copa-do-mundo-2026')?.label ?? '';
-  const palavraChaveCopa = labelCopa.split(' ')[0].toLowerCase(); // 'copa'
-
-  function ehCampeonatoCopa(nome?: string): boolean {
-    if (!nome) return false;
-    return nome.toLowerCase().includes(palavraChaveCopa) && nome.toLowerCase().includes('mundo');
-  }
 
   const nomeCampeonato = grupos?.find((g) => g.id === grupoFavoritoInicial)?.temporada?.campeonato?.nome;
   // Quando não tem grupo, detectar Copa pelo nome da temporada do próximo jogo
@@ -145,8 +135,8 @@ export function useHomeData() {
     grupoSelecionadoId,
     setGrupoRankingId,
     proximoJogo,
+    proximosJogos,
     proximoJogoPronto,
-    estatisticas,
     meuPalpite,
     rankingFormatado,
     gruposOpcoes,

@@ -37,14 +37,6 @@ export interface JogosResponse {
   rodadaAtual: number | null;
 }
 
-export interface JogoProximo {
-  id: string;
-  timeCasa: string;
-  timeFora: string;
-  dataHora: string;
-  status: StatusJogo;
-}
-
 // --- Multi-campeonato (Copa do Mundo) ---
 
 export type CampeonatoSlug = 'brasileirao' | 'copa-do-mundo-2026';

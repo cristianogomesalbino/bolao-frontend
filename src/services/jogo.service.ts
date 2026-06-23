@@ -19,6 +19,7 @@ export interface Temporada {
 
 export interface DadosTemporada {
   proximoJogo: { fase: Fase; jogo: Jogo } | null;
+  proximosJogos: { fase: Fase; jogo: Jogo }[];
   totalAdiados: number;
 }
 
@@ -54,46 +55,12 @@ export async function buscarDadosTemporada(temporadaId: string): Promise<DadosTe
   try {
     const response = await apiClient.get<{
       proximoJogo: { fase: Fase; jogo: Jogo } | null;
+      proximosJogos: { fase: Fase; jogo: Jogo }[];
       totalAdiados: number;
     }>(`/temporadas/${temporadaId}/dados`);
     return response.data;
   } catch {
-    return { proximoJogo: null, totalAdiados: 0 };
-  }
-}
-
-export async function buscarProximosJogos(): Promise<import('@/types/jogo.types').JogoProximo[]> {
-  try {
-    const temporadas = await listarTemporadas();
-    if (temporadas.length === 0) return [];
-
-    const resultados = await Promise.all(
-      temporadas.map(async (t) => {
-        const dados = await buscarDadosTemporada(t.id);
-        return dados.proximoJogo;
-      })
-    );
-
-    return resultados
-      .filter((r) => r !== null)
-      .map((r) => ({
-        id: r.jogo.id,
-        timeCasa: r.jogo.timeCasa?.nome || 'Casa',
-        timeFora: r.jogo.timeFora?.nome || 'Fora',
-        dataHora: r.jogo.dataHora || '',
-        status: r.jogo.status,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-export async function contarJogosAdiadosRodada(faseId: string, rodada: number): Promise<number> {
-  try {
-    const { jogos } = await listarJogosFase(faseId, rodada);
-    return jogos.filter((j) => j.status === 'ADIADO').length;
-  } catch {
-    return 0;
+    return { proximoJogo: null, proximosJogos: [], totalAdiados: 0 };
   }
 }
 
