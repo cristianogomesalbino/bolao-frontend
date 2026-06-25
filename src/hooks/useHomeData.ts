@@ -85,11 +85,9 @@ export function useHomeData() {
   const proximosJogosRaw = dadosTemporada?.proximosJogos;
   const temProximosJogos = proximosJogosRaw && proximosJogosRaw.length > 0;
   const fallbackProximoJogo = proximoJogo ? [proximoJogo] : [];
-  // Mostrar múltiplos jogos apenas se estão EM_ANDAMENTO (ao vivo)
+  // Mostrar todos os jogos simultâneos (mesmo horário)
   const proximosJogosFull = temProximosJogos ? proximosJogosRaw : fallbackProximoJogo;
-  const proximosJogos = proximosJogosFull[0]?.jogo.status === 'EM_ANDAMENTO'
-    ? proximosJogosFull
-    : proximosJogosFull.slice(0, 1);
+  const proximosJogos = proximosJogosFull;
   const jogoId = proximoJogo?.jogo.id;
 
   // Meu palpite no próximo jogo (só buscar se tem grupo — sem grupo não tem palpite)
