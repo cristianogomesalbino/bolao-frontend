@@ -38,6 +38,7 @@ function obterCorPontuacao(categoriaAcerto: string | null, temaCopa: boolean): s
  */
 export function ListaPalpitesMembros({ detalhamento, statusJogo, temaCopa }: Readonly<PropsListaPalpitesMembros>) {
   const jogoFinalizado = statusJogo === 'FINALIZADO';
+  const jogoIniciado = statusJogo === 'EM_ANDAMENTO' || statusJogo === 'FINALIZADO';
 
   const membrosOrdenados = [...detalhamento].sort((a, b) => {
     const ptA = a.pontosFinais ?? 0;
@@ -112,9 +113,15 @@ export function ListaPalpitesMembros({ detalhamento, statusJogo, temaCopa }: Rea
             {/* Placar + Pontuação ou badge "Não palpitou" */}
             {fezPalpite ? (
               <div className="flex items-center gap-4">
-                <span className={`text-[11px] ${cores.placar}`}>
-                  {membro.golsCasaPalpite} × {membro.golsForaPalpite}
-                </span>
+                {jogoIniciado ? (
+                  <span className={`text-[11px] ${cores.placar}`}>
+                    {membro.golsCasaPalpite} × {membro.golsForaPalpite}
+                  </span>
+                ) : (
+                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${temaCopa ? 'bg-[#009c3b]/20 text-[#22c55e] border border-[#009c3b]/30' : 'bg-primaria/15 text-primaria-claro border border-primaria/30'}`}>
+                    Palpitou ✓
+                  </span>
+                )}
                 {jogoFinalizado && (
                   <span className={`text-[10px] min-w-[52px] text-right ${corPontos}`}>
                     {formatarPontuacao(pontos)}

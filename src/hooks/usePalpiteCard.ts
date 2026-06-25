@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { criarPalpite, atualizarPalpite, buscarMeuPalpite } from '@/services/palpite.service';
 import { Palpite } from '@/types/palpite.types';
 
@@ -11,29 +11,41 @@ interface UsePalpiteCardOptions {
 
 export function usePalpiteCard({ jogoId, grupoId, palpiteInicial }: UsePalpiteCardOptions) {
   const queryClient = useQueryClient();
-  const [golsCasa, setGolsCasa] = useState<number | ''>(palpiteInicial?.golsCasa ?? '');
-  const [golsFora, setGolsFora] = useState<number | ''>(palpiteInicial?.golsFora ?? '');
-  const [palpiteLocal, setPalpiteLocal] = useState<Palpite | null>(palpiteInicial ?? null);
+
+  // Buscar palpite do servidor apenas se não recebeu palpiteInicial
+  const { data: palpiteFetched } = useQuery({
+    queryKey: ['meu-palpite', jogoId],
+    queryFn: () => buscarMeuPalpite(jogoId),
+    enabled: !!jogoId && palpiteInicial === undefined,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const palpiteEfetivo = palpiteInicial ?? palpiteFetched ?? null;
+
+  const [golsCasa, setGolsCasa] = useState<number | ''>(palpiteEfetivo?.golsCasa ?? '');
+  const [golsFora, setGolsFora] = useState<number | ''>(palpiteEfetivo?.golsFora ?? '');
+  const [palpiteLocal, setPalpiteLocal] = useState<Palpite | null>(palpiteEfetivo);
   const [salvoFeedback, setSalvoFeedback] = useState(false);
 
   const golsRef = useRef<{ golsCasa: number | null; golsFora: number | null }>({
-    golsCasa: palpiteInicial?.golsCasa ?? null,
-    golsFora: palpiteInicial?.golsFora ?? null,
+    golsCasa: palpiteEfetivo?.golsCasa ?? null,
+    golsFora: palpiteEfetivo?.golsFora ?? null,
   });
-  const palpiteRef = useRef<Palpite | null>(palpiteInicial ?? null);
+  const palpiteRef = useRef<Palpite | null>(palpiteEfetivo);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputsRef = useRef<HTMLDivElement>(null);
 
-  // Sincronizar quando palpiteInicial muda (ex: batch re-executa)
+  // Sincronizar quando palpiteInicial ou palpiteFetched muda
   useEffect(() => {
-    if (palpiteInicial && !palpiteRef.current) {
-      setPalpiteLocal(palpiteInicial);
-      palpiteRef.current = palpiteInicial;
-      setGolsCasa(palpiteInicial.golsCasa);
-      setGolsFora(palpiteInicial.golsFora);
-      golsRef.current = { golsCasa: palpiteInicial.golsCasa, golsFora: palpiteInicial.golsFora };
+    const novoPalpite = palpiteInicial ?? palpiteFetched ?? null;
+    if (novoPalpite && !palpiteRef.current) {
+      setPalpiteLocal(novoPalpite);
+      palpiteRef.current = novoPalpite;
+      setGolsCasa(novoPalpite.golsCasa);
+      setGolsFora(novoPalpite.golsFora);
+      golsRef.current = { golsCasa: novoPalpite.golsCasa, golsFora: novoPalpite.golsFora };
     }
-  }, [palpiteInicial]);
+  }, [palpiteInicial, palpiteFetched]);
 
   const palpiteAtual = palpiteLocal;
   const jaPalpitou = !!palpiteAtual;
