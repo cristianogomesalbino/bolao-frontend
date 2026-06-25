@@ -448,3 +448,108 @@ Deploy: Vercel (branch main)
 - Steering coding-conventions: adicionadas seções Páginas, React Query, Tailwind, Dados Externos
 - ESLint: `no-explicit-any: off`, `no-unused-vars: warn`, `prefer-const: warn`
 - Build Vercel: removido `skipWaiting`, pasta aninhada, `(protegido)/page.tsx`
+
+## Sessão 4 — Pipeline de Qualidade (Frontend + Backend)
+
+### Objetivo
+Rodar pipeline de qualidade focando em: Sonar, princípios SOLID, remoção de código morto, reaproveitamento de código e melhoria de logs.
+
+---
+
+### Frontend — Código Morto Removido
+
+| Arquivo | Motivo |
+|---------|--------|
+| `components/home/card-proximo-jogo.tsx` | ❌ Deletado — substituído por `card-proximos-jogos.tsx`, não importado |
+| `components/auth/agenda-semanal.tsx` | ❌ Deletado — componente nunca importado em nenhuma tela |
+| `services/jogo.service.ts` → `contarJogosAdiadosRodada()` | Removida — nunca chamada |
+| `services/jogo.service.ts` → `buscarProximosJogos()` | Removida — única consumidora era agenda-semanal |
+| `types/jogo.types.ts` → `interface JogoProximo` | Removida — órfã |
+| `hooks/useHomeData.ts` → query `estatisticas` + import | Removido — `totalPalpites` não existia na interface do card |
+
+### Frontend — Utilitário Compartilhado Criado
+
+**Novo:** `src/lib/jogo-helpers.ts`
+- `calcularCountdown(dataHora)` — countdown HH:MM:SS com flag `encerrado`
+- `calcularTempoJogo(dataHora)` — minutos ao vivo ("35'", "45+", "Intervalo", "90+")
+- `ehCampeonatoCopa(nome?)` — detecção dinâmica usando label do CAMPEONATOS config
+
+**Consumidores atualizados:**
+- `card-proximos-jogos.tsx` — removeu helpers inline, importa de `jogo-helpers`
+- `useHomeData.ts` — removeu lógica de Copa inline, importa `ehCampeonatoCopa`
+- `usePalpitesData.ts` — substituiu `ehGrupoCopa` por `ehCampeonatoCopa` compartilhado
+
+### Frontend — Issues Sonar Corrigidas (7)
+
+| Rule | Arquivo | Correção |
+|------|---------|----------|
+| S3776 (complexidade 16→15) | `palpites/page.tsx` | 2 useEffects unificados em 1 |
+| S3358 (ternário aninhado) | `grupos/[grupoId]/palpites/page.tsx` | IIFE |
+| S3358 (ternário aninhado) | `palpite-inline-form.tsx` | Função `obterTextoBotao()` |
+| S3358 (ternário aninhado) | `formulario-alterar-senha.tsx` | IIFE |
+| S6479 (array index keys) | `grupos/[grupoId]/page.tsx` | Prefixo `skeleton-ranking-` |
+| S6759 (props não Readonly) | `palpite-inline-form.tsx` | `Readonly<>` adicionado |
+| `as any` + `!` assertions | `palpite-inline-form.tsx`, `card-proximos-jogos.tsx` | Tipagem correta + guards |
+
+### Frontend — Erro de Compilação Corrigido
+- `inicio/page.tsx` passava prop `totalPalpites` inexistente na interface `PropsCardProximosJogos`
+
+---
+
+### Backend — Duplicações Eliminadas (3 padrões)
+
+| Padrão | Arquivo | Solução |
+|--------|---------|---------|
+| Validação palpitável `!== AGENDADO && !== ADIADO` (4×) | `palpite.service.ts` | `private validarJogoAceitaPalpites(jogo)` |
+| `membros.map(m => m.usuarioId)` (4×) | `ranking.service.ts` | `private extrairUsuarioIds(membros)` |
+| "buscar token → se não existe → criar" (4×) | `ranking.service.ts` | `private concederTokenSeNaoExiste(usuarioId, grupoId, motivo, referenciaId)` |
+
+### Backend — Logging Consolidado (Sincronização)
+
+**Antes (7 linhas por sync):**
+```
+[SYNC] Iniciando sincronização: fase=xxx...
+[SYNC] Fases para sincronizar: 12 (Grupo A, ...)
+[SYNC] rodadaAtual=3, limiteRodada=4, jogosParaSync=29
+[SYNC] API respondeu em 221ms...
+[SYNC] 🏁 JOR 1 x 2 AGL → FINALIZADO
+[SYNC] Processamento de 29 jogos em 111ms...
+[SYNC] Sincronização completa em 787ms
+```
+
+**Depois (1-2 linhas):**
+```
+[SYNC] copa-do-mundo-2026 R3 | 1/29 atualizados | Grupo A, Grupo B, ... | API 221ms | Total 787ms | JOR 1x2 AGL (🏁)
+```
+
+### Backend — Erro de Compilação Corrigido
+- `ranking.service.ts` → `concederTokenSeNaoExiste` tipado com union `'PALPITES_COMPLETOS' | 'ACERTO_EM_CHEIO' | 'ULTIMO_RANKING' | 'PRIMEIRO_RANKING'`
+
+---
+
+### Documentação Gerada
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `bolao-frontend/docs/code-review/code-review-pipeline-qualidade.md` | Code review frontend |
+| `bolao-backend/docs/code-review/code-review-pipeline-qualidade.md` | Code review backend |
+| `bolao-backend/docs/code-review/code-review-pipeline-qualidade-consolidado.md` | Visão consolidada front+back |
+| `bolao-backend/docs/tasks/task-otimizacao-n-plus-1.md` | Task de performance + SRP |
+
+---
+
+### Próximos Passos (dessa pipeline)
+
+| Item | Prioridade | Impacto |
+|------|-----------|---------|
+| Batch queries N+1 (ranking Copa 12→1 query) | Alta | ~1.2s → ~150ms |
+| Dividir `JogoService` (1087 linhas → 4 services) | Média | Manutenibilidade |
+| Extrair `ProcessamentoPontuacaoService` do `RankingService` | Média | SRP |
+| Tipar interfaces de repository (remover `any`) | Média | Type safety |
+| Refatorar `grupos/[grupoId]/page.tsx` (complexidade 45) | Média | Sonar |
+| Unificar `card-proximo-jogo-copa` com `card-proximos-jogos` | Baixa | DRY |
+
+### Validação
+- ✅ 487 testes backend passando (`npx vitest run`)
+- ✅ `tsc --noEmit` sem erros (frontend)
+- ✅ Diagnostics limpos em todos arquivos editados

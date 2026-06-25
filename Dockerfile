@@ -8,7 +8,7 @@ RUN npm ci
 
 COPY src ./src
 COPY public ./public
-COPY next.config.ts tsconfig.json postcss.config.mjs tailwind.config.ts components.json ./
+COPY next.config.ts tsconfig.json postcss.config.mjs components.json ./
 RUN npm run build
 
 # Estágio 2: produção

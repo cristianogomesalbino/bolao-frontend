@@ -127,7 +127,11 @@ export default function PalpitesGrupoPage() {
                           </p>
                         )}
                         <p className="text-[9px] text-texto/30">
-                          {jogo.status === 'FINALIZADO' ? 'Encerrado' : jogo.status === 'ADIADO' ? 'A definir' : new Date(jogo.dataHora).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' })}
+                          {(() => {
+                            if (jogo.status === 'FINALIZADO') return 'Encerrado';
+                            if (jogo.status === 'ADIADO') return 'A definir';
+                            return new Date(jogo.dataHora).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' });
+                          })()}
                         </p>
                       </div>
 
