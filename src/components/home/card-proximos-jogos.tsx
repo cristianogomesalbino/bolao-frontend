@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Fase, Jogo } from '@/types/jogo.types';
-import { buscarDetalhamentoJogo } from '@/services/palpite.service';
+import { buscarDetalhamentoJogo, buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
 import { usePalpiteCard } from '@/hooks/usePalpiteCard';
 import { calcularCountdown, calcularTempoJogo } from '@/lib/jogo-helpers';
@@ -61,6 +61,21 @@ export function CardProximosJogos({
   const [countdown, setCountdown] = useState(calcularCountdown(dataHora));
   const [tempoJogo, setTempoJogo] = useState(aoVivo ? calcularTempoJogo(dataHora) : '');
   const [palpitesExpandido, setPalpitesExpandido] = useState(false);
+
+  // Batch: buscar palpites de todos os jogos simultâneos de uma vez
+  const todosJogoIds = jogos.map((j) => j.jogo.id);
+  const { data: palpitesBatch } = useQuery({
+    queryKey: ['meus-palpites-batch', 'card-proximos', ...todosJogoIds],
+    queryFn: () => buscarMeusPalpitesPorJogos(todosJogoIds),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Mapa jogoId → palpite para acesso rápido
+  const palpitesPorJogo = new Map(
+    (palpitesBatch ?? []).map((p) => [p.jogoId, p])
+  );
+  // Palpite do jogo destaque: prop do pai tem prioridade, fallback no batch
+  const palpiteDestaque = meuPalpite ?? palpitesPorJogo.get(jogoDestaque.jogo.id) ?? null;
 
   // Countdown (só quando não ao vivo)
   useEffect(() => {
@@ -124,7 +139,7 @@ export function CardProximosJogos({
             aoVivo={aoVivo}
             jogo={jogoDestaque.jogo}
             tempoJogo={tempoJogo}
-            meuPalpite={meuPalpite}
+            meuPalpite={palpiteDestaque}
             countdown={countdown}
             corCountdown={corCountdown}
             temaCopa={temaCopa}
@@ -162,6 +177,7 @@ export function CardProximosJogos({
             grupoId={grupoId}
             temaCopa={temaCopa}
             corCountdown={corCountdown}
+            meuPalpite={palpitesPorJogo.get(item.jogo.id) ?? null}
           />
         ))}
 
@@ -329,7 +345,7 @@ function Colunacentral({ aoVivo, jogo, tempoJogo, meuPalpite, countdown, corCoun
       {salvoFeedback && (
         <span className="text-[9px] text-primaria-claro mt-1">✓ Salvo!</span>
       )}
-      {jaPalpitou && !salvoFeedback && (
+      {jaPalpitou && !salvoFeedback && aoVivo && (
         <span className={`text-[9px] font-medium mt-1 px-2 py-0.5 rounded-full ${corPalpiteBg} ${corPalpiteTexto}`}>
           Meu Palpite: {golsCasa} × {golsFora}
         </span>
@@ -398,9 +414,10 @@ interface PropsJogoSimultaneo {
   grupoId?: string;
   temaCopa?: boolean;
   corCountdown: string;
+  meuPalpite?: { golsCasa: number; golsFora: number } | null;
 }
 
-function JogoSimultaneo({ jogo, grupoId, temaCopa, corCountdown }: Readonly<PropsJogoSimultaneo>) {
+function JogoSimultaneo({ jogo, grupoId, temaCopa, corCountdown, meuPalpite }: Readonly<PropsJogoSimultaneo>) {
   const [expandido, setExpandido] = useState(false);
   const aoVivo = jogo.status === 'EM_ANDAMENTO';
   const corTexto = temaCopa ? 'text-[#ffdf00]/80' : 'text-texto/70';
@@ -434,7 +451,7 @@ function JogoSimultaneo({ jogo, grupoId, temaCopa, corCountdown }: Readonly<Prop
           aoVivo={aoVivo}
           jogo={jogo}
           tempoJogo={aoVivo ? calcularTempoJogo(jogo.dataHora) : ''}
-          meuPalpite={null}
+          meuPalpite={meuPalpite ?? null}
           countdown={calcularCountdown(jogo.dataHora)}
           corCountdown={corCountdown}
           temaCopa={temaCopa}
