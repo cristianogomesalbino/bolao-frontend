@@ -1,170 +1,150 @@
 # Bolão Frontend
 
-Frontend PWA do sistema de bolão de futebol. Aplicação mobile-first com tema esportivo escuro.
+PWA mobile-first para gerenciamento de bolões de campeonatos de futebol. Tema escuro esportivo com suporte a Brasileirão e Copa do Mundo.
 
-## Stack
-
-- Next.js 15 (App Router)
-- TypeScript (strict mode)
-- Tailwind CSS v4 (paleta esportiva customizada)
-- shadcn/ui (componentes acessíveis)
-- Zustand (estado de autenticação)
-- React Hook Form + Zod (formulários e validação)
-- TanStack Query (data fetching)
-- Axios (HTTP client com interceptors)
-- PWA (manifest + service worker via @ducanh2912/next-pwa)
-- Vitest + Testing Library + fast-check (testes)
-
-## Ambiente de Desenvolvimento (Docker)
-
-O projeto roda dentro de Docker com hot reload.
+## Setup Rápido (5 minutos)
 
 ```bash
-# Primeira vez — instalar dependências no host
+# 1. Clone
+git clone <repo-url>
+cd bolao-frontend
+
+# 2. Instale dependências no host (obrigatório — container monta node_modules do host)
 npm install
 
-# Iniciar em modo dev (porta 3003)
+# 3. Configure variáveis de ambiente
+cp .env.local.example .env
+
+# 4. Inicie em modo dev (porta 3003)
 sh dev start-dev
 
-# Parar containers
-sh dev stop
-
-# Ver logs
-sh dev logs
-
-# Instalar pacotes (com container rodando)
-sh dev npm install <pacote>
-
-# Executar comandos npx
-sh dev npx <comando>
-
-# Build de produção
-sh dev start-prod
+# 5. Acesse
+open http://localhost:3003
 ```
+
+> O backend precisa estar rodando na porta 3002 para funcionar. Ver `bolao-backend/README.md`.
 
 ## Variáveis de Ambiente
 
-Copie `.env.local.example` para `.env`:
+| Variável | Descrição | Default |
+|----------|-----------|---------|
+| `NEXT_PUBLIC_API_URL` | URL do backend | `http://localhost:3002` |
+| `PORT` | Porta do frontend | `3003` |
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3002
-PORT=3003
+## Stack
+
+| Tecnologia | Uso |
+|------------|-----|
+| Next.js 15 (App Router) | Framework + SSR/SSG |
+| TypeScript strict | Tipagem |
+| Tailwind CSS v4 | Estilização (tema via CSS @theme) |
+| shadcn/ui | Componentes acessíveis |
+| Zustand | Estado global (auth) |
+| TanStack Query | Data fetching + cache |
+| React Hook Form + Zod | Formulários + validação |
+| Axios | HTTP client com interceptors |
+| @ducanh2912/next-pwa | PWA (manifest + service worker) |
+| Vitest + Testing Library | Testes unitários |
+
+## Comandos
+
+```bash
+sh dev start-dev          # Dev com hot reload (porta 3003)
+sh dev stop               # Parar containers
+sh dev logs               # Ver logs do container
+sh dev npm install <pkg>  # Instalar pacote
+sh dev npx <cmd>          # Executar npx no container
+sh dev start-prod         # Build de produção
+npm test                  # Testes (roda no host)
+npx tsc --noEmit          # Type-check (roda no host)
 ```
 
 ## Estrutura do Projeto
 
 ```
 src/
-├── app/
-│   ├── layout.tsx              # Root layout (providers, PWA meta tags)
-│   ├── page.tsx                # Raiz — redireciona pra /login ou /inicio
-│   ├── globals.css             # Tailwind v4 + paleta esportiva
-│   ├── (auth)/                 # Route group — páginas públicas
-│   │   ├── layout.tsx          # Layout centralizado com logo
-│   │   ├── login/page.tsx
-│   │   ├── cadastro/page.tsx
-│   │   ├── esqueci-senha/page.tsx
-│   │   └── resetar-senha/page.tsx
-│   └── (protegido)/            # Route group — requer autenticação
-│       ├── layout.tsx          # GuardAutenticacao wrapper
-│       └── inicio/page.tsx
+├── app/                        # Rotas (App Router)
+│   ├── (auth)/                 # Públicas: login, cadastro, esqueci/resetar senha
+│   ├── (protegido)/            # Requer auth: inicio, palpites, grupos, admin
+│   ├── layout.tsx              # Root layout (providers, PWA)
+│   └── globals.css             # Tailwind v4 + paleta + animações
 ├── components/
-│   ├── ui/                     # Primitivos shadcn/ui (Button, Input, Label, Card, Alert)
-│   ├── auth/                   # Formulários de autenticação + guard
-│   │   ├── formulario-login.tsx
-│   │   ├── formulario-cadastro.tsx
-│   │   ├── formulario-esqueci-senha.tsx
-│   │   ├── formulario-resetar-senha.tsx
-│   │   └── guard-autenticacao.tsx
-│   ├── layout/                 # Componentes de layout
-│   │   ├── logo-bolao.tsx
-│   │   └── indicador-offline.tsx
-│   └── providers.tsx           # QueryClient + inicialização auth
-├── hooks/
-│   ├── use-auth.ts             # Hook de conveniência pro auth store
-│   └── use-usuario.ts          # TanStack Query — buscar perfil
-├── lib/
-│   ├── api-client.ts           # Axios com interceptors (token refresh automático)
-│   ├── query-client.ts         # Configuração TanStack Query
-│   ├── validacoes.ts           # Schemas Zod (login, cadastro, etc.)
+│   ├── ui/                     # Primitivos shadcn/ui
+│   ├── auth/                   # Formulários de login/cadastro
+│   ├── home/                   # Cards: próximos jogos, ranking, grupos, avisos
+│   ├── palpites/               # Aba todos, aba meus, lista-membros, modal-grupo
+│   ├── palpite/                # Formulário inline de palpite
+│   ├── jogos/                  # Card jogo com palpite integrado
+│   ├── copa-do-mundo/          # Dashboard, classificação, seletor fases
+│   ├── usuario/                # Perfil, alterar senha
+│   ├── icons/                  # SVGs customizados (ícone palpite)
+│   └── layout/                 # Bottom nav, logo, indicador offline
+├── hooks/                      # useAuth, useUsuario, useHomeData, usePalpitesData, usePalpiteCard
+├── lib/                        # Utilitários compartilhados
+│   ├── api-client.ts           # Axios + interceptors (refresh automático)
+│   ├── jogo-helpers.ts         # calcularCountdown, calcularTempoJogo, ehCampeonatoCopa
+│   ├── pontuacao-formatada.ts  # formatarPontuacao (singular/plural)
+│   ├── avisos.ts               # Gestão de avisos admin (localStorage)
+│   ├── validacoes.ts           # Schemas Zod
+│   ├── query-client.ts         # Config TanStack Query
 │   └── utils.ts                # cn() para merge de classes
-├── services/
-│   ├── auth.service.ts         # login, refresh, logout, esqueciSenha, resetarSenha
-│   └── usuario.service.ts      # buscarPerfil, criarUsuario
+├── services/                   # Chamadas à API (1 arquivo por módulo)
+│   ├── auth.service.ts
+│   ├── usuario.service.ts
+│   ├── grupo.service.ts
+│   ├── jogo.service.ts
+│   ├── palpite.service.ts
+│   └── classificacao.service.ts
 ├── stores/
-│   └── auth.store.ts           # Zustand — estado + gerenciador de tokens
-└── types/
-    ├── auth.types.ts           # DadosLogin, RespostaTokens, ErroApi, etc.
-    └── usuario.types.ts        # Usuario
+│   └── auth.store.ts           # Zustand: tokens + usuario + inicialização
+└── types/                      # Interfaces TypeScript (1 por entidade)
 ```
 
-## Paleta de Cores
+## Módulos Implementados
 
-| Nome | Hex | Uso |
-|------|-----|-----|
-| primaria | #16a34a | Botões, ações principais |
-| secundaria | #1e40af | Elementos secundários |
-| destaque | #f59e0b | Destaques, badges |
-| fundo | #1a1a2e | Background geral |
-| superficie | #16213e | Cards, inputs |
-| texto | #e2e8f0 | Texto principal |
-| link | #4ade80 | Links (verde claro) |
-| erro | #ef4444 | Erros, alertas |
-| sucesso | #22c55e | Confirmações |
+- ✅ **Auth** — Login, cadastro, recuperação de senha, guard de rotas
+- ✅ **Perfil** — Editar nome/email, alterar senha, excluir conta
+- ✅ **Home** — Cards: próximos jogos (ao vivo + countdown), ranking com pódio, meus grupos, avisos admin
+- ✅ **Grupos** — Listar, criar, entrar, configurar, membros, código convite
+- ✅ **Palpites** — Dar palpite inline, editar, lote, meus palpites, estatísticas do grupo
+- ✅ **Ranking** — Geral, por rodada, variação de posição, detalhamento por jogo
+- ✅ **Copa do Mundo** — Dashboard, classificação por grupos, palpites com tema amarelo/verde
+- ✅ **Admin** — Importar jogos, sincronizar placares
 
-## Fluxo de Autenticação
+## Autenticação
 
-1. Usuário acessa `/` → redireciona pra `/login` (se não autenticado)
-2. Faz login → tokens salvos (access em memória, refresh em localStorage)
-3. Redireciona pra `/inicio`
-4. Requisições autenticadas anexam Bearer token automaticamente
-5. Se token expira → refresh automático via interceptor
-6. Se refresh falha → limpa tokens, redireciona pra `/login`
+- JWT: access token (15min) em memória + refresh token (7d) em localStorage
+- Interceptor Axios faz refresh automático em 401
+- Guard `GuardAutenticacao` protege rotas `(protegido)/`
+- Warm-up: verifica `/health` do backend no login (mostra "servidor acordando" se Supabase dorme)
 
-## Endpoints do Backend Consumidos
+## Temas (Copa vs Brasileirão)
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | /auth/login | Login (email + senha) |
-| POST | /auth/refresh | Renovar token |
-| POST | /auth/logout | Logout |
-| POST | /auth/esqueci-senha | Solicitar recuperação |
-| POST | /auth/resetar-senha | Resetar senha com token |
-| POST | /usuarios | Criar conta |
-| GET | /usuarios/me | Perfil do usuário autenticado |
+O frontend adapta cores automaticamente baseado no campeonato:
+- **Brasileirão:** verde (#16a34a), fundo escuro, borda verde nos cards
+- **Copa do Mundo:** amarelo (#ffdf00) + verde (#009c3b), glow dourado, fundo verde escuro
+
+Detecção: `ehCampeonatoCopa(nome)` via `lib/jogo-helpers.ts`
+
+## Deploy
+
+- **Plataforma:** Vercel
+- **Branch de produção:** `main`
+- **Deploy automático:** push em main → build → deploy
+- **Variável no Vercel:** `NEXT_PUBLIC_API_URL` = URL do backend em produção
 
 ## Testes
 
 ```bash
-# Rodar testes uma vez
-npm test
-
-# Rodar em watch mode
-npm run test:watch
+npm test                 # Roda uma vez
+npm run test:watch       # Watch mode
 ```
 
-Framework: Vitest + React Testing Library + fast-check (property-based testing)
-
-## PWA
-
-- Manifest em `public/manifest.json`
-- Ícones em `public/icons/` (placeholder — substituir por ícones reais)
-- Service worker gerado automaticamente em produção
-- Instalável na home screen do celular
+Framework: Vitest + React Testing Library + fast-check (property-based)
 
 ## Portas
 
 | Serviço | Porta |
 |---------|-------|
-| Backend | 3002 |
-| Frontend | 3003 |
-
-## Roadmap
-
-- [x] Autenticação (login, cadastro, recuperação de senha)
-- [ ] Login com Google (OAuth 2.0)
-- [ ] Módulo de Grupos
-- [ ] Módulo de Palpites
-- [ ] Módulo de Ranking
-- [ ] Notificações push
-- [ ] Tema light/dark automático
+| Backend (NestJS) | 3002 |
+| Frontend (Next.js) | 3003 |

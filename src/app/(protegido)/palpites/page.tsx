@@ -35,9 +35,11 @@ function useCampeonatoComProximoJogo(): CampeonatoSlug | null {
         temporadas.map(async (t) => {
           const dados = await buscarDadosTemporada(t.id);
           const dataJogoStr = dados.proximoJogo?.jogo.dataHora;
+          const statusJogo = dados.proximoJogo?.jogo.status;
           if (!dataJogoStr) return null;
           const dataJogo = new Date(dataJogoStr).getTime();
-          if (dataJogo <= agora) return null;
+          // Incluir jogos em andamento (já começaram) e futuros
+          if (dataJogo <= agora && statusJogo !== 'EM_ANDAMENTO') return null;
           const nomeCampeonato = t.campeonato?.nome?.toLowerCase() ?? '';
           const ehCopa = nomeCampeonato.includes('copa') && nomeCampeonato.includes('mundo');
           return { dataJogo, ehCopa };
@@ -90,13 +92,18 @@ export default function PalpitesPage() {
     return () => window.removeEventListener('scroll', aoScrollar);
   }, []);
 
-  // Aplica a detecção automática apenas uma vez (sem param explícito na URL)
+  // Sincroniza campeonato: param da URL ou detecção automática
   useEffect(() => {
+    if (paramCampeonato && SLUGS_VALIDOS.has(paramCampeonato as CampeonatoSlug)) {
+      setCampeonato(paramCampeonato as CampeonatoSlug);
+      setJaAplicouDeteccao(true);
+      return;
+    }
     if (!paramCampeonato && campeonatoDetectado && !jaAplicouDeteccao) {
       setCampeonato(campeonatoDetectado);
       setJaAplicouDeteccao(true);
     }
-  }, [campeonatoDetectado, paramCampeonato, jaAplicouDeteccao]);
+  }, [paramCampeonato, campeonatoDetectado, jaAplicouDeteccao]);
 
   const {
     temporadaId,
@@ -125,8 +132,8 @@ export default function PalpitesPage() {
   // Modal obrigatório: aparece quando tem 2+ grupos no campeonato ativo e o favorito não pertence a ele
   // Não mostra durante detecção automática de campeonato (evita flash do modal errado)
   const [campeonatosResolvidos, setCampeonatosResolvidos] = useState<Set<string>>(new Set());
-  const aguardandoDeteccao = !paramCampeonato && !jaAplicouDeteccao;
-  const deveExibirModal = !aguardandoDeteccao && !favoritoNoCampeonato && gruposDisponiveis.length > 1 && !campeonatosResolvidos.has(campeonato);
+  const aguardandoDeteccao = !jaAplicouDeteccao;
+  const deveExibirModal = false; // Desabilitado — usuário já tem grupo favorito
 
   // Auto-posicionar no primeiro jogo palpitável quando batch carrega
   useEffect(() => {

@@ -13,7 +13,7 @@ interface PalpiteInlineFormProps {
   disabled?: boolean;
 }
 
-export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled }: PalpiteInlineFormProps) {
+export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled }: Readonly<PalpiteInlineFormProps>) {
   const queryClient = useQueryClient();
   const [golsCasa, setGolsCasa] = useState(0);
   const [golsFora, setGolsFora] = useState(0);
@@ -45,7 +45,7 @@ export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled
   });
 
   const mutationAtualizar = useMutation({
-    mutationFn: () => atualizarPalpite(palpiteExistente!.id, { golsCasa, golsFora }),
+    mutationFn: () => atualizarPalpite(palpiteExistente?.id ?? '', { golsCasa, golsFora }),
     onSuccess: (data: Palpite) => {
       queryClient.setQueryData(['meu-palpite', jogoId], data);
       setEditando(false);
@@ -90,9 +90,9 @@ export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled
         <div className="flex flex-col items-center gap-2 mt-3 pt-3 border-t border-white/[0.05]">
           <span className="text-[10px] text-texto/40">Seu palpite</span>
           <div className="flex items-center gap-4">
-            <span className="text-lg font-bold text-texto">{palpiteExistente!.golsCasa}</span>
+            <span className="text-lg font-bold text-texto">{palpiteExistente.golsCasa}</span>
             <span className="text-[10px] text-texto/30">×</span>
-            <span className="text-lg font-bold text-texto">{palpiteExistente!.golsFora}</span>
+            <span className="text-lg font-bold text-texto">{palpiteExistente.golsFora}</span>
           </div>
           <span className="text-[9px] text-texto/30">🔒 Palpites encerrados</span>
         </div>
@@ -102,13 +102,13 @@ export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled
   }
 
   // Modo visualização (já palpitou, não está editando)
-  if (modoVisualizacao) {
+  if (modoVisualizacao && palpiteExistente) {
     return (
       <div className="relative mt-3 pt-3 border-t border-white/[0.05]">
         <div className="flex items-center justify-center gap-3">
           <div className="flex flex-col items-center flex-1">
             <span className="text-[9px] text-texto/30 truncate max-w-[60px]">{timeCasaNome}</span>
-            <span className="text-2xl font-bold text-texto">{palpiteExistente!.golsCasa}</span>
+            <span className="text-2xl font-bold text-texto">{palpiteExistente.golsCasa}</span>
           </div>
           <div className="flex flex-col items-center">
             <span className="text-[9px] text-texto/40 mb-1">Meu palpite</span>
@@ -116,7 +116,7 @@ export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled
           </div>
           <div className="flex flex-col items-center flex-1">
             <span className="text-[9px] text-texto/30 truncate max-w-[60px]">{timeForaNome}</span>
-            <span className="text-2xl font-bold text-texto">{palpiteExistente!.golsFora}</span>
+            <span className="text-2xl font-bold text-texto">{palpiteExistente.golsFora}</span>
           </div>
         </div>
         <button
@@ -149,6 +149,13 @@ export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled
   }
 
   // Modo edição / criação
+  function obterTextoBotao(): string {
+    if (salvando) return 'Salvando...';
+    if (jaPalpitou) return 'Atualizar palpite';
+    return 'Confirmar palpite';
+  }
+  const textoBotaoConfirmar = obterTextoBotao();
+
   return (
     <div className="flex flex-col items-center gap-3 mt-3 pt-3 border-t border-white/[0.05]">
       {salvo && (
@@ -221,17 +228,17 @@ export function PalpiteInlineForm({ jogoId, timeCasaNome, timeForaNome, disabled
         ) : (
           <Check size={16} />
         )}
-        {salvando ? 'Salvando...' : jaPalpitou ? 'Atualizar palpite' : 'Confirmar palpite'}
+        {textoBotaoConfirmar}
       </button>
 
       {/* Cancelar edição */}
-      {editando && (
+      {editando && palpiteExistente && (
         <button
           type="button"
           onClick={() => {
             setEditando(false);
-            setGolsCasa(palpiteExistente!.golsCasa);
-            setGolsFora(palpiteExistente!.golsFora);
+            setGolsCasa(palpiteExistente.golsCasa);
+            setGolsFora(palpiteExistente.golsFora);
           }}
           className="text-[10px] text-texto/40 hover:text-texto/60 transition-colors"
         >

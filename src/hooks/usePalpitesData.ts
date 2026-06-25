@@ -3,8 +3,9 @@ import { listarFases, listarJogosFase, listarTemporadas } from '@/services/jogo.
 import { listarGrupos } from '@/services/grupo.service';
 import { buscarMeusPalpitesPorJogos, listarMeusPalpites } from '@/services/palpite.service';
 import { useAuthStore } from '@/stores/auth.store';
-import { Jogo, CAMPEONATOS } from '@/types/jogo.types';
+import { Jogo } from '@/types/jogo.types';
 import { Palpite, PalpiteComJogo } from '@/types/palpite.types';
+import { ehCampeonatoCopa } from '@/lib/jogo-helpers';
 
 /** Verifica se o jogo aceita palpites (status correto e hora não passou) */
 export function podePalpitar(jogo: Jogo): boolean {
@@ -31,22 +32,13 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     select: (grupos) => grupos.map((g) => ({ id: g.id, nome: g.nome, temporadaId: g.temporadaId, campeonato: g.temporada?.campeonato?.nome })),
   });
 
-  // Label do campeonato Copa a partir do config
-  const labelCopa = CAMPEONATOS.find((c) => c.slug === 'copa-do-mundo-2026')?.label ?? '';
-  const palavraChaveCopa = labelCopa.split(' ')[0].toLowerCase(); // 'copa'
-
-  function ehGrupoCopa(nomeCampeonato?: string): boolean {
-    if (!nomeCampeonato) return false;
-    return nomeCampeonato.toLowerCase().includes(palavraChaveCopa) && nomeCampeonato.toLowerCase().includes('mundo');
-  }
-
   // Selecionar grupo correto baseado no campeonato selecionado
   const grupoParaCampeonato = (() => {
     if (!gruposData) return undefined;
     const favoritoId = usuario?.grupoFavoritoId;
 
     if (campeonatoSelecionado === 'copa-do-mundo-2026') {
-      const gruposCopa = gruposData.filter((g) => ehGrupoCopa(g.campeonato));
+      const gruposCopa = gruposData.filter((g) => ehCampeonatoCopa(g.campeonato));
       if (gruposCopa.length === 0) return undefined;
       // Se tem favorito e é Copa, usa ele
       if (favoritoId) {
@@ -57,7 +49,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     }
 
     // Brasileirão: grupo favorito ou primeiro que não é Copa
-    const gruposBrasileirao = gruposData.filter((g) => !ehGrupoCopa(g.campeonato));
+    const gruposBrasileirao = gruposData.filter((g) => !ehCampeonatoCopa(g.campeonato));
     if (gruposBrasileirao.length === 0) return undefined;
     if (favoritoId) {
       const fav = gruposBrasileirao.find((g) => g.id === favoritoId);
@@ -96,11 +88,11 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
   const temporadaAtual = (() => {
     if (!temporadas || temporadas.length === 0) return undefined;
     if (campeonatoSelecionado === 'copa-do-mundo-2026') {
-      return temporadas.find((t) => ehGrupoCopa(t.campeonato?.nome));
+      return temporadas.find((t) => ehCampeonatoCopa(t.campeonato?.nome));
     }
     // Brasileirão: buscar por nome que contém "Série A" ou primeiro que não é Copa
     return temporadas.find((t) => t.campeonato?.nome?.includes('Série A'))
-      ?? temporadas.find((t) => !ehGrupoCopa(t.campeonato?.nome))
+      ?? temporadas.find((t) => !ehCampeonatoCopa(t.campeonato?.nome))
       ?? temporadas[0];
   })();
   const temporadaId = temporadaAtual?.id || '';

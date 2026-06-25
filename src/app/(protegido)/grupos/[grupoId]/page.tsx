@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ModalConfirmacao } from '@/components/ui/modal-confirmacao';
 import { PalpiteInlineForm } from '@/components/palpite/palpite-inline-form';
 import { AbaDashboardCopa } from '@/components/copa-do-mundo/aba-dashboard-copa';
+import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 import { AbaClassificacaoCopa } from '@/components/copa-do-mundo/aba-classificacao-copa';
 import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpites-copa';
 
@@ -316,171 +317,13 @@ export default function DetalhesGrupoPage() {
 
             {/* Próximo Jogo */}
             {proximoJogo && (
-              <Card data-testid="grupo-card-proximo-jogo" className="border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-primaria-claro" />
-                      <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                        Próximo Jogo {proximoJogo.jogo.rodada ? `— Rodada ${proximoJogo.jogo.rodada}` : ''}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {proximoJogo.jogo.foiAdiado && (
-                        <span className="text-[9px] font-bold text-destaque bg-destaque/15 border border-destaque/30 px-2 py-0.5 rounded flex items-center gap-1">
-                          ⚠ ATRASADO
-                        </span>
-                      )}
-                      <button onClick={() => router.push(`/grupos/${grupoId}/palpites`)} className="text-[10px] text-primaria-claro/70 hover:text-primaria-claro flex items-center gap-0.5">
-                        Ver todos <ChevronRight size={10} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start justify-center py-2 gap-3">
-                    {/* Time Casa */}
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <div className="h-[72px] w-[72px] flex items-center justify-center">
-                        {proximoJogo.jogo.timeCasa?.escudo ? (
-                          <Image src={proximoJogo.jogo.timeCasa.escudo} alt={proximoJogo.jogo.timeCasa.nome} width={64} height={64} className="h-[64px] w-[64px] object-contain drop-shadow-[0_0_24px_rgba(255,255,255,0.4)] brightness-110 saturate-[1.2]" unoptimized />
-                        ) : (
-                          <span className="text-xl font-bold text-texto/50">{proximoJogo.jogo.timeCasa?.sigla || '?'}</span>
-                        )}
-                      </div>
-                      <span className="text-[13px] text-texto font-bold truncate max-w-[110px]">
-                        {proximoJogo.jogo.timeCasa?.nome || 'Time Casa'}
-                      </span>
-                      {classificacao && proximoJogo.jogo.timeCasa?.nome && obterPosicaoTime(classificacao, proximoJogo.jogo.timeCasa.nome) && (
-                        <span className="text-[10px] text-primaria-claro font-medium">
-                          {obterPosicaoTime(classificacao, proximoJogo.jogo.timeCasa.nome)}º colocado
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Centro: Data + Horário + VS */}
-                    <div className="flex flex-col items-center">
-                      <span className="text-[11px] text-primaria-claro font-bold bg-primaria/15 px-3 py-0.5 rounded">
-                        {formatarDataJogo(proximoJogo.jogo.dataHora)}
-                      </span>
-                      <span className="text-3xl font-bold text-texto mt-5">
-                        {new Date(proximoJogo.jogo.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="h-px w-6 bg-texto/15" />
-                        <span className="text-[10px] text-texto/30 font-medium">VS</span>
-                        <span className="h-px w-6 bg-texto/15" />
-                      </div>
-                    </div>
-
-                    {/* Time Fora */}
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <div className="h-[72px] w-[72px] flex items-center justify-center">
-                        {proximoJogo.jogo.timeFora?.escudo ? (
-                          <Image src={proximoJogo.jogo.timeFora.escudo} alt={proximoJogo.jogo.timeFora.nome} width={64} height={64} className="h-[64px] w-[64px] object-contain drop-shadow-[0_0_24px_rgba(255,255,255,0.4)] brightness-110 saturate-[1.2]" unoptimized />
-                        ) : (
-                          <span className="text-xl font-bold text-texto/50">{proximoJogo.jogo.timeFora?.sigla || '?'}</span>
-                        )}
-                      </div>
-                      <span className="text-[13px] text-texto font-bold truncate max-w-[110px]">
-                        {proximoJogo.jogo.timeFora?.nome || 'Time Fora'}
-                      </span>
-                      {classificacao && proximoJogo.jogo.timeFora?.nome && obterPosicaoTime(classificacao, proximoJogo.jogo.timeFora.nome) && (
-                        <span className="text-[10px] text-primaria-claro font-medium">
-                          {obterPosicaoTime(classificacao, proximoJogo.jogo.timeFora.nome)}º colocado
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Histórico + Countdown */}
-                  <div className="flex items-start justify-center gap-3 mb-3">
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <span className="text-[9px] text-texto/30">Últimos 5 jogos</span>
-                      <div className="flex gap-1">
-                        {(classificacao && proximoJogo.jogo.timeCasa?.nome
-                          ? obterUltimosJogos(classificacao, proximoJogo.jogo.timeCasa.nome)
-                          : []
-                        ).map((r, i) => (
-                          <span key={`casa-${i}`} className={`text-[8px] font-bold h-4 w-4 flex items-center justify-center rounded ${obterClasseResultado(r)}`}>{r}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg border border-white/[0.1] bg-white/[0.03] -mt-4">
-                      <span className="text-[9px] text-texto/40 flex items-center gap-1">⏱ Fecha em</span>
-                      <span className={`text-sm font-mono font-bold ${
-                        countdown === 'encerrado' ? 'text-erro' : 'text-primaria-claro'
-                      }`}>
-                        {countdown === 'encerrado' ? 'Encerrado' : countdown || '—'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <span className="text-[9px] text-texto/30">Últimos 5 jogos</span>
-                      <div className="flex gap-1">
-                        {(classificacao && proximoJogo.jogo.timeFora?.nome
-                          ? obterUltimosJogos(classificacao, proximoJogo.jogo.timeFora.nome)
-                          : []
-                        ).map((r, i) => (
-                          <span key={`fora-${i}`} className={`text-[8px] font-bold h-4 w-4 flex items-center justify-center rounded ${obterClasseResultado(r)}`}>{r}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Palpite inline */}
-                  <PalpiteInlineForm
-                    jogoId={proximoJogo.jogo.id}
-                    timeCasaNome={proximoJogo.jogo.timeCasa?.nome || 'Casa'}
-                    timeForaNome={proximoJogo.jogo.timeFora?.nome || 'Fora'}
-                    disabled={countdown === 'encerrado'}
-                  />
-
-                  {/* Chevron expandir - quem palpitou */}
-                  <button
-                    type="button"
-                    onClick={() => setExpandidoProximoJogo(!expandidoProximoJogo)}
-                    className="w-full flex items-center justify-center mt-2 pt-1"
-                    data-testid="grupo-btn-expandir-quem-palpitou"
-                  >
-                    <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandidoProximoJogo ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {expandidoProximoJogo && (
-                    <div className="mt-2 pt-2 border-t border-white/[0.05]">
-                      {carregandoEstatisticas && (
-                        <div className="h-8 rounded-full bg-white/[0.03] animate-pulse" />
-                      )}
-                      {!carregandoEstatisticas && estatisticasProximoJogo?.membrosStatus && estatisticasProximoJogo.membrosStatus.length > 0 && (
-                        <div className="space-y-1">
-                          {[...estatisticasProximoJogo.membrosStatus]
-                            .sort((a, b) => (a.palpitou === b.palpitou ? 0 : a.palpitou ? -1 : 1))
-                            .map((membro) => {
-                              const iniciais = membro.nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase();
-                              const primeiroNome = membro.nome.split(' ')[0];
-                              return (
-                                <div
-                                  key={membro.nome}
-                                  className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg ${membro.palpitou ? 'bg-primaria/[0.06]' : 'bg-white/[0.02]'}`}
-                                >
-                                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${membro.palpitou ? 'bg-primaria shadow-[0_0_6px_rgba(34,197,94,0.6)]' : 'bg-texto/15'}`} />
-                                  <div className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 border ${membro.palpitou ? 'bg-primaria/20 border-primaria/40' : 'bg-white/[0.05] border-white/[0.08]'}`}>
-                                    <span className={`text-[9px] font-bold ${membro.palpitou ? 'text-primaria-claro' : 'text-texto/40'}`}>{iniciais}</span>
-                                  </div>
-                                  <span className={`text-[11px] flex-1 truncate font-medium ${membro.palpitou ? 'text-texto' : 'text-texto/40'}`}>{primeiroNome}</span>
-                                  <span className={`text-[9px] font-semibold px-2.5 py-1 rounded-full ${membro.palpitou ? 'bg-primaria/20 text-primaria-claro' : 'bg-white/[0.04] text-texto/25 border border-white/[0.06]'}`}>
-                                    {membro.palpitou ? '✓ Palpitou' : 'Pendente'}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
-                      {!carregandoEstatisticas && (!estatisticasProximoJogo?.membrosStatus || estatisticasProximoJogo.membrosStatus.length === 0) && (
-                        <p className="text-[10px] text-texto/30 text-center">Nenhum palpite ainda</p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <CardProximosJogos
+                jogos={dadosTemporada?.proximosJogos && dadosTemporada.proximosJogos.length > 0
+                  ? dadosTemporada.proximosJogos
+                  : [proximoJogo]}
+                grupoId={grupoId}
+                temaCopa={false}
+              />
             )}
 
             {!proximoJogo && !carregandoGrupo && !carregandoTemporada && (
@@ -676,7 +519,7 @@ export default function DetalhesGrupoPage() {
                 {(!rankingAtivo || rankingAtivo.length === 0) && carregandoRanking && (
                   <div className="space-y-2 py-4">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-8 rounded-lg bg-white/[0.03] animate-pulse" />
+                      <div key={`skeleton-ranking-${i}`} className="h-8 rounded-lg bg-white/[0.03] animate-pulse" />
                     ))}
                   </div>
                 )}

@@ -131,7 +131,11 @@ export function FormularioAlterarSenha({ onSubmit }: Readonly<PropsFormularioAlt
                   ))}
                 </div>
                 <span className={`text-[10px] uppercase tracking-wider ${
-                  forca.nivel === 1 ? 'text-erro/70' : forca.nivel === 2 ? 'text-destaque/70' : 'text-sucesso/70'
+                  (() => {
+                    if (forca.nivel === 1) return 'text-erro/70';
+                    if (forca.nivel === 2) return 'text-destaque/70';
+                    return 'text-sucesso/70';
+                  })()
                 }`}>
                   {forca.texto}
                 </span>

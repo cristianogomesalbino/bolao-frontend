@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Trophy } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CardRanking } from '@/components/home/card-ranking';
-import { CardProximoJogoCopa } from './card-proximo-jogo-copa';
+import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 import { buscarDadosTemporada } from '@/services/jogo.service';
 import { buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { obterRankingGeral, obterRankingFase } from '@/services/grupo.service';
@@ -89,11 +89,13 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
     <div className="space-y-3">
       {/* Próximo Jogo */}
       {proximoJogo && (
-        <CardProximoJogoCopa
-          jogo={proximoJogo.jogo}
-          fase={proximoJogo.fase}
-          palpiteInicial={palpiteProximoJogo}
+        <CardProximosJogos
+          jogos={dadosTemporada?.proximosJogos && dadosTemporada.proximosJogos.length > 0
+            ? dadosTemporada.proximosJogos
+            : [proximoJogo]}
+          meuPalpite={palpiteProximoJogo}
           grupoId={grupoId}
+          temaCopa={true}
         />
       )}
 

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useHomeData } from '@/hooks/useHomeData';
-import { CardProximoJogo } from '@/components/home/card-proximo-jogo';
+import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 import { CardMeusGrupos } from '@/components/home/card-meus-grupos';
 import { CardAvisos } from '@/components/home/card-avisos';
 import { CardRanking } from '@/components/home/card-ranking';
@@ -29,9 +29,8 @@ export default function InicioPage() {
     grupoFavoritoInicial,
     grupoSelecionadoId,
     setGrupoRankingId,
-    proximoJogo,
+    proximosJogos,
     proximoJogoPronto,
-    estatisticas,
     meuPalpite,
     rankingFormatado,
     gruposOpcoes,
@@ -86,23 +85,11 @@ export default function InicioPage() {
         {/* Avisos do admin */}
         <CardAvisos />
 
-        {/* Próximo jogo */}
-        {proximoJogoPronto && proximoJogo ? (
-          <CardProximoJogo
-            jogoId={proximoJogo.jogo.id}
-            timeCasa={{
-              nome: proximoJogo.jogo.timeCasa?.nome || 'Casa',
-              sigla: proximoJogo.jogo.timeCasa?.sigla || 'CAS',
-              escudo: proximoJogo.jogo.timeCasa?.escudo,
-            }}
-            timeFora={{
-              nome: proximoJogo.jogo.timeFora?.nome || 'Fora',
-              sigla: proximoJogo.jogo.timeFora?.sigla || 'FOR',
-              escudo: proximoJogo.jogo.timeFora?.escudo,
-            }}
-            dataHora={proximoJogo.jogo.dataHora}
-            totalPalpites={estatisticas?.total}
-            jaPalpitou={!!meuPalpite?.id}
+        {/* Próximos jogos */}
+        {proximoJogoPronto && proximosJogos.length > 0 ? (
+          <CardProximosJogos
+            jogos={proximosJogos}
+            meuPalpite={meuPalpite}
             grupoId={grupoFavoritoInicial}
             temaCopa={ehCopa}
           />

@@ -59,12 +59,12 @@ export function CardMeusGrupos({ grupos, carregando }: Readonly<PropsCardMeusGru
         {/* Lista */}
         {!carregando && grupos.length > 0 && (
           <div>
-            {grupos.map((grupo, index) => (
+            {grupos.slice(0, 3).map((grupo, index) => (
               <button
                 key={grupo.id}
                 onClick={() => router.push(`/grupos/${grupo.id}`)}
                 className={`w-full flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-white/[0.04] transition-colors text-left group ${
-                  index < grupos.length - 1 ? 'border-b border-white/[0.04]' : ''
+                  index < Math.min(grupos.length, 3) - 1 ? 'border-b border-white/[0.04]' : ''
                 }`}
                 data-testid={`home-grupo-${grupo.id}`}
               >
