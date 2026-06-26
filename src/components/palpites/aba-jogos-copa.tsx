@@ -99,8 +99,7 @@ function calcularFasesAtivas(
   const ativas: Fase[] = [];
 
   adicionarFaseGruposSePendente(fasesGrupos, jogosPorFase, ativas);
-  adicionarEliminatoriasComJogos(fasesEliminatorias, jogosPorFase, ativas);
-  adicionarProximaEliminatoriaEmBreve(fasesEliminatorias, jogosPorFase, ativas);
+  adicionarEliminatoriasComJogos(fasesEliminatorias, jogosPorFase, ativas, fasesGrupos);
 
   return ativas;
 }
@@ -127,36 +126,33 @@ function adicionarEliminatoriasComJogos(
   fasesEliminatorias: Fase[],
   jogosPorFase: Map<string, Jogo[]>,
   ativas: Fase[],
+  fasesGrupos: Fase[],
 ): void {
+  const algumGrupoTerminou = fasesGrupos.some((fase) => {
+    const jogos = jogosPorFase.get(fase.id) ?? [];
+    return jogos.filter((j) => j.status === 'FINALIZADO').length >= 6;
+  });
+
+  let faseAnteriorTemFinalizado = algumGrupoTerminou;
+
   for (const fase of fasesEliminatorias) {
     const jogos = jogosPorFase.get(fase.id) ?? [];
-    if (jogos.length > 0) {
-      ativas.push(fase);
-    }
+    const temJogos = jogos.length > 0;
+    const temFinalizado = jogos.some((j) => j.status === 'FINALIZADO');
+    const deveExibir = temJogos || faseAnteriorTemFinalizado;
+
+    if (!deveExibir) continue;
+
+    ativas.push(fase);
+
+    // Parar após a primeira fase sem jogos — só mostra 1 próxima
+    if (!temJogos) break;
+
+    // Para a próxima fase: só habilitar se esta tem algum finalizado
+    faseAnteriorTemFinalizado = temFinalizado;
   }
 }
 
-function adicionarProximaEliminatoriaEmBreve(
-  fasesEliminatorias: Fase[],
-  jogosPorFase: Map<string, Jogo[]>,
-  ativas: Fase[],
-): void {
-  if (fasesEliminatorias.length === 0) return;
-
-  const ultimaComJogos = fasesEliminatorias.findLast((f) => (jogosPorFase.get(f.id) ?? []).length > 0);
-  if (!ultimaComJogos) return;
-
-  const idxUltima = fasesEliminatorias.indexOf(ultimaComJogos);
-  const jogosUltima = jogosPorFase.get(ultimaComJogos.id) ?? [];
-  const temFinalizadoNaUltima = jogosUltima.some((j) => j.status === 'FINALIZADO');
-
-  if (!temFinalizadoNaUltima || idxUltima >= fasesEliminatorias.length - 1) return;
-
-  const proximaFase = fasesEliminatorias[idxUltima + 1];
-  if (!proximaFase || ativas.includes(proximaFase)) return;
-
-  ativas.push(proximaFase);
-}
 
 export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }: Readonly<PropsAbaJogosCopa>) {
   const [faseSelecionadaId, setFaseSelecionadaId] = useState<string | null>(null);
@@ -371,8 +367,7 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
                 setFaseSelecionadaId(fase.id);
                 setRodadaSelecionada(null);
               }}
-              disabled={semJogos}
-              className={`shrink-0 py-2 px-3.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${obterClasseFasePill(ativa, semJogos)}`}
+              className={`shrink-0 py-2 px-3.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${obterClasseFasePill(ativa, false)}`}
             >
               {fase.nome}
               {semJogos && ' (em breve)'}
@@ -512,10 +507,14 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
           <IconPalpite size={32} className="text-texto/15 mb-3" />
           <p className="text-texto/40 text-sm">
             {faseSelecionada && (jogosPorFase.get(faseSelecionada.id) ?? []).length === 0
-              ? 'Jogos ainda não definidos para esta fase'
+              ? 'Aguardando importação dos jogos desta fase'
               : 'Todos os jogos desta rodada já foram finalizados'}
           </p>
-          <p className="text-texto/20 text-[10px] mt-1">Confira a aba &ldquo;Meus palpites&rdquo; para ver seus resultados</p>
+          <p className="text-texto/20 text-[10px] mt-1">
+            {faseSelecionada && (jogosPorFase.get(faseSelecionada.id) ?? []).length === 0
+              ? 'Os jogos serão disponibilizados em breve para palpites'
+              : 'Confira a aba "Meus palpites" para ver seus resultados'}
+          </p>
         </div>
       )}
     </div>
