@@ -369,16 +369,20 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
   });
 
   useEffect(() => {
-    if (ativo && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      // Auto-focus no primeiro input ao avançar para este card
-      if (palpitavel && !bloqueado) {
-        setTimeout(() => {
-          const firstInput = inputsRef.current?.querySelector('input:not(:disabled)') as HTMLInputElement | null;
-          firstInput?.focus();
-        }, 300);
-      }
-    }
+    if (!ativo || !cardRef.current) return;
+
+    cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    if (!palpitavel || bloqueado) return;
+
+    setTimeout(() => {
+      const container = inputsRef.current;
+      if (!container) return;
+      const activeEl = document.activeElement;
+      if (activeEl && container.contains(activeEl)) return;
+      const firstInput = container.querySelector('input:not(:disabled)') as HTMLInputElement | null;
+      firstInput?.focus();
+    }, 300);
   }, [ativo, palpitavel, bloqueado]); // eslint-disable-line react-hooks/exhaustive-deps -- inputsRef é ref estável
 
   const emPreenchimento = palpitavel && !palpiteAtual && !bloqueado;
@@ -391,12 +395,12 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
   const cardBorda = palpitavel ? `border-[3px] ${bordaPalpitavel}` : bordaCopa;
 
   function handleSetCasa(valor: number | '') {
-    onFoco?.();
+    if (!ativo) onFoco?.();
     handleSetGolsCasa(valor);
   }
 
   function handleSetFora(valor: number | '') {
-    onFoco?.();
+    if (!ativo) onFoco?.();
     handleSetGolsFora(valor);
   }
 
