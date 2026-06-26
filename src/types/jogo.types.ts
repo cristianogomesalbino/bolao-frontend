@@ -68,7 +68,7 @@ export const CAMPEONATOS: CampeonatoConfig[] = [
     slug: 'copa-do-mundo-2026',
     fases: [
       { label: 'Fase de Grupos', slug: 'fase-de-grupos-copa-do-mundo-2026', maxRodadas: 3, tipo: 'PONTOS_CORRIDOS' },
-      { label: '32 Avos de Final', slug: '32avos-de-final-copa-do-mundo-2026', maxRodadas: 1, tipo: 'MATA_MATA' },
+      { label: '16 Avos de Final', slug: 'segunda-fase-copa-do-mundo-2026', maxRodadas: 16, tipo: 'MATA_MATA' },
       { label: 'Oitavas de Final', slug: 'oitavas-de-final-copa-do-mundo-2026', maxRodadas: 1, tipo: 'MATA_MATA' },
       { label: 'Quartas de Final', slug: 'quartas-de-final-copa-do-mundo-2026', maxRodadas: 1, tipo: 'MATA_MATA' },
       { label: 'Semifinais', slug: 'semifinais-copa-do-mundo-2026', maxRodadas: 1, tipo: 'MATA_MATA' },
