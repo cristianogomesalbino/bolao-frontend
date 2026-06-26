@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Lint antes de push",
+  "description": "Verifica lint nos arquivos modificados antes do push para garantir que erros não cheguem na CI.",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [".*git.*push.*"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "ANTES de executar o push, rode o lint para garantir que não há erros:\n\n1. Execute `npx next lint` no projeto frontend.\n2. Se encontrar QUALQUER erro (não warnings, ERROS — agora @typescript-eslint/no-unused-vars é error), BLOQUEIE o push e corrija os erros primeiro.\n3. Só permita o push quando o lint passar sem erros.\n4. Se precisar corrigir, faça as correções, rode getDiagnostics nos arquivos alterados, e faça um commit de correção antes de prosseguir com o push."
+  }
+}

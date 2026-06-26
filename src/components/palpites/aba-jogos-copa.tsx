@@ -99,7 +99,7 @@ function calcularFasesAtivas(
   const ativas: Fase[] = [];
 
   adicionarFaseGruposSePendente(fasesGrupos, jogosPorFase, ativas);
-  adicionarEliminatoriasComJogos(fasesEliminatorias, jogosPorFase, ativas);
+  adicionarEliminatoriasComJogos(fasesEliminatorias, jogosPorFase, ativas, fasesGrupos);
   adicionarProximaEliminatoriaEmBreve(fasesEliminatorias, jogosPorFase, ativas);
 
   return ativas;
@@ -127,12 +127,27 @@ function adicionarEliminatoriasComJogos(
   fasesEliminatorias: Fase[],
   jogosPorFase: Map<string, Jogo[]>,
   ativas: Fase[],
+  fasesGrupos: Fase[],
 ): void {
+  const algumGrupoTerminou = fasesGrupos.some((fase) => {
+    const jogos = jogosPorFase.get(fase.id) ?? [];
+    return jogos.filter((j) => j.status === 'FINALIZADO').length >= 6;
+  });
+
+  let faseAnteriorTemFinalizado = algumGrupoTerminou;
+
   for (const fase of fasesEliminatorias) {
     const jogos = jogosPorFase.get(fase.id) ?? [];
-    if (jogos.length > 0) {
+    const temJogos = jogos.length > 0;
+    const temFinalizado = jogos.some((j) => j.status === 'FINALIZADO');
+
+    // Mostrar se tem jogos OU se a fase anterior tem finalizado
+    if (temJogos || faseAnteriorTemFinalizado) {
       ativas.push(fase);
     }
+
+    // Para a próxima fase: só habilitar se esta tem algum finalizado
+    faseAnteriorTemFinalizado = temFinalizado;
   }
 }
 
