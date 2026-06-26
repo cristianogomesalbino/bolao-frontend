@@ -112,8 +112,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     queryKey: ['jogos-rodada-atual', faseAtual?.id],
     queryFn: () => listarJogosFase(faseAtual!.id),
     enabled: !!faseAtual?.id,
-    staleTime: 30_000, // 30s — evita refetch em cada render
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60_000,
     refetchInterval: (query) => {
       const jogos = query.state.data?.jogos ?? [];
       const temAoVivo = jogos.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
@@ -140,7 +139,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     queryKey: ['jogos-proxima-rodada', faseAtual?.id, proximaRodadaNum],
     queryFn: () => listarJogosFase(faseAtual!.id, proximaRodadaNum as number),
     enabled: !!faseAtual?.id && !!proximaRodadaNum,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   const jogosProxima = jogosProximaRodada?.jogos ?? [];
