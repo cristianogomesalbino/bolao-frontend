@@ -26,7 +26,7 @@ export function useHomeData() {
     queryKey: ['ranking-home', grupoSelecionadoId],
     queryFn: () => obterRankingGeral(grupoSelecionadoId ?? ''),
     enabled: !!grupoSelecionadoId,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   // Temporadas
@@ -46,7 +46,7 @@ export function useHomeData() {
     queryKey: ['dados-temporada-home', temporadaIdDoGrupo],
     queryFn: () => buscarDadosTemporada(temporadaIdDoGrupo ?? ''),
     enabled: !!temporadaIdDoGrupo,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   // Buscar próximo jogo de TODAS as temporadas quando não tem grupo
@@ -74,7 +74,7 @@ export function useHomeData() {
       return futuro ?? comJogo[0] ?? resultados[0] ?? null;
     },
     enabled: !temGrupo && !carregandoGrupos && !!temporadas && temporadas.length > 0,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   // Selecionar o próximo jogo correto
