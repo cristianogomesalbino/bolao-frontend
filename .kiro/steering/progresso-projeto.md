@@ -553,3 +553,216 @@ Rodar pipeline de qualidade focando em: Sonar, princípios SOLID, remoção de c
 - ✅ 487 testes backend passando (`npx vitest run`)
 - ✅ `tsc --noEmit` sem erros (frontend)
 - ✅ Diagnostics limpos em todos arquivos editados
+
+
+## Sessão 6 — Mata-Mata Copa do Mundo 2026
+
+### Objetivo
+Preparar a ferramenta para as fases eliminatórias da Copa. Implementar navegação por fase, preenchimento automático de chaveamento e palpites bloqueados para jogos sem times definidos.
+
+---
+
+### Backend — ChaveamentoService (novo)
+
+**Arquivo:** `src/modules/jogos/services/chaveamento.service.ts`
+
+Responsabilidade única: preencher automaticamente os times nos jogos de fases eliminatórias conforme os grupos são finalizados.
+
+**Fluxo:**
+1. Sync finaliza jogo de grupo → detecta que status mudou para FINALIZADO
+2. `JogoService.sincronizarPlacares` dispara `chaveamentoService.preencherProximaFaseEliminatoria()`
+3. `ChaveamentoService` busca jogos com time "TBD" (1 query otimizada)
+4. Tenta preencher via API do GE (match por horário)
+5. Fallback: calcula classificação dos grupos finalizados e resolve posições do chaveamento FIFA
+
+**Métodos públicos:**
+- `preencherProximaFaseEliminatoria(temporadaId, config)` — genérico, funciona para qualquer fase
+
+**Logs consolidados:**
+```
+[ChaveamentoService] 🔄 16 Avos de Final: 15 jogos pendentes
+[ChaveamentoService] 📊 Grupos completos: Grupo A, Grupo B, Grupo C, Grupo E
+[ChaveamentoService] 🏆 R1: AFS x CAN | R2: BRA x 2ºF | R3: ALE x 3º ABCDF | R5: CDM x 2ºI | ...
+```
+
+### Backend — Constantes novas
+
+**`COPA_CHAVEAMENTO_16AVOS`** — mapa fixo do chaveamento FIFA (rodada → posição casa/fora)
+**`COPA_FASES_ELIMINATORIAS`** — metadata de cada fase (nome, slug, totalJogos, origem)
+**`COPA_FASES.SEGUNDA_FASE`** — slug correto da API do GE (`segunda-fase-copa-do-mundo-2026`)
+
+### Backend — Alterações no JogoService
+
+- Adicionada injeção do `ChaveamentoService`
+- Pós-sync: se algum jogo foi finalizado, dispara `preencherProximaFaseEliminatoria`
+- `processarJogoSync`: lógica de match por horário para jogos sem `externoId` (criados manualmente)
+- `detectarEAtualizarTimes`: atualiza `timeCasaId`/`timeForaId` quando API substitui placeholder por time real
+- `buscarPendentesSync`: removido filtro `externoId: { not: null }` para incluir jogos manuais
+
+### Backend — Novo método no repositório
+
+- `buscarJogosComTimePlaceholder(temporadaId, placeholderTimeId)` — 1 query com `include: { fase: true, timeCasa: true, timeFora: true }`, ordenado por `fase.ordem`
+
+### Backend — Renomeações
+
+| Antes | Depois | Motivo |
+|-------|--------|--------|
+| `32 Avos de Final` | `16 Avos de Final` | Copa 2026 tem 32 times na fase eliminatória = 16 jogos |
+| `TRINTA_E_DOIS_AVOS` | `SEGUNDA_FASE` | Slug da API do GE é `segunda-fase-copa-do-mundo-2026` |
+| `32avos-de-final-copa-do-mundo-2026` | `segunda-fase-copa-do-mundo-2026` | Alinhamento com API |
+
+### Backend — Sincronização automática
+
+- Agora detecta jogos da fase "16 Avos de Final" (sem `externoId`) e tenta parear com API do GE por horário
+- Quando a API do GE publicar os jogos, vincula `externoId` automaticamente para syncs futuras
+- Resolução de mapeamento: nome "16 avos" no banco → slug "segunda-fase" na API
+
+### Backend — Testes
+
+**Novo:** `test/modules/jogos/chaveamento.service.spec.ts` (7 testes)
+1. ✅ Não faz nada sem fase eliminatória
+2. ✅ Não faz nada se todos os times já estão definidos
+3. ✅ Preenche 1º do grupo via classificação
+4. ✅ Preenche 2º do grupo via classificação
+5. ✅ Não preenche se grupo incompleto (< 6 jogos)
+6. ✅ Prioriza API do GE antes da classificação
+7. ✅ Fallback para classificação quando API falha
+
+---
+
+### Frontend — AbaJogosCopa (reescrito)
+
+**Arquivo:** `src/components/palpites/aba-jogos-copa.tsx`
+
+**Antes:** Navegação fixa por rodada (1, 2, 3) — só funcionava para fase de grupos.
+
+**Depois:** Navegação por fase ativa com 2 modos:
+- **Fase de grupos**: navegação por rodada (← 1 | 2 | 3 →) + barra de progresso
+- **Fase eliminatória**: lista de todos os jogos da fase + barra de progresso
+
+**Lógica de fases ativas:**
+- Detecta automaticamente quais fases têm jogos
+- Fase de grupos aparece se tem jogos não finalizados
+- Fases eliminatórias aparecem se têm jogos importados
+- Próxima fase aparece como "em breve" quando a anterior já tem finalizados
+
+**Palpites bloqueados:**
+- Jogos de mata-mata com time "TBD": input desabilitado (bloqueado)
+- Sem overlay/blur — card visível normalmente, só input travado
+
+**Labels de posição (em vez de "TBD"):**
+- Quando time é placeholder, mostra posição do chaveamento: "1ºC", "2ºF", "3º ABCDF"
+- Nome do time: "A definir"
+- Mapa `CHAVEAMENTO_16AVOS` no frontend resolve rodada → posição
+
+**Barra de progresso:**
+- Baseada em TODOS os jogos da rodada/fase (incluindo finalizados)
+- Não diminui conforme jogos terminam
+- Mostra `X/24` para grupos ou `X/16` para eliminatórias
+
+### Frontend — Types atualizados
+
+- `jogo.types.ts`: slug da fase 16 avos atualizado para `segunda-fase-copa-do-mundo-2026`, `maxRodadas: 16`
+
+---
+
+### Banco de dados
+
+| Alteração | Descrição |
+|-----------|-----------|
+| Fase renomeada | "32 Avos de Final" → "16 Avos de Final" |
+| Time placeholder criado | id: `00000000-...0001`, sigla: "TBD", nome: "A Definir" |
+| 16 jogos criados | Fase "16 Avos de Final" com datas/horários da FIFA, times definidos + TBD |
+
+### Jogos criados (16 Avos):
+
+| R | Casa | Fora | Data (BRT) |
+|---|------|------|------------|
+| 1 | AFS | CAN | 28/06 16h |
+| 2 | BRA | TBD (2ºF) | 29/06 14h |
+| 3 | ALE | TBD (3º) | 29/06 17:30 |
+| 4 | TBD (1ºF) | MAR | 29/06 22h |
+| 5 | CDM* | TBD (2ºI) | 30/06 14h |
+| 6-16 | ... | ... | 30/06 - 04/07 |
+
+*CDM preenchido automaticamente pelo chaveamento (2ºE = Costa do Marfim)
+
+---
+
+### Steering atualizado
+
+**`coding-conventions.md`** — Seção "Qualidade de Código" reforçada:
+- Zero errors obrigatório (não "corrigir corrigíveis")
+- NUNCA aninhar ifs (regra explícita)
+- getDiagnostics ANTES de declarar pronto
+- Protocolo de Validação em 5 passos obrigatório em toda entrega
+
+---
+
+### Teste real (validação em produção local)
+
+**Às 19:14 BRT** a sync automática detectou:
+```
+[SYNC] copa-do-mundo-2026 R3 | 1/17 atualizados | EQU 2x1 ALE (🏁)
+[SYNC] 🏆 1 jogo(s) finalizado(s) — disparando preenchimento de chaveamento
+[ChaveamentoService] 📊 Grupos completos: Grupo A, Grupo B, Grupo C, Grupo E
+[ChaveamentoService] ✅ Jogo R5 atualizado no banco
+```
+
+Resultado: R5 preenchido com CDM (2º do Grupo E) automaticamente.
+
+---
+
+### Validação final
+
+| Check | Resultado |
+|-------|-----------|
+| getDiagnostics (10 arquivos) | ✅ 0 errors |
+| Testes backend | ✅ 45 suites, 494 testes |
+| Frontend TSC | ✅ 0 erros |
+| Container Docker | ✅ Rodando com sync ativa |
+| Ifs aninhados | ✅ Zero nos arquivos criados |
+| Tipagem | ✅ ChaveamentoService 100% tipado |
+
+---
+
+### Próximos passos (mata-mata)
+
+1. Quando todos os grupos terminarem → 3ºs colocados serão definidos pela API do GE
+2. Quando API do GE publicar jogos de `segunda-fase` → sync vincula `externoId` e atualiza times
+3. Criar jogos de Oitavas de Final quando os 16 avos começarem a finalizar
+4. Dividir `JogoService` em services menores (dívida técnica — 1000+ linhas)
+5. Tipar interfaces de repository (remover `any` herdado)
+
+### Regra de negócio: Visibilidade de palpites por status do jogo
+
+**Antes do jogo iniciar** (AGENDADO/ADIADO):
+- Palpites dos membros do grupo: mostrar apenas "Palpitou ✓" ou "Não palpitou" (sem revelar placar)
+- Palpite do próprio usuário: visível nos inputs editáveis
+- Badge "Meu Palpite: X × Y" abaixo do countdown: removido (redundante com inputs)
+
+**Depois do jogo iniciar** (EM_ANDAMENTO/FINALIZADO):
+- Placares de todos os membros são revelados
+- Placar real do jogo substitui os inputs
+- Badge "Meu Palpite: X × Y" reaparece (já que inputs não existem mais)
+
+### Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `lista-palpites-membros.tsx` | Adicionado `jogoIniciado` — mostra placar só quando jogo começou, senão mostra badge "Palpitou ✓" |
+| `card-proximos-jogos.tsx` | Badge "Meu Palpite" abaixo do countdown: só aparece quando `aoVivo` |
+| `card-proximos-jogos.tsx` | Batch de palpites via `buscarMeusPalpitesPorJogos` para todos os jogos simultâneos |
+| `card-proximos-jogos.tsx` | `JogoSimultaneo` recebe `meuPalpite` via prop (do batch) em vez de `null` fixo |
+| `usePalpiteCard.ts` | Adicionado `useQuery` interno — busca palpite do servidor quando `palpiteInicial === undefined` |
+| `usePalpiteCard.ts` | Distinção: `undefined` = buscar, `null` = não existe, objeto = usar direto |
+| `useHomeData.ts` | Home mostra todos os jogos simultâneos (removido filtro `EM_ANDAMENTO` only) |
+| `aba-dashboard-copa.tsx` | Mensagem "Nenhum jogo agendado" condicionada a `!carregandoDados` |
+| `secao-copa-do-mundo.tsx` | Tab "Jogos" condicionada a `!carregandoJogos` (evita flash de empty state) |
+
+### Padrões documentados no steering `coding-conventions.md`
+
+- **Visibilidade de Palpites** — regra completa de quando revelar/esconder placares
+- **Estados Vazios** — NUNCA mostrar empty state antes de finalizar requests
+- **Hook `usePalpiteCard`** — semântica de `undefined` vs `null` vs objeto para `palpiteInicial`
+- **Jogos Simultâneos na Home** — mostrar todos + batch de palpites

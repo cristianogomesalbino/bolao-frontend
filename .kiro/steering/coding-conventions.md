@@ -228,6 +228,54 @@ const ICONES_GRUPO: Record<string, string> = {
 - **SEMPRE usar `?? 0`** ao somar ou exibir valores numéricos do ranking
 - Previne `NaN` em cálculos e na UI
 
+## Visibilidade de Palpites (Regra de Negócio)
+
+- **Antes do jogo iniciar** (AGENDADO/ADIADO): NUNCA revelar o placar dos palpites de outros membros
+  - Mostrar apenas se palpitou ou não: badges "Palpitou ✓" / "Não palpitou"
+  - O palpite do próprio usuário aparece nos inputs (editável) — isso é ok
+  - Não exibir badge "Meu Palpite: X × Y" abaixo do countdown — o palpite já está visível nos inputs
+- **Depois do jogo iniciar** (EM_ANDAMENTO/FINALIZADO): revelar placares dos palpites de todos os membros
+  - Mostrar placar: "Cristiano 1 × 3"
+  - Quando ao vivo: inputs viram placar real do jogo + badge "Meu Palpite: X × Y" embaixo
+- **Componente central**: `ListaPalpitesMembros` aplica essa regra internamente usando `statusJogo`
+- Componentes que chamam `ListaPalpitesMembros` devem **sempre** passar `statusJogo` com o status real do jogo
+
+## Estados Vazios (Empty States)
+
+- **NUNCA mostrar mensagens de "nenhum dado" antes de finalizar as requisições**
+- **SEMPRE** condicionar empty states com `!isLoading && dados.length === 0`
+- Padrão correto:
+```tsx
+// ✅ Correto — mostra vazio apenas após carregar
+{!carregando && itens.length === 0 && (
+  <p>Nenhum item encontrado</p>
+)}
+
+// ❌ Errado — mostra vazio enquanto carrega
+{!dados && (
+  <p>Nenhum item encontrado</p>
+)}
+```
+- Prioridade de renderização: Loading skeleton → Conteúdo → Empty state (nunca pular direto para empty)
+
+## Hook `usePalpiteCard` — Busca de Palpite
+
+- O hook busca automaticamente o palpite do servidor quando `palpiteInicial` é `undefined`
+- Se o componente pai passa `palpiteInicial` (incluindo `null`), a query interna é desabilitada
+- Distinção importante:
+  - `palpiteInicial === undefined` → hook busca via `GET /jogos/:jogoId/meu-palpite`
+  - `palpiteInicial === null` → hook assume que não existe palpite (não busca)
+  - `palpiteInicial = { ... }` → hook usa o dado recebido
+- **Componentes que listam múltiplos jogos** devem fazer 1 batch (`POST /meus-palpites/por-jogos`) e passar o resultado como `palpiteInicial` para cada card — evita N requests individuais
+
+## Jogos Simultâneos na Home
+
+- A home mostra **todos** os jogos do mesmo horário, não apenas o primeiro
+- `CardProximosJogos` recebe a lista completa via `proximosJogos`
+- O primeiro jogo é o `jogoDestaque` (maior destaque visual)
+- Os demais são renderizados como `JogoSimultaneo` (layout mais compacto)
+- Palpites de todos os jogos são buscados em **1 batch** no componente pai
+
 ## Redução Gradual de Dívida Técnica (Regra dos 15%)
 
 - **Sempre que editar um arquivo .tsx/.ts existente**, corrigir pelo menos **15% dos erros de lint/Sonar pré-existentes** nesse arquivo (arredondando pra cima, mínimo 1)
