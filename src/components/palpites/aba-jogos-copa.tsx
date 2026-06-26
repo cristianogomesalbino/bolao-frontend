@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Fase, Jogo } from '@/types/jogo.types';
@@ -18,14 +18,155 @@ interface PropsAbaJogosCopa {
   onFoco: (jogoId: string) => void;
 }
 
+/** Verifica se um jogo de mata-mata tem os dois times definidos (não são placeholders) */
+function temTimesDefinidos(jogo: Jogo): boolean {
+  const ehPlaceholder = (nome?: string, sigla?: string) => {
+    if (!nome || !sigla) return true;
+    if (sigla === 'TBD') return true;
+    if (/^\d[ºo°]\s/.test(nome)) return true;
+    if (/^[A-Z]{2,}\s[A-L]{3,}/i.test(nome)) return true;
+    return false;
+  };
+  return !ehPlaceholder(jogo.timeCasa?.nome, jogo.timeCasa?.sigla) &&
+         !ehPlaceholder(jogo.timeFora?.nome, jogo.timeFora?.sigla);
+}
+
+/** Chaveamento dos 16 avos — posição de cada time por rodada */
+const CHAVEAMENTO_16AVOS: Record<number, { casa: string; fora: string }> = {
+  1: { casa: '2ºA', fora: '2ºB' },
+  2: { casa: '1ºC', fora: '2ºF' },
+  3: { casa: '1ºE', fora: '3º ABCDF' },
+  4: { casa: '1ºF', fora: '2ºC' },
+  5: { casa: '2ºE', fora: '2ºI' },
+  6: { casa: '1ºI', fora: '3º CDFGH' },
+  7: { casa: '1ºA', fora: '3º CEFHI' },
+  8: { casa: '1ºL', fora: '3º EHIJK' },
+  9: { casa: '1ºG', fora: '3º AEHIJ' },
+  10: { casa: '1ºD', fora: '3º BEFIJ' },
+  11: { casa: '1ºH', fora: '2ºJ' },
+  12: { casa: '2ºK', fora: '2ºL' },
+  13: { casa: '1ºB', fora: '3º EFGIJ' },
+  14: { casa: '2ºD', fora: '2ºG' },
+  15: { casa: '1ºJ', fora: '2ºH' },
+  16: { casa: '1ºK', fora: '3º DEIJL' },
+};
+
+/** Retorna o label de posição do chaveamento quando o time é TBD */
+function obterLabelPosicao(jogo: Jogo, lado: 'casa' | 'fora'): string | null {
+  const sigla = lado === 'casa' ? jogo.timeCasa?.sigla : jogo.timeFora?.sigla;
+  if (sigla !== 'TBD') return null;
+  if (!jogo.rodada) return null;
+
+  const regra = CHAVEAMENTO_16AVOS[jogo.rodada];
+  if (!regra) return null;
+
+  return lado === 'casa' ? regra.casa : regra.fora;
+}
+
+/** Substitui a sigla/nome "TBD" pela posição do chaveamento (ex: "1ºF") */
+function substituirSiglaTBD(jogo: Jogo): Jogo {
+  const labelCasa = obterLabelPosicao(jogo, 'casa');
+  const labelFora = obterLabelPosicao(jogo, 'fora');
+
+  if (!labelCasa && !labelFora) return jogo;
+
+  return {
+    ...jogo,
+    timeCasa: labelCasa
+      ? { ...jogo.timeCasa!, sigla: labelCasa, nome: 'A definir' }
+      : jogo.timeCasa,
+    timeFora: labelFora
+      ? { ...jogo.timeFora!, sigla: labelFora, nome: 'A definir' }
+      : jogo.timeFora,
+  };
+}
+
+function obterClasseFasePill(ativa: boolean, semJogos: boolean): string {
+  if (ativa) return 'bg-[#009c3b]/30 text-[#ffdf00] border border-[#009c3b]/50 shadow-[0_0_12px_rgba(0,156,59,0.3)]';
+  if (semJogos) return 'bg-white/[0.02] text-[#a8e6b0]/30 border border-white/[0.04] cursor-not-allowed';
+  return 'bg-[#009c3b]/[0.06] text-[#a8e6b0]/60 border border-[#009c3b]/20 hover:bg-[#009c3b]/15 hover:text-[#ffdf00]/80';
+}
+
+/** Determina as fases ativas para exibição */
+function calcularFasesAtivas(
+  fases: Fase[],
+  jogosPorFase: Map<string, Jogo[]>,
+): Fase[] {
+  const fasesOrdenadas = [...fases].sort((a, b) => a.ordem - b.ordem);
+  const fasesGrupos = fasesOrdenadas.filter((f) => f.tipo === 'PONTOS_CORRIDOS');
+  const fasesEliminatorias = fasesOrdenadas.filter((f) => f.tipo === 'MATA_MATA');
+
+  const ativas: Fase[] = [];
+
+  adicionarFaseGruposSePendente(fasesGrupos, jogosPorFase, ativas);
+  adicionarEliminatoriasComJogos(fasesEliminatorias, jogosPorFase, ativas);
+  adicionarProximaEliminatoriaEmBreve(fasesEliminatorias, jogosPorFase, ativas);
+
+  return ativas;
+}
+
+function adicionarFaseGruposSePendente(
+  fasesGrupos: Fase[],
+  jogosPorFase: Map<string, Jogo[]>,
+  ativas: Fase[],
+): void {
+  const gruposTemJogosAtivos = fasesGrupos.some((fase) => {
+    const jogos = jogosPorFase.get(fase.id) ?? [];
+    return jogos.some((j) => j.status !== 'FINALIZADO' && j.status !== 'CANCELADO');
+  });
+
+  if (!gruposTemJogosAtivos) return;
+
+  const primeiroGrupo = fasesGrupos[0];
+  if (!primeiroGrupo) return;
+
+  ativas.push({ ...primeiroGrupo, nome: 'Fase de Grupos' });
+}
+
+function adicionarEliminatoriasComJogos(
+  fasesEliminatorias: Fase[],
+  jogosPorFase: Map<string, Jogo[]>,
+  ativas: Fase[],
+): void {
+  for (const fase of fasesEliminatorias) {
+    const jogos = jogosPorFase.get(fase.id) ?? [];
+    if (jogos.length > 0) {
+      ativas.push(fase);
+    }
+  }
+}
+
+function adicionarProximaEliminatoriaEmBreve(
+  fasesEliminatorias: Fase[],
+  jogosPorFase: Map<string, Jogo[]>,
+  ativas: Fase[],
+): void {
+  if (fasesEliminatorias.length === 0) return;
+
+  const ultimaComJogos = fasesEliminatorias.findLast((f) => (jogosPorFase.get(f.id) ?? []).length > 0);
+  if (!ultimaComJogos) return;
+
+  const idxUltima = fasesEliminatorias.indexOf(ultimaComJogos);
+  const jogosUltima = jogosPorFase.get(ultimaComJogos.id) ?? [];
+  const temFinalizadoNaUltima = jogosUltima.some((j) => j.status === 'FINALIZADO');
+
+  if (!temFinalizadoNaUltima || idxUltima >= fasesEliminatorias.length - 1) return;
+
+  const proximaFase = fasesEliminatorias[idxUltima + 1];
+  if (!proximaFase || ativas.includes(proximaFase)) return;
+
+  ativas.push(proximaFase);
+}
+
 export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }: Readonly<PropsAbaJogosCopa>) {
+  const [faseSelecionadaId, setFaseSelecionadaId] = useState<string | null>(null);
   const [rodadaSelecionada, setRodadaSelecionada] = useState<number | null>(null);
 
-  // Todas as fases (grupos + eliminatórias juntas, ordenadas por ordem)
-  const fasesOrdenadas = [...fases].sort((a, b) => a.ordem - b.ordem);
+  const fasesOrdenadas = useMemo(() => [...fases].sort((a, b) => a.ordem - b.ordem), [fases]);
+  const fasesGrupos = useMemo(() => fasesOrdenadas.filter((f) => f.tipo === 'PONTOS_CORRIDOS'), [fasesOrdenadas]);
 
   // Buscar todos os jogos da temporada (1 request)
-  const { data: todosJogosTemporada } = useQuery({
+  const { data: todosJogosTemporada, isLoading: carregandoJogos } = useQuery({
     queryKey: ['jogos-copa-todos', temporadaId],
     queryFn: async () => {
       const { listarJogosTemporada } = await import('@/services/jogo.service');
@@ -35,101 +176,271 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
     staleTime: 1000 * 60 * 5,
   });
 
-  // Detectar rodada correta ao carregar
+  // Agrupar jogos por faseId
+  const jogosPorFase = useMemo(() => {
+    const mapa = new Map<string, Jogo[]>();
+    if (!todosJogosTemporada) return mapa;
+    for (const jogo of todosJogosTemporada) {
+      const lista = mapa.get(jogo.faseId) ?? [];
+      lista.push(jogo);
+      mapa.set(jogo.faseId, lista);
+    }
+    return mapa;
+  }, [todosJogosTemporada]);
+
+  // Calcular fases ativas
+  const fasesAtivas = useMemo(
+    () => calcularFasesAtivas(fases, jogosPorFase),
+    [fases, jogosPorFase],
+  );
+
+  // Auto-selecionar fase ativa mais relevante
   useEffect(() => {
-    if (rodadaSelecionada !== null || !todosJogosTemporada) return;
-    const rodadas = [...new Set(todosJogosTemporada.map((j) => j.rodada).filter(Boolean))] as number[];
+    if (faseSelecionadaId || fasesAtivas.length === 0 || !todosJogosTemporada) return;
+
+    // Prioridade: primeira fase com jogos palpitáveis (AGENDADO futuro)
+    for (const fase of fasesAtivas) {
+      const ehGrupos = fase.nome === 'Fase de Grupos';
+      const fasesIds = ehGrupos ? fasesGrupos.map((f) => f.id) : [fase.id];
+      const jogos = todosJogosTemporada.filter((j) => fasesIds.includes(j.faseId));
+      const temPalpitavel = jogos.some((j) => podePalpitar(j));
+      if (temPalpitavel) {
+        setFaseSelecionadaId(fase.id);
+        return;
+      }
+    }
+
+    // Fallback: última fase ativa
+    setFaseSelecionadaId(fasesAtivas.at(-1)?.id ?? null);
+  }, [fasesAtivas, faseSelecionadaId, todosJogosTemporada, fasesGrupos]);
+
+  const faseSelecionada = fasesAtivas.find((f) => f.id === faseSelecionadaId) ?? null;
+  const ehFaseGrupos = faseSelecionada?.nome === 'Fase de Grupos';
+
+  // --- Lógica de Grupos (por rodada) ---
+  const rodadaAtualGrupos = useMemo(() => {
+    if (!ehFaseGrupos || !todosJogosTemporada) return null;
+    const jogosGrupos = todosJogosTemporada.filter((j) => fasesGrupos.some((f) => f.id === j.faseId));
+    const rodadas = [...new Set(jogosGrupos.map((j) => j.rodada).filter(Boolean))] as number[];
     rodadas.sort((a, b) => a - b);
-    const rodadaComJogos = rodadas.find((r) =>
-      todosJogosTemporada.some((j) => j.rodada === r && j.status !== 'FINALIZADO')
-    );
-    setRodadaSelecionada(rodadaComJogos ?? rodadas.at(-1) ?? 1);
-  }, [todosJogosTemporada, rodadaSelecionada]);
+    return rodadas.find((r) => jogosGrupos.some((j) => j.rodada === r && j.status !== 'FINALIZADO')) ?? rodadas.at(-1) ?? 1;
+  }, [ehFaseGrupos, todosJogosTemporada, fasesGrupos]);
 
-  // Derivar dados da rodada selecionada
-  const dadosRodada = (() => {
-    if (!todosJogosTemporada || rodadaSelecionada === null) return null;
-    const jogosDaRodada = todosJogosTemporada.filter((j) => j.rodada === rodadaSelecionada);
-    const gruposFases = fasesOrdenadas
-      .map((fase) => ({
-        fase,
-        jogos: jogosDaRodada.filter((j) => j.faseId === fase.id && j.status !== 'FINALIZADO'),
-      }))
-      .filter((r) => r.jogos.length > 0);
-    return { gruposFases, totalRodada: jogosDaRodada.length, jogoIdsDaRodada: jogosDaRodada.map((j) => j.id) };
-  })();
+  // Auto-selecionar rodada atual ao entrar nos grupos
+  useEffect(() => {
+    if (ehFaseGrupos && rodadaAtualGrupos && rodadaSelecionada === null) {
+      setRodadaSelecionada(rodadaAtualGrupos);
+    }
+  }, [ehFaseGrupos, rodadaAtualGrupos, rodadaSelecionada]);
 
-  const carregandoJogos = !todosJogosTemporada || rodadaSelecionada === null;
+  // Jogos visíveis baseado na fase selecionada
+  const jogosVisiveis = useMemo(() => {
+    if (!todosJogosTemporada || !faseSelecionada) return [];
 
-  const jogosPorGrupo = dadosRodada?.gruposFases ?? [];
-  const totalJogosRodada = dadosRodada?.totalRodada ?? 0;
-  const jogoIdsDaRodadaCompleta = dadosRodada?.jogoIdsDaRodada ?? [];
-  const rodadaExibida = rodadaSelecionada ?? 1;
+    if (ehFaseGrupos) {
+      // Grupos: filtrar por rodada selecionada, excluir finalizados
+      const rodada = rodadaSelecionada ?? rodadaAtualGrupos ?? 1;
+      return todosJogosTemporada
+        .filter((j) => fasesGrupos.some((f) => f.id === j.faseId) && j.rodada === rodada)
+        .filter((j) => j.status !== 'FINALIZADO')
+        .sort((a, b) => {
+          const dataA = a.dataHora ? new Date(a.dataHora).getTime() : Infinity;
+          const dataB = b.dataHora ? new Date(b.dataHora).getTime() : Infinity;
+          return dataA - dataB;
+        });
+    }
 
-  // IDs de jogos da rodada inteira para batch de palpites e contador
-  const jogoIds = jogoIdsDaRodadaCompleta;
+    // Eliminatórias: todos os jogos da fase (sem filtro de rodada)
+    return todosJogosTemporada
+      .filter((j) => j.faseId === faseSelecionada.id)
+      .sort((a, b) => {
+        const dataA = a.dataHora ? new Date(a.dataHora).getTime() : Infinity;
+        const dataB = b.dataHora ? new Date(b.dataHora).getTime() : Infinity;
+        return dataA - dataB;
+      });
+  }, [todosJogosTemporada, faseSelecionada, ehFaseGrupos, rodadaSelecionada, rodadaAtualGrupos, fasesGrupos]);
+
+  // Agrupar jogos por grupo/fase (para separadores visuais)
+  const jogosPorGrupoVisual = useMemo(() => {
+    if (jogosVisiveis.length === 0) return [];
+
+    if (ehFaseGrupos) {
+      return fasesGrupos
+        .map((fase) => ({
+          fase,
+          jogos: jogosVisiveis.filter((j) => j.faseId === fase.id),
+        }))
+        .filter((g) => g.jogos.length > 0);
+    }
+
+    // Eliminatórias: um único grupo
+    return [{ fase: faseSelecionada!, jogos: jogosVisiveis }];
+  }, [jogosVisiveis, ehFaseGrupos, fasesGrupos, faseSelecionada]);
+
+  // IDs para batch de palpites — inclui TODOS os jogos da rodada/fase (não exclui finalizados)
+  const todosJogosDaSelecao = useMemo(() => {
+    if (!todosJogosTemporada || !faseSelecionada) return [];
+
+    if (ehFaseGrupos) {
+      const rodada = rodadaSelecionada ?? rodadaAtualGrupos ?? 1;
+      return todosJogosTemporada.filter(
+        (j) => fasesGrupos.some((f) => f.id === j.faseId) && j.rodada === rodada,
+      );
+    }
+
+    return todosJogosTemporada.filter((j) => j.faseId === faseSelecionada.id);
+  }, [todosJogosTemporada, faseSelecionada, ehFaseGrupos, rodadaSelecionada, rodadaAtualGrupos, fasesGrupos]);
+
+  const jogoIdsTodos = useMemo(() => todosJogosDaSelecao.map((j) => j.id), [todosJogosDaSelecao]);
 
   const { data: palpitesBatch } = useQuery({
-    queryKey: ['palpites-copa-batch', temporadaId, rodadaSelecionada],
+    queryKey: ['palpites-copa-batch', temporadaId, faseSelecionadaId, rodadaSelecionada],
     queryFn: async () => {
-      const palpites = await buscarMeusPalpitesPorJogos(jogoIds);
+      const palpites = await buscarMeusPalpitesPorJogos(jogoIdsTodos);
       const map: Record<string, Palpite> = {};
       for (const p of palpites) {
         map[p.jogoId] = p;
       }
       return map;
     },
-    enabled: jogoIds.length > 0,
+    enabled: jogoIdsTodos.length > 0,
     staleTime: 1000 * 60 * 5,
   });
 
   const palpitesPorJogo = palpitesBatch ?? {};
 
-  // Jogos palpitáveis para navegação sequencial na Copa
-  const todosJogosPalpitaveisNavegacao = jogosPorGrupo.flatMap((g) => g.jogos).filter((j) => podePalpitar(j));
+  // Navegação sequencial entre cards palpitáveis
+  const todosJogosPalpitaveis = jogosVisiveis.filter((j) => {
+    if (!podePalpitar(j)) return false;
+    if (!ehFaseGrupos && !temTimesDefinidos(j)) return false;
+    return true;
+  });
 
-  function proximoCardIdCopa(jogoAtualId: string): string | undefined {
-    const idx = todosJogosPalpitaveisNavegacao.findIndex((j) => j.id === jogoAtualId);
-    if (idx >= 0 && idx < todosJogosPalpitaveisNavegacao.length - 1) {
-      return todosJogosPalpitaveisNavegacao[idx + 1].id;
+  function proximoCardId(jogoAtualId: string): string | undefined {
+    const idx = todosJogosPalpitaveis.findIndex((j) => j.id === jogoAtualId);
+    if (idx >= 0 && idx < todosJogosPalpitaveis.length - 1) {
+      return todosJogosPalpitaveis[idx + 1].id;
     }
     return undefined;
   }
 
-  function ehUltimoPalpitavelCopa(jogoId: string): boolean {
-    return todosJogosPalpitaveisNavegacao.at(-1)?.id === jogoId;
+  function ehUltimoPalpitavel(jogoId: string): boolean {
+    return todosJogosPalpitaveis.at(-1)?.id === jogoId;
   }
 
-  // Contar palpites feitos vs total da rodada inteira
-  const palpitesFeitos = jogoIdsDaRodadaCompleta.filter((id) => !!palpitesPorJogo[id]).length;
-  const totalPalpitaveis = totalJogosRodada;
+  // Contadores de progresso — baseados em TODOS os jogos (não só visíveis)
+  const palpitesFeitos = jogoIdsTodos.filter((id) => !!palpitesPorJogo[id]).length;
+  const totalJogos = todosJogosDaSelecao.length;
+
+  // --- Render ---
+
+  // Skeleton enquanto carrega
+  if (carregandoJogos) {
+    return (
+      <div className="space-y-4">
+        {/* Skeleton do seletor de fases */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-9 w-28 rounded-lg bg-white/[0.04] border border-white/[0.08] animate-pulse shrink-0" />
+          ))}
+        </div>
+        {/* Skeleton dos cards */}
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-[140px] rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Header: RODADA + barra de progresso + contador */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setRodadaSelecionada(Math.max(1, rodadaExibida - 1))}
-          disabled={rodadaExibida <= 1}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          aria-label="Rodada anterior"
-        >
-          <ChevronLeft size={16} />
-        </button>
+      {/* Seletor de fases (pills horizontais com scroll) */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+        {fasesAtivas.map((fase) => {
+          const ativa = faseSelecionadaId === fase.id;
+          const jogos = fase.nome === 'Fase de Grupos'
+            ? todosJogosTemporada?.filter((j) => fasesGrupos.some((f) => f.id === j.faseId)) ?? []
+            : jogosPorFase.get(fase.id) ?? [];
+          const semJogos = jogos.length === 0;
 
-        <div className="flex-1">
+          return (
+            <button
+              key={fase.id}
+              type="button"
+              onClick={() => {
+                setFaseSelecionadaId(fase.id);
+                setRodadaSelecionada(null);
+              }}
+              disabled={semJogos}
+              className={`shrink-0 py-2 px-3.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${obterClasseFasePill(ativa, semJogos)}`}
+            >
+              {fase.nome}
+              {semJogos && ' (em breve)'}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Navegação por rodada (só para fase de grupos) */}
+      {ehFaseGrupos && rodadaSelecionada !== null && (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setRodadaSelecionada(Math.max(1, (rodadaSelecionada ?? 1) - 1))}
+            disabled={(rodadaSelecionada ?? 1) <= 1}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            aria-label="Rodada anterior"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-bold text-[#ffdf00] uppercase tracking-wide">
+                Rodada {rodadaSelecionada}
+              </span>
+              <span className="text-[11px] text-[#009c3b] font-semibold">
+                {palpitesFeitos}/{totalJogos} palpites
+              </span>
+            </div>
+            <div className="flex gap-[2px] h-2">
+              {jogoIdsTodos.map((jogoId) => (
+                <div
+                  key={jogoId}
+                  className={`flex-1 rounded-sm transition-colors ${
+                    palpitesPorJogo[jogoId] ? 'bg-[#009c3b]' : 'bg-white/[0.12]'
+                  }`}
+                />
+              ))}
+              {totalJogos === 0 && <div className="flex-1 rounded-sm bg-white/[0.06]" />}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setRodadaSelecionada(Math.min(3, (rodadaSelecionada ?? 1) + 1))}
+            disabled={(rodadaSelecionada ?? 1) >= 3}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            aria-label="Próxima rodada"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Header de progresso para eliminatórias */}
+      {!ehFaseGrupos && totalJogos > 0 && (
+        <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-[#ffdf00] uppercase tracking-wide">
-              Rodada {rodadaExibida}
+              {faseSelecionada?.nome}
             </span>
             <span className="text-[11px] text-[#009c3b] font-semibold">
-              {palpitesFeitos}/{totalPalpitaveis} palpites feitos
+              {palpitesFeitos}/{totalJogos} palpites
             </span>
           </div>
-          {/* Barra de progresso */}
           <div className="flex gap-[2px] h-2">
-            {jogoIdsDaRodadaCompleta.map((jogoId) => (
+            {jogoIdsTodos.map((jogoId) => (
               <div
                 key={jogoId}
                 className={`flex-1 rounded-sm transition-colors ${
@@ -137,85 +448,58 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
                 }`}
               />
             ))}
-            {totalPalpitaveis === 0 && (
-              <div className="flex-1 rounded-sm bg-white/[0.06]" />
-            )}
           </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setRodadaSelecionada(Math.min(3, rodadaExibida + 1))}
-          disabled={rodadaExibida >= 3}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-[#009c3b]/30 text-[#a8e6b0]/60 hover:text-[#ffdf00] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          aria-label="Próxima rodada"
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
-
-      {/* Seletor de rodada */}
-      <div className="flex items-center justify-center gap-2">
-        {[1, 2, 3].map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setRodadaSelecionada(r)}
-            className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all ${
-              rodadaExibida === r
-                ? 'bg-[#009c3b]/30 text-[#ffdf00] border border-[#009c3b]/50 shadow-[0_0_12px_rgba(0,156,59,0.3)]'
-                : 'bg-[#009c3b]/[0.06] text-[#a8e6b0]/60 border border-[#009c3b]/20 hover:bg-[#009c3b]/15 hover:text-[#ffdf00]/80'
-            }`}
-          >
-            Rodada {r}
-          </button>
-        ))}
-      </div>
-
-      {/* Loading */}
-      {carregandoJogos && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-[140px] rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse" />
-          ))}
         </div>
       )}
 
-      {/* Jogos agrupados por fase */}
-      {!carregandoJogos && jogosPorGrupo && jogosPorGrupo.length > 0 && (
+      {/* Jogos agrupados */}
+      {jogosPorGrupoVisual.length > 0 && (
         <div className="space-y-5">
-          {jogosPorGrupo.map(({ fase, jogos }) => (
+          {jogosPorGrupoVisual.map(({ fase, jogos }) => (
             <div key={fase.id}>
-              {/* Separador: Rodada X — Grupo Y */}
-              <div className="sticky top-[88px] z-10 flex items-center gap-2 py-2 -mx-4 px-4 bg-[#003d1a]/95 backdrop-blur-md">
-                <span className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
-                <span className="text-[11px] text-[#ffdf00] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[#ffdf00]/30 bg-[#ffdf00]/10">
-                  <Trophy size={10} className="inline mr-1 -mt-0.5" />
-                  Rodada {rodadaExibida} — {fase.nome}
-                </span>
-                <span className="h-[2px] flex-1 bg-gradient-to-l from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
-              </div>
+              {/* Separador visual */}
+              {ehFaseGrupos && (
+                <div className="sticky top-[88px] z-10 flex items-center gap-2 py-2 -mx-4 px-4 bg-[#003d1a]/95 backdrop-blur-md">
+                  <span className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
+                  <span className="text-[11px] text-[#ffdf00] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[#ffdf00]/30 bg-[#ffdf00]/10">
+                    <Trophy size={10} className="inline mr-1 -mt-0.5" />
+                    {fase.nome}
+                  </span>
+                  <span className="h-[2px] flex-1 bg-gradient-to-l from-transparent via-[#ffdf00]/40 to-[#ffdf00]/60 rounded-full" />
+                </div>
+              )}
 
               {/* Cards de jogos */}
               <div className="space-y-2 mt-2">
-                {jogos.map((jogo: Jogo) => (
-                  <CardJogoPalpite
-                    key={jogo.id}
-                    jogo={jogo}
-                    palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
-                    palpitavel={podePalpitar(jogo)}
-                    bloqueado={estaBloqueado(jogo)}
-                    grupoId={grupoId}
-                    ativo={cardAtivo === jogo.id}
-                    onFoco={() => onFoco(jogo.id)}
-                    onProximoCard={() => {
-                      const proximo = proximoCardIdCopa(jogo.id);
-                      if (proximo) onFoco(proximo);
-                    }}
-                    ehUltimoCard={ehUltimoPalpitavelCopa(jogo.id)}
-                    temaCopa
-                  />
-                ))}
+                {jogos.map((jogo: Jogo) => {
+                  const timesDefinidos = temTimesDefinidos(jogo);
+                  const palpitavelReal = ehFaseGrupos
+                    ? podePalpitar(jogo)
+                    : podePalpitar(jogo) && timesDefinidos;
+                  const bloqueadoReal = ehFaseGrupos
+                    ? estaBloqueado(jogo)
+                    : estaBloqueado(jogo) || !timesDefinidos;
+
+                  return (
+                    <div key={jogo.id}>
+                      <CardJogoPalpite
+                        jogo={substituirSiglaTBD(jogo)}
+                        palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
+                        palpitavel={palpitavelReal}
+                        bloqueado={bloqueadoReal}
+                        grupoId={grupoId}
+                        ativo={cardAtivo === jogo.id}
+                        onFoco={() => onFoco(jogo.id)}
+                        onProximoCard={() => {
+                          const proximo = proximoCardId(jogo.id);
+                          if (proximo) onFoco(proximo);
+                        }}
+                        ehUltimoCard={ehUltimoPalpitavel(jogo.id)}
+                        temaCopa
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -223,10 +507,15 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
       )}
 
       {/* Estado vazio */}
-      {!carregandoJogos && (!jogosPorGrupo || jogosPorGrupo.length === 0) && (
+      {!carregandoJogos && jogosPorGrupoVisual.length === 0 && (
         <div className="flex flex-col items-center py-12 text-center">
           <IconPalpite size={32} className="text-texto/15 mb-3" />
-          <p className="text-texto/40 text-sm">Nenhum jogo nesta rodada</p>
+          <p className="text-texto/40 text-sm">
+            {faseSelecionada && (jogosPorFase.get(faseSelecionada.id) ?? []).length === 0
+              ? 'Jogos ainda não definidos para esta fase'
+              : 'Todos os jogos desta rodada já foram finalizados'}
+          </p>
+          <p className="text-texto/20 text-[10px] mt-1">Confira a aba &ldquo;Meus palpites&rdquo; para ver seus resultados</p>
         </div>
       )}
     </div>

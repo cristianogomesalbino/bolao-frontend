@@ -123,7 +123,7 @@ export function SecaoCopaDoMundo({ temporadaId, grupoId }: Readonly<PropsSecaoCo
       )}
 
       {/* Tab: Jogos */}
-      {tab === 'jogos' && (
+      {tab === 'jogos' && !carregandoJogos && (
         <div className="space-y-2">
           {proximosJogos.length > 0 ? (
             proximosJogos.map((jogo: Jogo & { fase: { nome: string } }) => (

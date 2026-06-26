@@ -22,7 +22,7 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
   const [filtroAtivo, setFiltroAtivo] = useState<'geral' | 'rodada'>('geral');
   const [rodadaSelecionada, setRodadaSelecionada] = useState<number | null>(1);
 
-  const { data: dadosTemporada } = useQuery({
+  const { data: dadosTemporada, isLoading: carregandoDados } = useQuery({
     queryKey: ['grupo', grupoId, 'dados-temporada'],
     queryFn: () => buscarDadosTemporada(temporadaId),
     enabled: !!temporadaId,
@@ -99,7 +99,7 @@ export function AbaDashboardCopa({ grupoId, temporadaId }: Readonly<PropsAbaDash
         />
       )}
 
-      {!proximoJogo && (
+      {!proximoJogo && !carregandoDados && (
         <div className="rounded-xl border border-[#009c3b]/20 bg-[#009c3b]/[0.04] p-4 text-center">
           <p className="text-[11px] text-[#a8e6b0]/70">Nenhum jogo agendado no momento</p>
         </div>
