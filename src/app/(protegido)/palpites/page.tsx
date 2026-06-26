@@ -7,7 +7,6 @@ import { usePalpitesData } from '@/hooks/usePalpitesData';
 import { AbaTodosJogos } from '@/components/palpites/aba-todos-jogos';
 import { AbaMeusPalpites } from '@/components/palpites/aba-meus-palpites';
 import { AbaJogosCopa } from '@/components/palpites/aba-jogos-copa';
-import { ModalEscolherGrupo } from '@/components/palpites/modal-escolher-grupo';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 import { type CampeonatoSlug } from '@/types/jogo.types';
 import { listarTemporadas, buscarDadosTemporada } from '@/services/jogo.service';
@@ -108,8 +107,6 @@ export default function PalpitesPage() {
   const {
     temporadaId,
     grupoId,
-    gruposDisponiveis,
-    favoritoNoCampeonato,
     faseAtual,
     fases,
     ehCopaMundo,
@@ -128,12 +125,6 @@ export default function PalpitesPage() {
     palpitesBatch,
     primeiroJogoPalpitavel,
   } = usePalpitesData(abaAtiva, campeonato);
-
-  // Modal obrigatório: aparece quando tem 2+ grupos no campeonato ativo e o favorito não pertence a ele
-  // Não mostra durante detecção automática de campeonato (evita flash do modal errado)
-  const [campeonatosResolvidos, setCampeonatosResolvidos] = useState<Set<string>>(new Set());
-  const aguardandoDeteccao = !jaAplicouDeteccao;
-  const deveExibirModal = false; // Desabilitado — usuário já tem grupo favorito
 
   // Auto-posicionar no primeiro jogo palpitável quando batch carrega
   useEffect(() => {
@@ -198,17 +189,6 @@ export default function PalpitesPage() {
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 pt-3">
-        {/* Modal obrigatório para escolher grupo favorito */}
-        {deveExibirModal && (
-          <ModalEscolherGrupo
-            gruposDisponiveis={gruposDisponiveis}
-            temaCopa={ehCopaMundo}
-            onEscolher={() => {
-              setCampeonatosResolvidos((prev) => new Set(prev).add(campeonato));
-            }}
-          />
-        )}
-
         {/* Abas */}
         <div className="flex items-center gap-0 border-b border-white/[0.06] mb-4">
           <button
