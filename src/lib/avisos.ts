@@ -19,9 +19,9 @@ export const AVISOS: Aviso[] = [
   {
     id: 'aviso-copa-2026-inicio',
     titulo: 'Atualizações',
-    mensagem: 'Para ver os palpites dos membros do seu grupo faça o seguinte: \nEscolha um grupo \nClique em Meus Palpites \nEscolha um jogo e Clique na seta para baixo.\n[Lembrando que a visualização dos palpites é liberada ao iniciar um jogo]',
-    criadoEm: '2026-06-11',
-    expiraEm: '2026-06-30',
+    mensagem: 'Revise os palpites dos jogos a partir de Alemanha x Paraguai. Houve um erro no chaveamento',
+    criadoEm: '2026-06-29',
+    expiraEm: '2026-07-03',
   },
 ];
 
