@@ -1,13 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download } from 'lucide-react';
+import { Download, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { atualizarUsuario, excluirUsuario } from '@/services/usuario.service';
 import { FormularioPerfil } from '@/components/usuario/formulario-perfil';
 import { FormularioAlterarSenha } from '@/components/usuario/formulario-alterar-senha';
 import { SecaoExcluirConta } from '@/components/usuario/secao-excluir-conta';
-import { Button } from '@/components/ui/button';
+import { TogglePush } from '@/components/notificacoes/toggle-push';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -23,6 +24,7 @@ export default function MinhaContaPage() {
   const usuario = useAuthStore((state) => state.usuario);
   const atualizarUsuarioStore = useAuthStore((state) => state.atualizarUsuario);
   const logout = useAuthStore((state) => state.logout);
+  const [zonaPerigo, setZonaPerigo] = useState(false);
 
   if (!usuario) return null;
 
@@ -44,17 +46,20 @@ export default function MinhaContaPage() {
   return (
     <div className="min-h-screen bg-fundo">
       {/* Header sticky com blur */}
-      <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 bg-fundo/80 backdrop-blur-lg border-b border-white/[0.05]">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-          aria-label="Voltar"
-          className="text-texto/70 hover:text-texto"
-        >
-          <ArrowLeft size={20} />
-        </Button>
+      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 bg-fundo/80 backdrop-blur-lg border-b border-white/[0.05]">
         <h1 className="text-lg font-semibold text-texto">Minha conta</h1>
+        <button
+          type="button"
+          onClick={async () => {
+            await logout();
+            router.replace('/login');
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+          data-testid="btn-logout"
+        >
+          <LogOut size={16} />
+          <span className="text-xs font-medium">Sair</span>
+        </button>
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 py-6">
@@ -94,7 +99,27 @@ export default function MinhaContaPage() {
             </div>
           )}
 
-          <SecaoExcluirConta onConfirmar={aoExcluirConta} />
+          {/* Notificações push */}
+          <TogglePush />
+
+          {/* Zona de perigo — colapsável */}
+          <div className="rounded-2xl border border-erro/20 bg-erro/[0.02] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setZonaPerigo(!zonaPerigo)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left"
+            >
+              <span className="text-erro/50">⚠️</span>
+              <span className="text-[11px] text-erro/60 uppercase tracking-wider font-semibold flex-1">Zona de perigo</span>
+              <ChevronDown size={14} className={`text-erro/30 transition-transform duration-200 ${zonaPerigo ? 'rotate-180' : ''}`} />
+            </button>
+
+            {zonaPerigo && (
+              <div className="px-4 pb-4 pt-1 border-t border-erro/10 animate-[fadeIn_0.2s_ease-out]">
+                <SecaoExcluirConta onConfirmar={aoExcluirConta} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
