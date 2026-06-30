@@ -11,6 +11,7 @@ import { ehCampeonatoCopa } from '@/lib/jogo-helpers';
 export function podePalpitar(jogo: Jogo): boolean {
   if (jogo.status !== 'AGENDADO' && jogo.status !== 'ADIADO') return false;
   if (jogo.dataHora && new Date(jogo.dataHora).getTime() <= Date.now()) return false;
+  if (!temTimesDefinidos(jogo)) return false;
   return true;
 }
 
@@ -19,6 +20,20 @@ export function estaBloqueado(jogo: Jogo): boolean {
   if (jogo.status !== 'AGENDADO' && jogo.status !== 'ADIADO') return false;
   if (!jogo.dataHora) return false;
   return new Date(jogo.dataHora).getTime() <= Date.now();
+}
+
+/** Verifica se ambos os times do jogo são reais (não placeholders/TBD) */
+export function temTimesDefinidos(jogo: Jogo): boolean {
+  const ehPlaceholder = (nome?: string, sigla?: string) => {
+    if (!nome || !sigla) return true;
+    if (sigla === 'TBD') return true;
+    if (/^\d[ºo°]\s/.test(nome)) return true;
+    if (/^[A-Z]{2,}\s[A-L]{3,}/i.test(nome)) return true;
+    if (/\sou\s/i.test(nome)) return true;
+    return false;
+  };
+  return !ehPlaceholder(jogo.timeCasa?.nome, jogo.timeCasa?.sigla) &&
+         !ehPlaceholder(jogo.timeFora?.nome, jogo.timeFora?.sigla);
 }
 
 export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionado?: string) {
