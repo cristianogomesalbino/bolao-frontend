@@ -28,6 +28,9 @@ export interface PalpiteComJogo extends Palpite {
     golsCasa: number | null;
     golsFora: number | null;
     foiAdiado: boolean;
+    temPenaltis?: boolean;
+    penaltisCasa?: number | null;
+    penaltisFora?: number | null;
     timeCasa: { id: string; nome: string; sigla: string; escudo: string | null } | null;
     timeFora: { id: string; nome: string; sigla: string; escudo: string | null } | null;
   } | null;
