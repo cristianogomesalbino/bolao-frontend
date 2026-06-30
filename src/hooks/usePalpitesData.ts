@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { listarFases, listarJogosFase, listarTemporadas } from '@/services/jogo.service';
+import { listarFases, listarJogosFase, listarJogosTemporada, listarTemporadas } from '@/services/jogo.service';
 import { listarGrupos } from '@/services/grupo.service';
 import { buscarMeusPalpitesPorJogos, listarMeusPalpites } from '@/services/palpite.service';
 import { useAuthStore } from '@/stores/auth.store';
@@ -40,22 +40,15 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     if (campeonatoSelecionado === 'copa-do-mundo-2026') {
       const gruposCopa = gruposData.filter((g) => ehCampeonatoCopa(g.campeonato));
       if (gruposCopa.length === 0) return undefined;
-      // Se tem favorito e é Copa, usa ele
-      if (favoritoId) {
-        const fav = gruposCopa.find((g) => g.id === favoritoId);
-        if (fav) return fav;
-      }
-      return gruposCopa[0];
+      const favCopa = favoritoId ? gruposCopa.find((g) => g.id === favoritoId) : undefined;
+      return favCopa ?? gruposCopa[0];
     }
 
     // Brasileirão: grupo favorito ou primeiro que não é Copa
     const gruposBrasileirao = gruposData.filter((g) => !ehCampeonatoCopa(g.campeonato));
     if (gruposBrasileirao.length === 0) return undefined;
-    if (favoritoId) {
-      const fav = gruposBrasileirao.find((g) => g.id === favoritoId);
-      if (fav) return fav;
-    }
-    return gruposBrasileirao[0];
+    const favBr = favoritoId ? gruposBrasileirao.find((g) => g.id === favoritoId) : undefined;
+    return favBr ?? gruposBrasileirao[0];
   })();
 
   const grupoId = grupoParaCampeonato?.id ?? '';
@@ -196,25 +189,60 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     enabled: !!temporadaId && abaAtiva === 'meus',
   });
 
-  const palpitesFinalizados = (meusPalpitesAnteriores ?? [])
-    .filter((p: PalpiteComJogo) => p.jogo?.status === 'FINALIZADO')
-    .sort((a: PalpiteComJogo, b: PalpiteComJogo) => (b.jogo?.rodada ?? 0) - (a.jogo?.rodada ?? 0));
+  // Todos os jogos da temporada (para mostrar jogos finalizados sem palpite)
+  const { data: todosJogosTemporada } = useQuery({
+    queryKey: ['jogos-temporada-todos', temporadaId],
+    queryFn: () => listarJogosTemporada(temporadaId),
+    enabled: !!temporadaId && abaAtiva === 'meus',
+    staleTime: 1000 * 60 * 5,
+  });
 
-  const palpitesPorRodada = palpitesFinalizados.reduce<Record<number, PalpiteComJogo[]>>((acc, p) => {
-    const rodada = p.jogo?.rodada ?? 0;
-    if (!acc[rodada]) acc[rodada] = [];
-    acc[rodada].push(p);
-    return acc;
-  }, {});
+  // Mesclar palpites com jogos finalizados sem palpite
+  const palpitesFinalizados = (() => {
+    const palpitesComJogo = (meusPalpitesAnteriores ?? [])
+      .filter((p: PalpiteComJogo) => p.jogo?.status === 'FINALIZADO');
 
-  // Ordenar jogos dentro de cada rodada
-  for (const rodada of Object.keys(palpitesPorRodada)) {
-    palpitesPorRodada[Number(rodada)].sort((a: PalpiteComJogo, b: PalpiteComJogo) => {
-      const dataA = a.jogo?.dataHora ? new Date(a.jogo.dataHora).getTime() : 0;
-      const dataB = b.jogo?.dataHora ? new Date(b.jogo.dataHora).getTime() : 0;
-      return dataB - dataA;
-    });
-  }
+    const jogosFinalizados = (todosJogosTemporada ?? [])
+      .filter((j: Jogo) => j.status === 'FINALIZADO');
+
+    // IDs dos jogos que já têm palpite
+    const jogoIdsComPalpite = new Set(palpitesComJogo.map((p) => p.jogo?.id).filter(Boolean));
+
+    // Criar entradas "sem palpite" para jogos finalizados que o usuário não palpitou
+    const jogosSemPalpite: PalpiteComJogo[] = jogosFinalizados
+      .filter((j) => !jogoIdsComPalpite.has(j.id))
+      .map((j) => ({
+        id: `sem-palpite-${j.id}`,
+        golsCasa: -1,
+        golsFora: -1,
+        jogoId: j.id,
+        usuarioId: usuario?.id ?? '',
+        dataCriacao: '',
+        atualizadoEm: '',
+        jogo: {
+          id: j.id,
+          faseId: j.faseId,
+          rodada: j.rodada,
+          status: j.status,
+          dataHora: j.dataHora,
+          golsCasa: j.golsCasa,
+          golsFora: j.golsFora,
+          foiAdiado: j.foiAdiado ?? false,
+          temPenaltis: j.temPenaltis ?? false,
+          penaltisCasa: j.penaltisCasa ?? null,
+          penaltisFora: j.penaltisFora ?? null,
+          timeCasa: j.timeCasa ?? null,
+          timeFora: j.timeFora ?? null,
+        },
+      }));
+
+    return [...palpitesComJogo, ...jogosSemPalpite]
+      .sort((a: PalpiteComJogo, b: PalpiteComJogo) => {
+        const dataA = a.jogo?.dataHora ? new Date(a.jogo.dataHora).getTime() : 0;
+        const dataB = b.jogo?.dataHora ? new Date(b.jogo.dataHora).getTime() : 0;
+        return dataB - dataA;
+      });
+  })();
 
   return {
     temporadaId,
@@ -230,7 +258,6 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     jogosProximaVisiveis,
     palpitesPorJogo,
     palpitesFinalizados,
-    palpitesPorRodada,
     isLoading,
     carregandoBatch,
     carregandoProxima,

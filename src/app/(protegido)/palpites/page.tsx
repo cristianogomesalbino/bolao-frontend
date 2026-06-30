@@ -116,7 +116,6 @@ export default function PalpitesPage() {
     jogosProximaVisiveis,
     palpitesPorJogo,
     palpitesFinalizados,
-    palpitesPorRodada,
     isLoading,
     carregandoBatch,
     carregandoProxima,
@@ -248,10 +247,10 @@ export default function PalpitesPage() {
         {!isLoading && abaAtiva === 'meus' && (
           <AbaMeusPalpites
             palpitesFinalizados={palpitesFinalizados}
-            palpitesPorRodada={palpitesPorRodada}
             carregandoPalpites={carregandoPalpites}
             buscandoPalpites={buscandoPalpites}
             temporadaId={temporadaId}
+            fases={fases}
           />
         )}
       </div>

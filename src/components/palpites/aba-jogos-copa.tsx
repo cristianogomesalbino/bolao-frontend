@@ -63,8 +63,9 @@ function obterLabelPosicao(jogo: Jogo, lado: 'casa' | 'fora'): string | null {
   return lado === 'casa' ? regra.casa : regra.fora;
 }
 
-/** Substitui a sigla/nome "TBD" pela posição do chaveamento (ex: "1ºF") */
-function substituirSiglaTBD(jogo: Jogo): Jogo {
+/** Substitui a sigla/nome "TBD" pela posição do chaveamento (ex: "1ºF") — só para 16 avos */
+function substituirSiglaTBD(jogo: Jogo, eh16Avos: boolean): Jogo {
+  if (!eh16Avos) return jogo;
   const labelCasa = obterLabelPosicao(jogo, 'casa');
   const labelFora = obterLabelPosicao(jogo, 'fora');
 
@@ -246,9 +247,9 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
         });
     }
 
-    // Eliminatórias: todos os jogos da fase (sem filtro de rodada)
+    // Eliminatórias: jogos da fase excluindo finalizados/cancelados
     return todosJogosTemporada
-      .filter((j) => j.faseId === faseSelecionada.id)
+      .filter((j) => j.faseId === faseSelecionada.id && j.status !== 'FINALIZADO' && j.status !== 'CANCELADO')
       .sort((a, b) => {
         const dataA = a.dataHora ? new Date(a.dataHora).getTime() : Infinity;
         const dataB = b.dataHora ? new Date(b.dataHora).getTime() : Infinity;
@@ -478,7 +479,7 @@ export function AbaJogosCopa({ fases, grupoId, temporadaId, cardAtivo, onFoco }:
                   return (
                     <div key={jogo.id}>
                       <CardJogoPalpite
-                        jogo={substituirSiglaTBD(jogo)}
+                        jogo={substituirSiglaTBD(jogo, fase.nome.toLowerCase().includes('16 avos'))}
                         palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
                         palpitavel={palpitavelReal}
                         bloqueado={bloqueadoReal}
