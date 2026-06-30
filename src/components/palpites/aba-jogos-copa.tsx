@@ -7,7 +7,7 @@ import { Fase, Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
 import { buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { CardJogoPalpite } from '@/components/jogos/card-jogo-palpite';
-import { podePalpitar, estaBloqueado } from '@/hooks/usePalpitesData';
+import { podePalpitar, estaBloqueado, temTimesDefinidos } from '@/hooks/usePalpitesData';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 
 interface PropsAbaJogosCopa {
@@ -16,19 +16,6 @@ interface PropsAbaJogosCopa {
   temporadaId: string;
   cardAtivo: string | null;
   onFoco: (jogoId: string) => void;
-}
-
-/** Verifica se um jogo de mata-mata tem os dois times definidos (não são placeholders) */
-function temTimesDefinidos(jogo: Jogo): boolean {
-  const ehPlaceholder = (nome?: string, sigla?: string) => {
-    if (!nome || !sigla) return true;
-    if (sigla === 'TBD') return true;
-    if (/^\d[ºo°]\s/.test(nome)) return true;
-    if (/^[A-Z]{2,}\s[A-L]{3,}/i.test(nome)) return true;
-    return false;
-  };
-  return !ehPlaceholder(jogo.timeCasa?.nome, jogo.timeCasa?.sigla) &&
-         !ehPlaceholder(jogo.timeFora?.nome, jogo.timeFora?.sigla);
 }
 
 /** Chaveamento dos 16 avos — posição de cada time por rodada */
