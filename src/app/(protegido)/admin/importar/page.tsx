@@ -41,7 +41,6 @@ export default function ImportarJogosPage() {
   const router = useRouter();
   const [campeonatoSlug, setCampeonatoSlug] = useState<CampeonatoSlug>('brasileirao');
   const [faseSlugSelecionada, setFaseSlugSelecionada] = useState('');
-  const [faseBancoId, setFaseBancoId] = useState('');
   const [rodadaImportar, setRodadaImportar] = useState('1');
   const [carregando, setCarregando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
@@ -53,14 +52,12 @@ export default function ImportarJogosPage() {
   const faseApiSelecionada = fasesApi.find((f) => f.slug === faseSlugSelecionada);
   const maxRodadas = faseApiSelecionada?.maxRodadas ?? 38;
   const ehCopaGrupos = campeonatoSlug === 'copa-do-mundo-2026' && faseApiSelecionada?.tipo === 'PONTOS_CORRIDOS';
-
-  // Brasileirão: auto-selecionar fase slug (é sempre a primeira do ano atual)
+  const ehMataMata = faseApiSelecionada?.tipo === 'MATA_MATA';
   const ehBrasileiro = campeonatoSlug === 'brasileirao';
   const faseSlugEfetiva = ehBrasileiro
     ? (fasesApi[0]?.slug ?? faseSlugSelecionada)
     : faseSlugSelecionada;
 
-  // Buscar temporadas para determinar temporadaId por campeonato
   const { data: temporadas } = useQuery({
     queryKey: ['temporadas-admin'],
     queryFn: listarTemporadas,
@@ -72,19 +69,42 @@ export default function ImportarJogosPage() {
   const temporadaAtiva = campeonatoSlug === 'copa-do-mundo-2026' ? temporadaCopa : temporadaBrasileiro;
   const temporadaId = temporadaAtiva?.id || '';
 
-  // Buscar fases do banco para a temporada ativa
   const { data: fasesBanco } = useQuery({
     queryKey: ['fases-banco-admin', temporadaId],
     queryFn: () => listarFases(temporadaId),
     enabled: !!temporadaId,
   });
 
-  // Auto-selecionar fase destino para Copa fase de grupos ou Brasileirão
-  const faseBancoEfetiva = ehCopaGrupos || ehBrasileiro
-    ? (fasesBanco?.find((f: Fase) => f.tipo === 'PONTOS_CORRIDOS')?.id ?? faseBancoId)
-    : faseBancoId;
+  // Fase destino resolvida automaticamente pelo backend (slug da API → fase no banco)
+  // Para eliminatórias Copa, usa a primeira fase MATA_MATA encontrada (o backend distribui)
+  const faseBancoEfetiva = (() => {
+    if (ehCopaGrupos || ehBrasileiro) {
+      return fasesBanco?.find((f: Fase) => f.tipo === 'PONTOS_CORRIDOS')?.id ?? '';
+    }
+    if (campeonatoSlug === 'copa-do-mundo-2026' && faseSlugSelecionada) {
+      // Para eliminatórias, pegar a fase correspondente pelo nome
+      const mapeamento: Record<string, string> = {
+        'segunda-fase': '16 avos',
+        'oitavas': 'oitavas',
+        'quartas': 'quartas',
+        'semifinal': 'semi',
+        'terceiro': 'terceiro',
+        'final': 'final',
+      };
+      for (const [slugParte, termo] of Object.entries(mapeamento)) {
+        if (faseSlugSelecionada.includes(slugParte)) {
+          const faseEncontrada = fasesBanco?.find((f: Fase) =>
+            f.tipo === 'MATA_MATA' && f.nome.toLowerCase().includes(termo),
+          );
+          if (faseEncontrada) return faseEncontrada.id;
+        }
+      }
+      // Fallback: primeira MATA_MATA
+      return fasesBanco?.find((f: Fase) => f.tipo === 'MATA_MATA')?.id ?? '';
+    }
+    return '';
+  })();
 
-  // Buscar jogos adiados da fase selecionada do banco
   const { data: jogosAdiados, refetch: refetchAdiados } = useQuery({
     queryKey: ['jogos-admin-adiados', faseBancoEfetiva],
     queryFn: () => listarJogosFase(faseBancoEfetiva, undefined, 'ADIADO'),
@@ -103,13 +123,28 @@ export default function ImportarJogosPage() {
     );
   }
 
+  function aoTrocarCampeonato(slug: CampeonatoSlug) {
+    setCampeonatoSlug(slug);
+    setFaseSlugSelecionada('');
+    setRodadaImportar('1');
+    setLogs([]);
+    setErro(null);
+  }
+
+  function aoSelecionarFaseApi(slug: string) {
+    const fase = fasesApi.find((f) => f.slug === slug);
+    setFaseSlugSelecionada(slug);
+    setRodadaImportar(fase && fase.maxRodadas > 1 ? 'todas' : '1');
+  }
+
   async function aoImportar() {
-    if (!faseBancoEfetiva || !rodadaImportar || !faseSlugEfetiva) return;
+    if (!faseBancoEfetiva || !faseSlugEfetiva) return;
     setErro(null);
     setLogs([]);
     setCarregando(true);
 
-    const rodadas = rodadaImportar === 'todas'
+    const importarTodas = ehMataMata || rodadaImportar === 'todas';
+    const rodadas = importarTodas
       ? Array.from({ length: maxRodadas }, (_, i) => i + 1)
       : [Number(rodadaImportar)];
 
@@ -172,30 +207,32 @@ export default function ImportarJogosPage() {
     }
   }
 
+  const prontoParaAcao = !!faseSlugEfetiva && !!faseBancoEfetiva;
+
   return (
     <div className="min-h-screen bg-fundo pb-20">
       <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 bg-fundo/80 backdrop-blur-lg border-b border-white/[0.05]">
         <Button variant="ghost" size="icon" onClick={() => router.back()} aria-label="Voltar" className="text-texto/70 hover:text-texto">
           <ArrowLeft size={20} />
         </Button>
-        <h1 className="text-lg font-semibold text-texto">Importar Jogos</h1>
+        <h1 className="text-lg font-semibold text-texto">Admin — Importação</h1>
       </header>
 
-      <div className="mx-auto max-w-[480px] px-4 py-5 space-y-5">
+      <div className="mx-auto max-w-[480px] px-4 py-5 space-y-4">
 
-        {/* 1. Campeonato (tabs visuais) */}
-        <div className="space-y-2">
+        {/* Campeonato */}
+        <div className="space-y-1.5">
           <span className="text-[10px] text-texto/40 uppercase tracking-wider font-bold">Campeonato</span>
           <div className="flex gap-2">
             {CAMPEONATOS.map((c) => (
               <button
                 key={c.slug}
                 type="button"
-                onClick={() => { setCampeonatoSlug(c.slug); setFaseSlugSelecionada(''); setFaseBancoId(''); setRodadaImportar('1'); setLogs([]); setErro(null); }}
-                className={`flex-1 py-3 px-3 rounded-xl text-xs font-semibold transition-all text-center ${
+                onClick={() => aoTrocarCampeonato(c.slug)}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all text-center ${
                   campeonatoSlug === c.slug
-                    ? 'bg-primaria/20 text-primaria-claro border border-primaria/40 shadow-[0_0_12px_rgba(34,197,94,0.2)]'
-                    : 'bg-white/[0.03] text-texto/50 border border-white/[0.08] hover:bg-white/[0.06]'
+                    ? 'bg-primaria/20 text-primaria-claro border border-primaria/40'
+                    : 'bg-white/[0.03] text-texto/50 border border-white/[0.08]'
                 }`}
               >
                 {c.slug === 'copa-do-mundo-2026' ? '🏆 ' : '⚽ '}{c.label}
@@ -204,111 +241,85 @@ export default function ImportarJogosPage() {
           </div>
         </div>
 
-        {/* 2. Fase da API (só mostra para Copa — Brasileirão é auto) */}
+        {/* Fase (unificada) */}
         {campeonatoSlug === 'copa-do-mundo-2026' && (
-          <div className="space-y-2">
-            <span className="text-[10px] text-texto/40 uppercase tracking-wider font-bold">Fase</span>
+          <div className="space-y-1.5">
+            <span className="text-[10px] text-texto/40 uppercase tracking-wider font-bold">Fase (fonte API)</span>
             <div className="grid grid-cols-2 gap-1.5">
               {fasesApi.filter((f) => f.slug.includes('fase-de-grupos') || f.tipo === 'MATA_MATA').map((f) => (
                 <button
                   key={f.slug}
                   type="button"
-                  onClick={() => { setFaseSlugSelecionada(f.slug); setRodadaImportar(f.maxRodadas > 1 ? 'todas' : '1'); }}
-                  className={`w-full py-2.5 px-3 rounded-lg text-[11px] font-medium transition-all text-left ${
+                  onClick={() => aoSelecionarFaseApi(f.slug)}
+                  className={`py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all text-left ${
                     faseSlugSelecionada === f.slug
                       ? 'bg-primaria/15 text-primaria-claro border border-primaria/30'
-                      : 'bg-white/[0.03] text-texto/60 border border-white/[0.06] hover:bg-white/[0.06]'
+                      : 'bg-white/[0.03] text-texto/60 border border-white/[0.06]'
                   }`}
                 >
                   {f.label}
-                  {f.maxRodadas > 1 && <span className="text-[9px] text-texto/30 ml-1">({f.maxRodadas} rodadas)</span>}
+                  {f.maxRodadas > 1 && <span className="text-[9px] text-texto/30 ml-1">({f.maxRodadas}r)</span>}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* 3. Fase do banco (destino) — só mostra para eliminatórias da Copa */}
-        {faseSlugSelecionada && fasesBanco && fasesBanco.length > 0 && !ehBrasileiro && !ehCopaGrupos && (
-          <div className="space-y-2">
-            <span className="text-[10px] text-texto/40 uppercase tracking-wider font-bold">Fase destino (banco)</span>
-            <div className="grid grid-cols-3 gap-1.5 max-h-[200px] overflow-y-auto">
-              {fasesBanco
-                .filter((f: Fase) => {
-                  if (!faseApiSelecionada) return true;
-                  return faseApiSelecionada.tipo === 'PONTOS_CORRIDOS'
-                    ? f.tipo === 'PONTOS_CORRIDOS'
-                    : f.tipo === 'MATA_MATA';
-                })
-                .map((f: Fase) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFaseBancoId(f.id)}
-                  className={`py-2 px-2 rounded-lg text-[10px] font-medium transition-all text-center truncate ${
-                    faseBancoId === f.id
-                      ? 'bg-destaque/15 text-destaque border border-destaque/30'
-                      : 'bg-white/[0.03] text-texto/50 border border-white/[0.06] hover:bg-white/[0.06]'
-                  }`}
-                >
-                  {f.nome}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 4. Rodada + Ações */}
-        {faseSlugEfetiva && faseBancoEfetiva && (
+        {/* Ações */}
+        {prontoParaAcao && (
           <Card>
-            <CardContent className="p-4 space-y-4">
+            <CardContent className="p-4 space-y-3">
               {erro && (
                 <Alert variant="destructive">
                   <AlertDescription className="text-xs">{erro}</AlertDescription>
                 </Alert>
               )}
 
-              <div className="space-y-1.5">
-                <Label htmlFor="rodada" className="text-xs">Rodada</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="rodada"
-                    type={rodadaImportar === 'todas' ? 'text' : 'number'}
-                    min="1"
-                    max={maxRodadas}
-                    value={rodadaImportar === 'todas' ? 'Todas (1-' + maxRodadas + ')' : rodadaImportar}
-                    onChange={(e) => setRodadaImportar(e.target.value)}
-                    disabled={rodadaImportar === 'todas'}
-                    className="h-10 flex-1"
-                  />
-                  {maxRodadas > 1 && (
-                    <Button
-                      type="button"
-                      variant={rodadaImportar === 'todas' ? 'default' : 'outline'}
-                      onClick={() => setRodadaImportar(rodadaImportar === 'todas' ? '1' : 'todas')}
-                      className="text-[10px] px-3 h-10 shrink-0"
-                    >
-                      {rodadaImportar === 'todas' ? '✓ Todas' : 'Todas'}
-                    </Button>
-                  )}
+              {/* Rodada — esconde para mata-mata (importa todos automaticamente) */}
+              {!ehMataMata && (
+                <div className="space-y-1">
+                  <Label htmlFor="rodada" className="text-[11px] text-texto/60">Rodada</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="rodada"
+                      type={rodadaImportar === 'todas' ? 'text' : 'number'}
+                      min="1"
+                      max={maxRodadas}
+                      value={rodadaImportar === 'todas' ? `Todas (1-${maxRodadas})` : rodadaImportar}
+                      onChange={(e) => setRodadaImportar(e.target.value)}
+                      disabled={rodadaImportar === 'todas'}
+                      className="h-9 flex-1 text-sm"
+                    />
+                    {maxRodadas > 1 && (
+                      <Button
+                        type="button"
+                        variant={rodadaImportar === 'todas' ? 'default' : 'outline'}
+                        onClick={() => setRodadaImportar(rodadaImportar === 'todas' ? '1' : 'todas')}
+                        className="text-[10px] px-3 h-9 shrink-0"
+                      >
+                        {rodadaImportar === 'todas' ? '✓ Todas' : 'Todas'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
+              {/* Botões de ação */}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   onClick={aoImportar}
                   disabled={carregando || !rodadaImportar}
-                  className="text-xs"
+                  className="text-xs h-10"
                 >
-                  {carregando ? <Loader2 size={14} className="animate-spin" /> : 'Importar'}
+                  {carregando ? <Loader2 size={14} className="animate-spin" /> : 'Importar jogos'}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={aoSincronizar}
                   disabled={sincronizando}
-                  className="text-xs"
+                  className="text-xs h-10"
                 >
-                  {sincronizando ? <Loader2 size={14} className="animate-spin" /> : <><RefreshCw size={12} /> Sincronizar</>}
+                  {sincronizando ? <Loader2 size={14} className="animate-spin" /> : <><RefreshCw size={12} className="mr-1" /> Sincronizar</>}
                 </Button>
               </div>
             </CardContent>
@@ -325,7 +336,7 @@ export default function ImportarJogosPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
                 {adiados.map((jogo: Jogo) => (
                   <div key={jogo.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                     <span className="text-[11px] text-texto/70">
@@ -339,20 +350,20 @@ export default function ImportarJogosPage() {
           </Card>
         )}
 
-        {/* Log de execução */}
+        {/* Log */}
         {logs.length > 0 && (
           <Card>
             <CardContent className="p-4">
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
                 {logs.map((log, i) => (
                   <div key={`${log.etapa}-${i}`} className="flex items-start gap-2">
-                    <span className="mt-0.5 text-sm">
+                    <span className="mt-0.5 text-sm shrink-0">
                       {log.status === 'ok' && '✅'}
                       {log.status === 'erro' && '❌'}
                       {log.status === 'pendente' && '⏳'}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-xs text-texto/70 truncate">{log.etapa}</p>
+                      <p className="text-[11px] text-texto/70 truncate">{log.etapa}</p>
                       {log.detalhe && (
                         <p className="text-[10px] text-texto/40 font-mono truncate">{log.detalhe}</p>
                       )}
