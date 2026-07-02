@@ -30,11 +30,6 @@ export async function obterPermissaoPush(): Promise<NotificationPermission> {
 export async function registrarServiceWorkerPush(): Promise<ServiceWorkerRegistration | null> {
   if (!pushSuportado()) return null;
 
-  // Push requer HTTPS (exceto localhost com flags)
-  if (globalThis.location?.protocol !== 'https:' && globalThis.location?.hostname !== 'localhost') {
-    return null;
-  }
-
   try {
     const registration = await navigator.serviceWorker.register('/sw-push.js', {
       scope: '/',

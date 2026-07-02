@@ -1,5 +1,4 @@
 // Service Worker para Web Push Notifications
-// Este arquivo é registrado manualmente (separado do SW do next-pwa)
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;
@@ -8,20 +7,20 @@ self.addEventListener('push', (event) => {
     const payload = event.data.json();
 
     const options = {
-      body: payload.body || '',
+      body: payload.body || payload.mensagem || '',
       icon: '/logo-bolao.png',
       badge: '/logo-bolao.png',
-      tag: payload.type || 'bolao-notificacao',
+      tag: payload.type || payload.tipo || 'bolao-notificacao',
       renotify: true,
+      requireInteraction: true,
       data: {
-        url: payload.url || '/',
-        type: payload.type,
+        url: payload.url || '/notificacoes',
       },
       vibrate: [100, 50, 100],
     };
 
     event.waitUntil(
-      self.registration.showNotification(payload.title || 'Bolão', options),
+      self.registration.showNotification(payload.title || payload.titulo || 'Bolão', options),
     );
   } catch (error) {
     console.error('[SW Push] Erro ao processar push:', error);
@@ -31,20 +30,9 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || '/notificacoes';
+  const urlPath = event.notification.data?.url || '/notificacoes';
+  const fullUrl = self.location.origin + urlPath;
 
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Se já tem uma aba aberta, foca nela
-      for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.focus();
-          client.navigate(url);
-          return;
-        }
-      }
-      // Senão, abre nova aba
-      return self.clients.openWindow(url);
-    }),
-  );
+  // Sempre abre/foca — openWindow funciona em todos os cenários
+  event.waitUntil(self.clients.openWindow(fullUrl));
 });
