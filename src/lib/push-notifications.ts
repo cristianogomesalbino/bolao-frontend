@@ -31,12 +31,11 @@ export async function registrarServiceWorkerPush(): Promise<ServiceWorkerRegistr
   if (!pushSuportado()) return null;
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw-push.js', {
-      scope: '/',
-    });
+    // Usa o SW já registrado pelo next-pwa (que inclui o custom worker com push handlers)
+    const registration = await navigator.serviceWorker.ready;
     return registration;
   } catch (error) {
-    console.warn('[Push] Erro ao registrar SW:', error);
+    console.warn('[Push] Erro ao obter SW:', error);
     return null;
   }
 }

@@ -276,9 +276,9 @@ const ICONES_GRUPO: Record<string, string> = {
 - Os demais são renderizados como `JogoSimultaneo` (layout mais compacto)
 - Palpites de todos os jogos são buscados em **1 batch** no componente pai
 
-## Redução Gradual de Dívida Técnica (Regra dos 15%)
+## Redução Gradual de Dívida Técnica (Regra dos 20%)
 
-- **Sempre que editar um arquivo .tsx/.ts existente**, corrigir pelo menos **15% dos erros de lint/Sonar pré-existentes** nesse arquivo (arredondando pra cima, mínimo 1)
+- **Sempre que editar um arquivo .tsx/.ts existente**, corrigir pelo menos **20% dos erros de lint/Sonar pré-existentes** nesse arquivo (arredondando pra cima, mínimo 1)
 - Prioridade de correção:
   1. Erros de Prettier (formatação)
   2. Ambiguous spacing (S6772) — envolver texto solto em `<span>`
