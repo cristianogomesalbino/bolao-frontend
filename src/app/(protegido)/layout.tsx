@@ -1,6 +1,7 @@
 import { GuardAutenticacao } from '@/components/auth/guard-autenticacao';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { BannerPush } from '@/components/notificacoes/banner-push';
+import { SwUpdater } from '@/components/notificacoes/sw-updater';
 
 export default function ProtegidoLayout({ children }: { readonly children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function ProtegidoLayout({ children }: { readonly children: React
         {children}
       </div>
       <BannerPush />
+      <SwUpdater />
       <BottomNav />
     </GuardAutenticacao>
   );

@@ -10,7 +10,16 @@ self.addEventListener('install', () => {
 });
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    self.clients.claim().then(() => {
+      // Notifica todas as páginas que o SW atualizou — elas devem renovar a push subscription
+      return self.clients.matchAll({ type: 'window' }).then((clients) => {
+        for (const client of clients) {
+          client.postMessage({ type: 'SW_UPDATED' });
+        }
+      });
+    }),
+  );
 });
 
 // Handler de Web Push
