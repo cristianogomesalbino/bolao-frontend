@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, X } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import {
   pushSuportado,
   inscreverNotificacoesPush,
@@ -23,8 +23,7 @@ export function BannerPush() {
       const jaInscrito = await verificarInscricaoPushAtiva();
       if (jaInscrito) return;
 
-      // Mostra banner após 3s para não competir com o carregamento inicial
-      setTimeout(() => setVisivel(true), 3000);
+      setVisivel(true);
     };
     verificar();
   }, []);
@@ -49,36 +48,38 @@ export function BannerPush() {
   if (!visivel) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-40 mx-auto max-w-[460px] animate-[fadeIn_0.3s_ease-out]">
-      <div className="rounded-2xl border border-primaria/20 bg-fundo/95 backdrop-blur-xl p-4 shadow-[0_8px_40px_rgba(0,0,0,0.6)]">
-        <button
-          onClick={dispensar}
-          className="absolute top-3 right-3 text-texto/40 hover:text-texto/70 transition-colors"
-          aria-label="Fechar"
-        >
-          <X size={16} />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="mx-4 w-full max-w-[360px] rounded-2xl border border-primaria/20 bg-fundo p-6 shadow-[0_8px_40px_rgba(0,0,0,0.8)]">
+        <div className="flex flex-col items-center text-center">
+          <div className="rounded-full bg-primaria/15 p-4 mb-4">
+            <Bell size={28} className="text-primaria" />
+          </div>
 
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 mt-0.5 rounded-full bg-primaria/15 p-2">
-            <Bell size={18} className="text-primaria" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-texto">
-              Ative as notificações
-            </p>
-            <p className="text-[11px] text-texto/50 mt-0.5 leading-relaxed">
-              Saiba quando o jogo vai começar, veja seus acertos em cheio e não esqueça de palpitar.
-            </p>
-            <button
-              onClick={ativar}
-              disabled={carregando}
-              className="mt-3 w-full h-9 rounded-lg bg-primaria text-white text-xs font-semibold hover:bg-primaria-claro transition-colors disabled:opacity-50"
-              data-testid="banner-push-ativar"
-            >
-              {carregando ? 'Ativando...' : 'Ativar notificações'}
-            </button>
-          </div>
+          <h2 className="text-base font-bold text-texto">
+            Ative as notificações
+          </h2>
+
+          <p className="text-xs text-texto/50 mt-2 leading-relaxed">
+            Saiba quando o jogo vai começar, veja seus acertos em cheio e não
+            esqueça de palpitar.
+          </p>
+
+          <button
+            onClick={ativar}
+            disabled={carregando}
+            className="mt-5 w-full h-10 rounded-lg bg-primaria text-white text-sm font-semibold hover:bg-primaria-claro transition-colors disabled:opacity-50"
+            data-testid="banner-push-ativar"
+          >
+            {carregando ? 'Ativando...' : 'Ativar notificações'}
+          </button>
+
+          <button
+            onClick={dispensar}
+            className="mt-3 w-full h-9 rounded-lg text-texto/50 text-xs hover:text-texto/70 transition-colors"
+            data-testid="banner-push-dispensar"
+          >
+            Agora não
+          </button>
         </div>
       </div>
     </div>

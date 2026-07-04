@@ -83,9 +83,7 @@ export async function cancelarNotificacoesPush(): Promise<boolean> {
   if (!pushSuportado()) return false;
 
   try {
-    const registration = await navigator.serviceWorker.getRegistration('/');
-    if (!registration) return false;
-
+    const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) return false;
 
@@ -102,9 +100,7 @@ export async function verificarInscricaoPushAtiva(): Promise<boolean> {
   if (!pushSuportado()) return false;
 
   try {
-    const registration = await navigator.serviceWorker.getRegistration('/');
-    if (!registration) return false;
-
+    const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     return subscription !== null;
   } catch {

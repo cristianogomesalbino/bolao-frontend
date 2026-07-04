@@ -24,7 +24,7 @@ self.addEventListener('push', (event: PushEvent) => {
       body: payload.body || payload.mensagem || '',
       icon: '/logo-bolao.png',
       badge: '/logo-bolao.png',
-      tag: payload.type || payload.tipo || 'bolao-notificacao',
+      tag: `${payload.type || payload.tipo || 'bolao'}-${payload.id || Date.now()}`,
       renotify: true,
       requireInteraction: true,
       data: {
