@@ -149,6 +149,15 @@ function CentroCard({
     return <span className="text-[11px] text-texto/40">—</span>;
   }
 
+  // Jogo pendente de confirmação pela API — bloqueia palpites com mensagem informativa
+  if (jogo.fonteResultado === 'API_EXTERNA' && !jogo.externoId && !bloqueado) {
+    return (
+      <span className="text-[10px] text-amber-400/80 text-center leading-tight">
+        Aguardando confirmação
+      </span>
+    );
+  }
+
   if (palpitavel) {
     function handleInputCasa(e: React.ChangeEvent<HTMLInputElement>) {
       const raw = e.target.value.replace(/\D/g, '').slice(0, 1);

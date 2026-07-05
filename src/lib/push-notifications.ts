@@ -1,6 +1,7 @@
 import { inscreverPush, cancelarPush } from '@/services/notificacao.service';
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+const PUSH_PENDING_KEY = 'push-sync-pendente';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -31,7 +32,6 @@ export async function registrarServiceWorkerPush(): Promise<ServiceWorkerRegistr
   if (!pushSuportado()) return null;
 
   try {
-    // Usa o SW já registrado pelo next-pwa (que inclui o custom worker com push handlers)
     const registration = await navigator.serviceWorker.ready;
     return registration;
   } catch (error) {
@@ -54,7 +54,6 @@ export async function inscreverNotificacoesPush(): Promise<boolean> {
     const registration = await registrarServiceWorkerPush();
     if (!registration) return false;
 
-    // Verificar se já existe inscrição
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
@@ -64,18 +63,73 @@ export async function inscreverNotificacoesPush(): Promise<boolean> {
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
         });
       } catch (subscribeError) {
-        // Push subscribe falha em localhost (HTTP) — esperado em desenvolvimento
         console.warn('[Push] Não foi possível inscrever (requer HTTPS):', subscribeError);
         return false;
       }
     }
 
-    // Enviar inscrição para o backend
-    await inscreverPush(subscription);
+    // Tentar enviar pro backend. Se falhar (401, offline), salvar como pendente
+    try {
+      await inscreverPush(subscription);
+      localStorage.removeItem(PUSH_PENDING_KEY);
+    } catch {
+      // Salva subscription pra sincronizar quando logar
+      const json = subscription.toJSON();
+      localStorage.setItem(PUSH_PENDING_KEY, JSON.stringify(json));
+    }
+
     return true;
   } catch (error) {
     console.error('[Push] Erro ao inscrever:', error);
     return false;
+  }
+}
+
+/**
+ * Sincroniza subscription push pendente com o backend.
+ * Chamar após login bem-sucedido.
+ */
+export async function sincronizarPushPendente(): Promise<void> {
+  if (!pushSuportado()) return;
+
+  const pendente = localStorage.getItem(PUSH_PENDING_KEY);
+  if (!pendente) {
+    // Mesmo sem pendente, verificar se existe subscription ativa que precisa ser re-enviada
+    await reinscreverSeNecessario();
+    return;
+  }
+
+  try {
+    const json = JSON.parse(pendente) as PushSubscriptionJSON;
+    if (!json.endpoint || !json.keys) return;
+
+    await inscreverPush({
+      toJSON: () => json,
+      endpoint: json.endpoint,
+    } as unknown as PushSubscription);
+
+    localStorage.removeItem(PUSH_PENDING_KEY);
+  } catch {
+    // Falhou de novo — será tentado no próximo login
+  }
+}
+
+/**
+ * Verifica se existe subscription push ativa no browser mas que pode
+ * não estar no backend (ex: SW atualizou). Se sim, re-envia.
+ */
+async function reinscreverSeNecessario(): Promise<void> {
+  if (Notification.permission !== 'granted') return;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return;
+
+    // Silenciosamente re-inscreve no backend (idempotente — atualiza keys se endpoint já existe)
+    await inscreverPush(subscription);
+  } catch {
+    // Falha silenciosa — não bloqueia nada
   }
 }
 
@@ -89,6 +143,7 @@ export async function cancelarNotificacoesPush(): Promise<boolean> {
 
     await cancelarPush(subscription.endpoint);
     await subscription.unsubscribe();
+    localStorage.removeItem(PUSH_PENDING_KEY);
     return true;
   } catch (error) {
     console.error('[Push] Erro ao cancelar:', error);
