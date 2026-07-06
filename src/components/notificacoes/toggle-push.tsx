@@ -31,23 +31,30 @@ export function TogglePush() {
   async function alternar() {
     setErro(null);
     setCarregando(true);
+
     if (inscrito) {
       const sucesso = await cancelarNotificacoesPush();
-      if (sucesso) setInscrito(false);
-    } else {
-      const sucesso = await inscreverNotificacoesPush();
-      if (sucesso) {
-        setInscrito(true);
-      } else {
-        const isHttps = globalThis.location?.protocol === 'https:';
-        setErro(
-          isHttps
-            ? 'Não foi possível ativar. Verifique as permissões do navegador.'
-            : 'Notificações push requerem HTTPS. Funcionará em produção.',
-        );
-      }
+      if (!sucesso) { setCarregando(false); return; }
+      setInscrito(false);
+      localStorage.removeItem('push-banner-dispensado');
+      setCarregando(false);
+      return;
     }
+
+    const sucesso = await inscreverNotificacoesPush();
     setCarregando(false);
+
+    if (!sucesso) {
+      const isHttps = globalThis.location?.protocol === 'https:';
+      setErro(
+        isHttps
+          ? 'Não foi possível ativar. Verifique as permissões do navegador.'
+          : 'Notificações push requerem HTTPS. Funcionará em produção.',
+      );
+      return;
+    }
+
+    setInscrito(true);
   }
 
   if (!suportado) return null;

@@ -8,6 +8,8 @@ description: Convenções de código, padrões de componentes, services, tipos, 
 ## Regras Críticas (NUNCA violar)
 
 - **NUNCA usar `any`** — tipar corretamente com interfaces, generics ou `unknown` + type guard. Código novo NUNCA deve introduzir `any`. Se precisar de tipo flexível, usar `unknown` com narrowing
+- **NUNCA criar um arquivo .ts/.tsx com mais de 250 linhas** — dividir em arquivos menores. Componentes > 200 linhas devem ser decompostos em sub-componentes. Hooks > 150 linhas devem ser divididos. Arquivos legados que já excedem: ao editar, reduzir pelo menos 1 responsabilidade (extrair sub-componente ou hook)
+- **SEMPRE documentar funcionalidades novas no steering `project-overview.md`** — ao finalizar uma feature, atualizar tipos, hooks, services e fluxos no steering. Funcionalidade não documentada é funcionalidade incompleta
 - **NUNCA duplicar lógica entre componentes** — extrair em hooks ou utilitários
 - **NUNCA fazer chamadas à API diretamente nos componentes** — usar services (`src/services/`)
 - **NUNCA armazenar tokens em localStorage diretamente nos componentes** — usar o auth store
