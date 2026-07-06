@@ -40,6 +40,7 @@ function iconeNotificacao(tipo: string): string {
     SUBIU_POSICAO: '📈',
     DESCEU_POSICAO: '📉',
     PALPITES_PENDENTES: '📝',
+    JOGO_LIBERADO: '🆕',
   };
   return icones[tipo] ?? '🔔';
 }
@@ -200,6 +201,7 @@ function obterUrlNotificacao(notificacao: Notificacao): string | null {
   switch (tipo) {
     case 'JOGO_PROXIMO':
     case 'PALPITES_PENDENTES':
+    case 'JOGO_LIBERADO':
       return grupoId ? `/grupos/${grupoId}?aba=palpites` : '/palpites';
     case 'ACERTO_EM_CHEIO':
       if (grupoId) return `/grupos/${grupoId}?aba=palpites&jogoId=${jogoId ?? ''}`;

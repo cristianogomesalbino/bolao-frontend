@@ -4,7 +4,8 @@ export type TipoNotificacao =
   | 'ACERTO_EM_CHEIO'
   | 'SUBIU_POSICAO'
   | 'DESCEU_POSICAO'
-  | 'PALPITES_PENDENTES';
+  | 'PALPITES_PENDENTES'
+  | 'JOGO_LIBERADO';
 
 export type StatusNotificacao = 'NAO_LIDA' | 'LIDA';
 
@@ -35,4 +36,5 @@ export interface PreferenciaNotificacao {
   subiuPosicao: boolean;
   desceuPosicao: boolean;
   palpitesPendentes: boolean;
+  jogoLiberado: boolean;
 }

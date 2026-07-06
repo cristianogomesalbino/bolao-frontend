@@ -55,6 +55,12 @@ const ITENS_PREFERENCIA: ItemPreferencia[] = [
     descricao: 'Lembrete antes da rodada começar',
     icone: <Bell size={18} className="text-blue-400" />,
   },
+  {
+    campo: 'jogoLiberado',
+    titulo: 'Jogo liberado',
+    descricao: 'Quando um confronto é definido no mata-mata',
+    icone: <Bell size={18} className="text-cyan-400" />,
+  },
 ];
 
 export default function PreferenciasNotificacaoPage() {
