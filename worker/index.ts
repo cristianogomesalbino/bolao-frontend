@@ -1,63 +1,50 @@
-// Service Worker custom — push notifications
-// Compilado pelo @ducanh2912/next-pwa e injetado no SW principal
+// Service Worker for Push Notifications
+// Compiled separately by @ducanh2912/next-pwa via customWorkerSrc
 
-export default null;
-declare let self: ServiceWorkerGlobalScope;
+const sw = globalThis as unknown as ServiceWorkerGlobalScope;
 
-// Força o novo SW a ativar imediatamente (sem esperar tabs fecharem)
-self.addEventListener('install', () => {
-  void self.skipWaiting();
-});
+interface PushData {
+  title?: string;
+  body?: string;
+  type?: string;
+  url?: string;
+}
 
-self.addEventListener('activate', (event: ExtendableEvent) => {
-  event.waitUntil(
-    self.clients.claim().then(() => {
-      // Notifica todas as páginas que o SW atualizou — elas devem renovar a push subscription
-      return self.clients.matchAll({ type: 'window' }).then((clients) => {
-        for (const client of clients) {
-          client.postMessage({ type: 'SW_UPDATED' });
-        }
-      });
-    }),
-  );
-});
-
-// Handler de Web Push
-self.addEventListener('push', (event: PushEvent) => {
+// Push notification handler
+sw.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return;
 
-  try {
-    const payload = event.data.json();
+  const data = event.data.json() as PushData;
 
-    const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-      body: payload.body || payload.mensagem || '',
-      icon: '/logo-bolao.png',
-      badge: '/logo-bolao.png',
-      tag: `${payload.type || payload.tipo || 'bolao'}-${payload.id || Date.now()}`,
-      renotify: true,
-      requireInteraction: true,
-      data: {
-        url: payload.url || '/notificacoes',
-      },
-      vibrate: [100, 50, 100],
-    };
+  const title = data.title ?? 'Bolão';
+  const options: NotificationOptions = {
+    body: data.body ?? '',
+    icon: '/logo-bolao.png',
+    badge: '/logo-bolao.png',
+    tag: `${data.type ?? 'default'}-${Date.now()}`,
+    data: { url: data.url ?? '/' },
+  };
 
-    event.waitUntil(
-      self.registration.showNotification(
-        payload.title || payload.titulo || 'Bolão',
-        options,
-      ),
-    );
-  } catch (error) {
-    console.error('[SW Push] Erro ao processar push:', error);
-  }
+  event.waitUntil(sw.registration.showNotification(title, options));
 });
 
-self.addEventListener('notificationclick', (event: NotificationEvent) => {
+// Click handler — opens the app at the relevant URL (cross-browser safe)
+sw.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
-  const urlPath = event.notification.data?.url || '/notificacoes';
-  const fullUrl = self.location.origin + urlPath;
+  const url = (event.notification.data as { url?: string })?.url ?? '/';
+  const fullUrl = new URL(url, sw.location.origin).href;
 
-  event.waitUntil(self.clients.openWindow(fullUrl));
+  event.waitUntil(
+    sw.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList: readonly WindowClient[]) => {
+        for (const client of clientList) {
+          if (client.url.startsWith(sw.location.origin) && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        return sw.clients.openWindow(fullUrl);
+      }),
+  );
 });
