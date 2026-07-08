@@ -127,8 +127,14 @@ function adicionarEliminatoriasComJogos(
     const jogos = jogosPorFase.get(fase.id) ?? [];
     const temJogos = jogos.length > 0;
     const temFinalizado = jogos.some((j) => j.status === 'FINALIZADO');
-    const deveExibir = temJogos || faseAnteriorTemFinalizado;
+    const todosConcluidos = temJogos && jogos.every((j) => j.status === 'FINALIZADO' || j.status === 'CANCELADO');
 
+    if (todosConcluidos) {
+      faseAnteriorTemFinalizado = true;
+      continue;
+    }
+
+    const deveExibir = temJogos || faseAnteriorTemFinalizado;
     if (!deveExibir) continue;
 
     ativas.push(fase);

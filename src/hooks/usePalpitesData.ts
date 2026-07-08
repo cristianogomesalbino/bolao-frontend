@@ -12,6 +12,7 @@ export function podePalpitar(jogo: Jogo): boolean {
   if (jogo.status !== 'AGENDADO' && jogo.status !== 'ADIADO') return false;
   if (jogo.dataHora && new Date(jogo.dataHora).getTime() <= Date.now()) return false;
   if (!temTimesDefinidos(jogo)) return false;
+  if (estaPendenteConfirmacao(jogo)) return false;
   return true;
 }
 
@@ -20,6 +21,11 @@ export function estaBloqueado(jogo: Jogo): boolean {
   if (jogo.status !== 'AGENDADO' && jogo.status !== 'ADIADO') return false;
   if (!jogo.dataHora) return false;
   return new Date(jogo.dataHora).getTime() <= Date.now();
+}
+
+/** Verifica se o jogo está pendente de confirmação pela API (times podem estar invertidos) */
+export function estaPendenteConfirmacao(jogo: Jogo): boolean {
+  return jogo.fonteResultado === 'API_EXTERNA' && !jogo.externoId;
 }
 
 /** Verifica se ambos os times do jogo são reais (não placeholders/TBD) */

@@ -8,6 +8,8 @@ description: Convenções de código, padrões de componentes, services, tipos, 
 ## Regras Críticas (NUNCA violar)
 
 - **NUNCA usar `any`** — tipar corretamente com interfaces, generics ou `unknown` + type guard. Código novo NUNCA deve introduzir `any`. Se precisar de tipo flexível, usar `unknown` com narrowing
+- **NUNCA criar um arquivo .ts/.tsx com mais de 250 linhas** — dividir em arquivos menores. Componentes > 200 linhas devem ser decompostos em sub-componentes. Hooks > 150 linhas devem ser divididos. Arquivos legados que já excedem: ao editar, reduzir pelo menos 1 responsabilidade (extrair sub-componente ou hook)
+- **SEMPRE documentar funcionalidades novas no steering `project-overview.md`** — ao finalizar uma feature, atualizar tipos, hooks, services e fluxos no steering. Funcionalidade não documentada é funcionalidade incompleta
 - **NUNCA duplicar lógica entre componentes** — extrair em hooks ou utilitários
 - **NUNCA fazer chamadas à API diretamente nos componentes** — usar services (`src/services/`)
 - **NUNCA armazenar tokens em localStorage diretamente nos componentes** — usar o auth store
@@ -276,9 +278,9 @@ const ICONES_GRUPO: Record<string, string> = {
 - Os demais são renderizados como `JogoSimultaneo` (layout mais compacto)
 - Palpites de todos os jogos são buscados em **1 batch** no componente pai
 
-## Redução Gradual de Dívida Técnica (Regra dos 15%)
+## Redução Gradual de Dívida Técnica (Regra dos 20%)
 
-- **Sempre que editar um arquivo .tsx/.ts existente**, corrigir pelo menos **15% dos erros de lint/Sonar pré-existentes** nesse arquivo (arredondando pra cima, mínimo 1)
+- **Sempre que editar um arquivo .tsx/.ts existente**, corrigir pelo menos **20% dos erros de lint/Sonar pré-existentes** nesse arquivo (arredondando pra cima, mínimo 1)
 - Prioridade de correção:
   1. Erros de Prettier (formatação)
   2. Ambiguous spacing (S6772) — envolver texto solto em `<span>`
