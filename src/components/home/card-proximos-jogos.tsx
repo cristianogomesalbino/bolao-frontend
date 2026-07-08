@@ -11,6 +11,7 @@ import { buscarDetalhamentoJogo, buscarMeusPalpitesPorJogos } from '@/services/p
 import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
 import { usePalpiteCard } from '@/hooks/usePalpiteCard';
 import { calcularCountdown, calcularTempoJogo } from '@/lib/jogo-helpers';
+import { podePalpitar } from '@/hooks/usePalpitesData';
 
 interface PropsCardProximosJogos {
   jogos: { fase: Fase; jogo: Jogo }[];
@@ -278,7 +279,7 @@ function Colunacentral({ aoVivo, jogo, tempoJogo, meuPalpite, countdown, corCoun
   }
 
   // Agendado — inputs ou palpite salvo
-  const palpitavel = !countdown.encerrado;
+  const palpitavel = podePalpitar(jogo);
 
   function renderCentro() {
     if (palpitavel && !jaPalpitou) {
