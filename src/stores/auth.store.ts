@@ -3,6 +3,7 @@ import { Usuario } from '@/types/usuario.types';
 import { DadosLogin } from '@/types/auth.types';
 import apiClient, { configurarTokenHandlers } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
+import { sincronizarPushPendente } from '@/lib/push-notifications';
 
 // --- Gerenciador de Tokens ---
 let accessToken: string | null = null;
@@ -64,6 +65,9 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
 
       queryClient.invalidateQueries();
       set({ usuario, estaAutenticado: true, estaCarregando: false });
+
+      // Sincronizar push subscription pendente (fire-and-forget)
+      sincronizarPushPendente().catch(() => {});
     },
 
     logout: async () => {
@@ -103,6 +107,9 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
         const usuario = perfilResponse.data;
 
         set({ usuario, estaAutenticado: true, estaCarregando: false });
+
+        // Sincronizar push subscription pendente (fire-and-forget)
+        sincronizarPushPendente().catch(() => {});
       } catch {
         limparTokens();
         set({ usuario: null, estaAutenticado: false, estaCarregando: false });

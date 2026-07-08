@@ -1,13 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useHomeData } from '@/hooks/useHomeData';
 import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 import { CardMeusGrupos } from '@/components/home/card-meus-grupos';
 import { CardAvisos } from '@/components/home/card-avisos';
 import { CardRanking } from '@/components/home/card-ranking';
+import { SinoNotificacoes } from '@/components/layout/sino-notificacoes';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -60,22 +60,7 @@ export default function InicioPage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/minha-conta')}
-              aria-label="Minha conta"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-primaria/15 text-primaria text-sm font-bold border-2 border-primaria/30 shadow-[0_0_12px_rgba(22,163,74,0.2)] hover:shadow-[0_0_18px_rgba(22,163,74,0.3)] transition-all"
-              data-testid="home-btn-conta"
-            >
-              {usuario ? obterIniciais(usuario.nome) : 'U'}
-            </button>
-            <button
-              onClick={aoSair}
-              aria-label="Sair"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.05] border border-white/[0.08] text-texto/30 hover:text-erro/70 hover:border-erro/30 transition-colors"
-              data-testid="home-btn-logout"
-            >
-              <LogOut size={16} />
-            </button>
+            <SinoNotificacoes />
           </div>
         </div>
       </header>

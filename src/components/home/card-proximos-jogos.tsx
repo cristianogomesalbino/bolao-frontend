@@ -261,15 +261,15 @@ function Colunacentral({ aoVivo, jogo, tempoJogo, meuPalpite, countdown, corCoun
 
   if (aoVivo) {
     return (
-      <div className="flex flex-col items-center shrink-0 w-[130px] py-1">
+      <div className="flex flex-col items-center self-center shrink-0 w-[130px]">
+        <span className={`text-xs font-semibold -mt-1 mb-1 ${corTempo}`}>{tempoJogo}</span>
         <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold text-texto">{jogo.golsCasa ?? 0}</span>
-          <span className="text-[10px] text-texto/20">×</span>
-          <span className="text-2xl font-bold text-texto">{jogo.golsFora ?? 0}</span>
+          <span className="text-3xl font-bold text-texto">{jogo.golsCasa ?? 0}</span>
+          <span className="text-sm text-texto/30">×</span>
+          <span className="text-3xl font-bold text-texto">{jogo.golsFora ?? 0}</span>
         </div>
-        <span className={`text-[10px] font-semibold mt-0.5 ${corTempo}`}>{tempoJogo}</span>
         {meuPalpite && (
-          <span className={`text-[9px] font-medium mt-1 px-2 py-0.5 rounded-full ${corPalpiteBg} ${corPalpiteTexto}`}>
+          <span className={`text-[9px] font-medium mt-1.5 px-2 py-0.5 rounded-full ${corPalpiteBg} ${corPalpiteTexto}`}>
             Meu Palpite: {meuPalpite.golsCasa} × {meuPalpite.golsFora}
           </span>
         )}
@@ -339,7 +339,7 @@ function Colunacentral({ aoVivo, jogo, tempoJogo, meuPalpite, countdown, corCoun
   }
 
   return (
-    <div className="flex flex-col items-center shrink-0 w-[130px] py-2">
+    <div className="flex flex-col items-center justify-center shrink-0 w-[130px] pt-3">
       {renderCentro()}
       <span className={`text-lg font-mono font-bold tabular-nums mt-1 ${corCountdown}`}>{countdown.texto}</span>
       {salvoFeedback && (
