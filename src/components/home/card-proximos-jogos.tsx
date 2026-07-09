@@ -296,6 +296,10 @@ function Colunacentral({ aoVivo, jogo, tempoJogo, meuPalpite, countdown, corCoun
             onChange={(e) => {
               const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
               handleSetGolsCasa(raw === '' ? '' : Math.min(9, Number.parseInt(raw, 10)));
+              if (raw !== '') {
+                const inputs = inputsRef.current?.querySelectorAll('input');
+                inputs?.[1]?.focus();
+              }
             }}
             onFocus={(e) => e.target.select()}
             onBlur={salvar}
@@ -314,6 +318,10 @@ function Colunacentral({ aoVivo, jogo, tempoJogo, meuPalpite, countdown, corCoun
             onChange={(e) => {
               const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
               handleSetGolsFora(raw === '' ? '' : Math.min(9, Number.parseInt(raw, 10)));
+              if (raw !== '') {
+                const inputs = inputsRef.current?.querySelectorAll('input');
+                inputs?.[1]?.blur();
+              }
             }}
             onFocus={(e) => e.target.select()}
             onBlur={salvar}
