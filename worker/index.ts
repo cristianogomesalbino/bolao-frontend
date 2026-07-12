@@ -10,6 +10,26 @@ interface PushData {
   url?: string;
 }
 
+// Ativa o SW novo imediatamente (sem esperar fechar o app)
+sw.addEventListener('install', () => {
+  sw.skipWaiting();
+});
+
+// Assume controle dos clients existentes e notifica que o SW atualizou
+sw.addEventListener('activate', (event: ExtendableEvent) => {
+  event.waitUntil(
+    sw.clients.claim().then(() =>
+      sw.clients
+        .matchAll({ type: 'window' })
+        .then((clients) =>
+          clients.forEach((client) =>
+            client.postMessage({ type: 'SW_UPDATED' }),
+          ),
+        ),
+    ),
+  );
+});
+
 // Push notification handler
 sw.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return;
