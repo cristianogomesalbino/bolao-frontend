@@ -9,6 +9,10 @@ interface PushData {
   type?: string;
   dedupeId?: string;
   url?: string;
+  // Campos extras para stories NAO_PALPITOU
+  tipo?: string;
+  storyId?: string;
+  grupoId?: string;
 }
 
 const DB_NAME = 'bolao-push';
@@ -140,9 +144,13 @@ sw.addEventListener('push', (event: PushEvent) => {
   const title = data.title ?? 'Bolão';
   const body = data.body ?? 'Nova notificação';
 
+  const ehStoryNaoPalpitou = data.tipo === 'NAO_PALPITOU' && !!data.storyId;
+
   const tag = data.dedupeId
     ? `push-${data.dedupeId}`
-    : `${data.type ?? 'default'}-${Date.now()}`;
+    : ehStoryNaoPalpitou
+      ? `story-${data.storyId}`
+      : `${data.type ?? 'default'}-${Date.now()}`;
 
   event.waitUntil(
     (async () => {
@@ -163,7 +171,22 @@ sw.addEventListener('push', (event: PushEvent) => {
         icon: '/logo-bolao.png',
         badge: '/logo-bolao.png',
         tag,
-        data: { url: data.url ?? '/', dedupeId: data.dedupeId, instanciaId },
+        data: {
+          url: ehStoryNaoPalpitou
+            ? `/grupos/${data.grupoId}`
+            : (data.url ?? '/'),
+          storyId: data.storyId,
+          grupoId: data.grupoId,
+          tipo: data.tipo,
+          dedupeId: data.dedupeId,
+          instanciaId,
+        },
+        ...(ehStoryNaoPalpitou && {
+          actions: [
+            { action: 'mandar-f', title: '🪦 Mandar F' },
+            { action: 'abrir', title: 'Ver Story' },
+          ],
+        }),
       };
 
       await sw.registration.showNotification(title, options);
@@ -192,7 +215,30 @@ sw.addEventListener('notificationclose', (event: NotificationEvent) => {
 sw.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
-  const url = (event.notification.data as { url?: string })?.url ?? '/';
+  const notifData = event.notification.data as {
+    url?: string;
+    storyId?: string;
+    grupoId?: string;
+    tipo?: string;
+  };
+
+  // Notification Action: "Mandar F" — dispara fetch direto do SW
+  if (event.action === 'mandar-f' && notifData.storyId && notifData.grupoId) {
+    event.waitUntil(
+      fetch(`/api/grupos/${notifData.grupoId}/stories/${notifData.storyId}/mandar-f`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      }).catch(() => {
+        // Fallback: abrir app no story se fetch falhar
+        return sw.clients.openWindow(notifData.url ?? '/');
+      }),
+    );
+    return;
+  }
+
+  // Ação padrão: abrir/focar janela
+  const url = notifData.url ?? '/';
   const fullUrl = new URL(url, sw.location.origin).href;
 
   event.waitUntil(
