@@ -59,8 +59,7 @@ export const CAMPEONATOS: CampeonatoConfig[] = [
     label: 'Brasileirão Série A',
     slug: 'brasileirao',
     fases: [
-      { label: 'Fase Única 2025', slug: 'fase-unica-campeonato-brasileiro-2025', maxRodadas: 38, tipo: 'PONTOS_CORRIDOS' },
-      { label: 'Fase Única 2026', slug: 'fase-unica-campeonato-brasileiro-2026', maxRodadas: 38, tipo: 'PONTOS_CORRIDOS' },
+      { label: 'Fase Única', slug: 'fase-unica-campeonato-brasileiro-2026', maxRodadas: 38, tipo: 'PONTOS_CORRIDOS' },
     ],
   },
   {

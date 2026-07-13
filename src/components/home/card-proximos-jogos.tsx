@@ -18,6 +18,7 @@ interface PropsCardProximosJogos {
   meuPalpite?: { golsCasa: number; golsFora: number } | null;
   grupoId?: string;
   temaCopa?: boolean;
+  campeonatoLabel?: string;
 }
 
 // --- Sub-componentes ---
@@ -51,7 +52,7 @@ function EscudoTime({ time, label }: Readonly<PropsEscudoTime>) {
 // --- Componente principal ---
 
 export function CardProximosJogos({
-  jogos, meuPalpite, grupoId, temaCopa,
+  jogos, meuPalpite, grupoId, temaCopa, campeonatoLabel,
 }: Readonly<PropsCardProximosJogos>) {
   const router = useRouter();
   const jogoDestaque = jogos[0];
@@ -128,7 +129,7 @@ export function CardProximosJogos({
           dataHora={dataHora}
           aoVivo={aoVivo}
           grupoId={grupoId}
-          faseNome={jogoDestaque.fase.nome}
+          faseNome={campeonatoLabel ?? jogoDestaque.fase.nome}
           onVerTodos={irParaPalpite}
         />
 

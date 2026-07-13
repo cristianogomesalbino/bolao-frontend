@@ -31,6 +31,7 @@ export default function InicioPage() {
     setGrupoRankingId,
     proximosJogos,
     proximoJogoPronto,
+    proximosJogosPorCampeonato,
     meuPalpite,
     rankingFormatado,
     gruposOpcoes,
@@ -70,15 +71,27 @@ export default function InicioPage() {
         {/* Avisos do admin */}
         <CardAvisos />
 
-        {/* Próximos jogos */}
-        {proximoJogoPronto && proximosJogos.length > 0 ? (
+        {/* Próximos jogos — 1 card por campeonato */}
+        {proximosJogosPorCampeonato.length > 0 && (
+          proximosJogosPorCampeonato.map((item) => (
+            <CardProximosJogos
+              key={item.campeonato}
+              jogos={item.jogos}
+              grupoId={grupoFavoritoInicial}
+              temaCopa={item.ehCopa}
+              campeonatoLabel={item.campeonato}
+            />
+          ))
+        )}
+        {proximosJogosPorCampeonato.length === 0 && proximoJogoPronto && proximosJogos.length > 0 && (
           <CardProximosJogos
             jogos={proximosJogos}
             meuPalpite={meuPalpite}
             grupoId={grupoFavoritoInicial}
             temaCopa={ehCopa}
           />
-        ) : (
+        )}
+        {proximosJogosPorCampeonato.length === 0 && !proximoJogoPronto && (
           <div className="h-44 rounded-2xl bg-white/[0.03] border border-white/[0.08] animate-pulse" />
         )}
 
