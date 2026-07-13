@@ -34,7 +34,14 @@ sw.addEventListener('activate', (event: ExtendableEvent) => {
 sw.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return;
 
-  const data = event.data.json() as PushData;
+  let data: PushData;
+  try {
+    data = event.data.json() as PushData;
+  } catch {
+    // Payload inválido — mostra notificação genérica com texto bruto
+    const text = event.data.text();
+    data = { title: 'Bolão', body: text || 'Nova notificação' };
+  }
 
   const title = data.title ?? 'Bolão';
   const options: NotificationOptions = {
