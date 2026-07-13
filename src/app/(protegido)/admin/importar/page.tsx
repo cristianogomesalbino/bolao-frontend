@@ -8,6 +8,7 @@ import { listarFases, listarJogosFase, importarJogos, sincronizarPlacares, lista
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { apiClient } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Jogo, CAMPEONATOS, type CampeonatoSlug, type Fase } from '@/types/jogo.types';
@@ -374,7 +375,60 @@ export default function ImportarJogosPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Testar Push */}
+        <BotaoTestarPush />
       </div>
     </div>
+  );
+}
+
+function BotaoTestarPush() {
+  const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState<string | null>(null);
+  const [tipo, setTipo] = useState('JOGO_PROXIMO');
+
+  const tipos = [
+    { value: 'JOGO_PROXIMO', label: '⚽ Jogo Próximo' },
+    { value: 'ACERTO_EM_CHEIO', label: '🎯 Acerto em Cheio' },
+    { value: 'JOGO_LIBERADO', label: '🏆 Jogo Liberado' },
+    { value: 'RODADA_ENCERRADA', label: '🏁 Rodada Encerrada' },
+    { value: 'SUBIU_POSICAO', label: '📈 Subiu Posição' },
+    { value: 'DESCEU_POSICAO', label: '📉 Desceu Posição' },
+    { value: 'PALPITES_PENDENTES', label: '⏰ Palpites Pendentes' },
+  ];
+
+  async function enviarTeste() {
+    setEnviando(true);
+    setResultado(null);
+    try {
+      await apiClient.post('/push/testar', { tipo });
+      setResultado('✅ Push enviado!');
+    } catch {
+      setResultado('❌ Erro');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-2">
+        <span className="text-[10px] text-texto/40 uppercase tracking-wider font-bold">Push Notifications</span>
+        <select
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value)}
+          className="w-full h-9 rounded-md border border-white/10 bg-black/40 text-xs text-texto px-2"
+        >
+          {tipos.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+        <Button onClick={enviarTeste} disabled={enviando} className="w-full text-xs h-10">
+          {enviando ? <Loader2 size={14} className="animate-spin" /> : '🔔 Enviar push de teste'}
+        </Button>
+        {resultado && <p className="text-[11px] text-texto/70 text-center">{resultado}</p>}
+      </CardContent>
+    </Card>
   );
 }
