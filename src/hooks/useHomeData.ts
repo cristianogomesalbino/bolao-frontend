@@ -5,6 +5,13 @@ import { listarGrupos, obterRankingGeral } from '@/services/grupo.service';
 import { buscarDadosTemporada, listarTemporadas } from '@/services/jogo.service';
 import { buscarMeuPalpite } from '@/services/palpite.service';
 import { ehCampeonatoCopa } from '@/lib/jogo-helpers';
+import type { Fase, Jogo } from '@/types/jogo.types';
+
+export interface ProximoJogoPorCampeonato {
+  campeonato: string;
+  ehCopa: boolean;
+  jogos: { fase: Fase; jogo: Jogo }[];
+}
 
 export function useHomeData() {
   const usuario = useAuthStore((state) => state.usuario);
@@ -49,36 +56,64 @@ export function useHomeData() {
     staleTime: 5 * 60_000,
   });
 
-  // Buscar próximo jogo de TODAS as temporadas quando não tem grupo
+  // Buscar próximo jogo de TODAS as temporadas (sempre, para multi-campeonato na home)
   const { data: dadosTodasTemporadas } = useQuery({
     queryKey: ['dados-temporada-home-todas', temporadas?.map((t) => t.id) ?? []],
     queryFn: async () => {
-      if (!temporadas || temporadas.length === 0) return null;
+      if (!temporadas || temporadas.length === 0) return [];
       const recentes = temporadas.slice(0, 3);
       const resultados = await Promise.all(
         recentes.map(async (t) => {
           const dados = await buscarDadosTemporada(t.id);
-          return { temporadaId: t.id, ...dados };
+          return { temporadaId: t.id, campeonato: t.campeonato?.nome ?? '', ...dados };
         })
       );
-      // Encontrar o jogo mais próximo (menor dataHora futura)
-      const agora = Date.now();
-      const comJogo = resultados.filter((r) => r.proximoJogo?.jogo.dataHora);
-      comJogo.sort((a, b) => {
-        const dataA = new Date(a.proximoJogo?.jogo.dataHora ?? '').getTime();
-        const dataB = new Date(b.proximoJogo?.jogo.dataHora ?? '').getTime();
-        return dataA - dataB;
-      });
-      // Retornar o mais próximo que ainda não começou, ou o primeiro da lista
-      const futuro = comJogo.find((r) => new Date(r.proximoJogo?.jogo.dataHora ?? '').getTime() > agora);
-      return futuro ?? comJogo[0] ?? resultados[0] ?? null;
+      return resultados;
     },
-    enabled: !temGrupo && !carregandoGrupos && !!temporadas && temporadas.length > 0,
+    enabled: !!temporadas && temporadas.length > 0,
     staleTime: 5 * 60_000,
   });
 
-  // Selecionar o próximo jogo correto
-  const dadosTemporada = temGrupo ? dadosTemporadaGrupo : dadosTodasTemporadas;
+  // Montar lista de próximos jogos por campeonato (1 card por campeonato com jogo disponível)
+  const proximosJogosPorCampeonato: ProximoJogoPorCampeonato[] = (() => {
+    if (!dadosTodasTemporadas || dadosTodasTemporadas.length === 0) return [];
+    return dadosTodasTemporadas
+      .filter((r) => r.proximoJogo)
+      .map((r) => {
+        const temMultiplos = r.proximosJogos && r.proximosJogos.length > 0;
+        const jogoUnico = r.proximoJogo ? [r.proximoJogo] : [];
+        const jogosRaw = temMultiplos ? r.proximosJogos : jogoUnico;
+        return {
+          campeonato: r.campeonato,
+          ehCopa: ehCampeonatoCopa(r.campeonato),
+          jogos: jogosRaw,
+        };
+      })
+      // Ordenar: jogo mais próximo primeiro
+      .sort((a, b) => {
+        const dataA = new Date(a.jogos[0]?.jogo.dataHora ?? '').getTime();
+        const dataB = new Date(b.jogos[0]?.jogo.dataHora ?? '').getTime();
+        return dataA - dataB;
+      });
+  })();
+
+  // Selecionar o próximo jogo principal (para o grupo favorito ou o mais próximo global)
+  const dadosTemporadaPrincipal = (() => {
+    if (temGrupo && dadosTemporadaGrupo) return dadosTemporadaGrupo;
+    // Sem grupo: pegar o mais próximo de qualquer temporada
+    if (!dadosTodasTemporadas || dadosTodasTemporadas.length === 0) return null;
+    const agora = Date.now();
+    const comJogo = dadosTodasTemporadas.filter((r) => r.proximoJogo?.jogo.dataHora);
+    comJogo.sort((a, b) => {
+      const dataA = new Date(a.proximoJogo?.jogo.dataHora ?? '').getTime();
+      const dataB = new Date(b.proximoJogo?.jogo.dataHora ?? '').getTime();
+      return dataA - dataB;
+    });
+    const futuro = comJogo.find((r) => new Date(r.proximoJogo?.jogo.dataHora ?? '').getTime() > agora);
+    return futuro ?? comJogo[0] ?? null;
+  })();
+
+  const dadosTemporada = dadosTemporadaPrincipal;
 
   const proximoJogo = dadosTemporada?.proximoJogo;
   // Fallback: se backend não retornar proximosJogos, usa o proximoJogo como array de 1
@@ -90,11 +125,11 @@ export function useHomeData() {
   const proximosJogos = proximosJogosFull;
   const jogoId = proximoJogo?.jogo.id;
 
-  // Meu palpite no próximo jogo (só buscar se tem grupo — sem grupo não tem palpite)
+  // Meu palpite no próximo jogo (palpite é livre, não precisa de grupo)
   const { data: meuPalpite } = useQuery({
     queryKey: ['meu-palpite-home', jogoId],
     queryFn: () => buscarMeuPalpite(jogoId ?? ''),
-    enabled: !!jogoId && temGrupo,
+    enabled: !!jogoId,
     staleTime: Infinity,
   });
 
@@ -117,11 +152,7 @@ export function useHomeData() {
   const gruposOpcoes = (grupos ?? []).map((g) => ({ id: g.id, nome: g.nome }));
 
   const nomeCampeonato = grupos?.find((g) => g.id === grupoFavoritoInicial)?.temporada?.campeonato?.nome;
-  // Quando não tem grupo, detectar Copa pelo nome da temporada do próximo jogo
-  const nomeCampeonatoProximoJogo = temGrupo
-    ? undefined
-    : temporadas?.find((t) => t.id === dadosTodasTemporadas?.temporadaId)?.campeonato?.nome;
-  const ehCopa = ehCampeonatoCopa(nomeCampeonato) || ehCampeonatoCopa(nomeCampeonatoProximoJogo);
+  const ehCopa = ehCampeonatoCopa(nomeCampeonato);
   const nomeCampeonatoRanking = grupos?.find((g) => g.id === grupoSelecionadoId)?.temporada?.campeonato?.nome;
   const ehCopaRanking = ehCampeonatoCopa(nomeCampeonatoRanking);
 
@@ -135,6 +166,7 @@ export function useHomeData() {
     proximoJogo,
     proximosJogos,
     proximoJogoPronto,
+    proximosJogosPorCampeonato,
     meuPalpite,
     rankingFormatado,
     gruposOpcoes,

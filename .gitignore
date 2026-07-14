@@ -58,3 +58,6 @@ docs/
 # Kiro Skills (não versionar — são locais)
 .kiro/steering/senior-frontend-dev/
 .kiro/steering/senior-qa/
+
+# Playwright MCP
+.playwright-mcp/
