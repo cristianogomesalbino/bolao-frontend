@@ -11,6 +11,7 @@ export interface ProximoJogoPorCampeonato {
   campeonato: string;
   ehCopa: boolean;
   jogos: { fase: Fase; jogo: Jogo }[];
+  grupoId?: string;
 }
 
 export function useHomeData() {
@@ -83,10 +84,15 @@ export function useHomeData() {
         const temMultiplos = r.proximosJogos && r.proximosJogos.length > 0;
         const jogoUnico = r.proximoJogo ? [r.proximoJogo] : [];
         const jogosRaw = temMultiplos ? r.proximosJogos : jogoUnico;
+        // Encontrar grupo do usuário que pertence a esta temporada (prioriza favorito)
+        const gruposCampeonato = grupos?.filter((g) => g.temporadaId === r.temporadaId) ?? [];
+        const grupoFavorito = gruposCampeonato.find((g) => g.id === usuario?.grupoFavoritoId);
+        const grupoDoCard = grupoFavorito ?? gruposCampeonato[0];
         return {
           campeonato: r.campeonato,
           ehCopa: ehCampeonatoCopa(r.campeonato),
           jogos: jogosRaw,
+          grupoId: grupoDoCard?.id,
         };
       })
       // Ordenar: jogo mais próximo primeiro

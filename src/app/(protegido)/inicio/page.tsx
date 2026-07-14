@@ -77,7 +77,7 @@ export default function InicioPage() {
             <CardProximosJogos
               key={item.campeonato}
               jogos={item.jogos}
-              grupoId={grupoFavoritoInicial}
+              grupoId={item.grupoId}
               temaCopa={item.ehCopa}
               campeonatoLabel={item.campeonato}
             />

@@ -135,50 +135,36 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
   });
 
   const rodadaAtual = jogosRodadaAtual?.rodadaAtual ?? null;
-  const jogosAtual = jogosRodadaAtual?.jogos ?? [];
 
-  // Filtrar jogos visíveis da rodada atual (AGENDADO + EM_ANDAMENTO)
-  const jogosAtualFiltrados = jogosAtual.filter((j: Jogo) => {
-    return j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO';
-  });
-
-  // Se a rodada atual não tem jogos visíveis, avançar para a próxima
-  const rodadaVisivelVazia = jogosAtualFiltrados.length === 0 && jogosAtual.length > 0;
-  const rodadaReal = jogosAtual.find((j: Jogo) => j.status === 'AGENDADO' && j.dataHora)?.rodada ?? rodadaAtual;
-  const proximaRodadaCalc = rodadaReal ? rodadaReal + 1 : null;
-  const proximaRodadaNum = proximaRodadaCalc ?? (rodadaAtual ? rodadaAtual + 1 : null);
-
-  // Jogos próxima rodada (ou rodada efetiva se a atual está vazia)
-  const { data: jogosProximaRodada, isLoading: carregandoProxima } = useQuery({
-    queryKey: ['jogos-proxima-rodada', faseAtual?.id, proximaRodadaNum],
-    queryFn: () => listarJogosFase(faseAtual!.id, proximaRodadaNum as number),
-    enabled: !!faseAtual?.id && !!proximaRodadaNum,
+  // Buscar TODOS os jogos AGENDADOS da fase em ordem cronológica (independente de rodada)
+  const { data: todosAgendadosData, isLoading: carregandoProxima } = useQuery({
+    queryKey: ['jogos-todos-agendados', faseAtual?.id],
+    queryFn: () => listarJogosFase(faseAtual!.id, undefined, 'AGENDADO'),
+    enabled: !!faseAtual?.id,
     staleTime: 5 * 60_000,
   });
 
-  const jogosProxima = jogosProximaRodada?.jogos ?? [];
-
-  const jogosProximaFiltrados = jogosProxima.filter(
-    (j: Jogo) => j.status === 'AGENDADO' || j.status === 'EM_ANDAMENTO'
-  );
-
-  // Se rodada atual está vazia, promover próxima rodada como principal
-  const jogosAtualVisivelFinal = rodadaVisivelVazia ? jogosProximaFiltrados : jogosAtualFiltrados;
-  const jogosProximaVisiveis = rodadaVisivelVazia ? [] : jogosProximaFiltrados;
-  const proximaRodada = rodadaVisivelVazia ? null : proximaRodadaNum;
-
-  // Ordem por data/hora (padrão)
-  const jogosAtualVisiveis = [...jogosAtualVisivelFinal].sort((a: Jogo, b: Jogo) => {
-    const dataA = a.dataHora ? new Date(a.dataHora).getTime() : 0;
-    const dataB = b.dataHora ? new Date(b.dataHora).getTime() : 0;
+  // Ordenar todos os jogos AGENDADOS por data (cronológico puro)
+  const todosAgendados = [...(todosAgendadosData?.jogos ?? [])].sort((a: Jogo, b: Jogo) => {
+    const dataA = a.dataHora ? new Date(a.dataHora).getTime() : Infinity;
+    const dataB = b.dataHora ? new Date(b.dataHora).getTime() : Infinity;
     return dataA - dataB;
   });
+
+  // Limitar a 20 jogos (timeline cronológica, tags de rodada repetidas conforme necessário)
+  const jogosVisiveis = todosAgendados.slice(0, 20);
+
+  // Timeline cronológica: tudo em jogosAtualVisiveis (já ordenado por data), sem separação por rodada
+  const jogosAtualVisiveis = jogosVisiveis;
+  const jogosProximaVisiveis: Jogo[] = [];
+  const primeiraRodada = jogosVisiveis[0]?.rodada ?? null;
+  const proximaRodada: number | null = null;
 
   // Batch de palpites
   const todosJogoIds = [...jogosAtualVisiveis, ...jogosProximaVisiveis].map((j) => j.id);
 
   const { data: palpitesBatch, isFetching: carregandoBatch } = useQuery({
-    queryKey: ['meus-palpites-batch', faseAtual?.id, rodadaReal, proximaRodada, usuario?.id],
+    queryKey: ['meus-palpites-batch', faseAtual?.id, primeiraRodada, proximaRodada, usuario?.id],
     queryFn: async () => {
       const palpites = await buscarMeusPalpitesPorJogos(todosJogoIds);
       const palpitesPorJogo: Record<string, Palpite> = {};
