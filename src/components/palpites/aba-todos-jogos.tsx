@@ -24,15 +24,16 @@ export function AbaTodosJogos({
   jogosProximaVisiveis,
   palpitesPorJogo,
   grupoId,
-  rodadaAtual,
-  proximaRodada,
   carregandoProxima,
   faseAtual,
   cardAtivo,
   onFoco,
 }: Readonly<PropsAbaTodosJogos>) {
+  // Montar timeline cronológica: todos os jogos ordenados por data com tags de rodada
+  const todosJogos = [...jogosAtualVisiveis, ...jogosProximaVisiveis];
+
   // Todos os jogos palpitáveis para navegação sequencial
-  const jogosPalpitaveis = [...jogosAtualVisiveis, ...jogosProximaVisiveis].filter((j) => podePalpitar(j));
+  const jogosPalpitaveis = todosJogos.filter((j) => podePalpitar(j));
 
   function proximoCardId(jogoAtualId: string): string | undefined {
     const idx = jogosPalpitaveis.findIndex((j) => j.id === jogoAtualId);
@@ -46,72 +47,53 @@ export function AbaTodosJogos({
     return jogosPalpitaveis.at(-1)?.id === jogoId;
   }
 
+  // Renderizar com separador de rodada toda vez que a rodada muda
+  let rodadaAnterior: number | null = null;
+
   return (
     <div>
-      {/* Rodada atual */}
-      {jogosAtualVisiveis.length > 0 && (
-        <>
-          <SeparadorRodada rodada={jogosAtualVisiveis[0]?.rodada ?? rodadaAtual} />
-          <div className="space-y-2">
-            {jogosAtualVisiveis.map((jogo: Jogo) => (
-              <CardJogoPalpite
-                key={jogo.id}
-                jogo={jogo}
-                palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
-                palpitavel={podePalpitar(jogo)}
-                bloqueado={estaBloqueado(jogo)}
-                grupoId={grupoId}
-                ativo={cardAtivo === jogo.id}
-                onFoco={() => onFoco(jogo.id)}
-                onProximoCard={() => {
-                  const proximo = proximoCardId(jogo.id);
-                  if (proximo) onFoco(proximo);
-                }}
-                ehUltimoCard={ehUltimoPalpitavel(jogo.id)}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Próxima rodada */}
-      {jogosProximaVisiveis.length > 0 && !!proximaRodada && (
-        <>
-          <div className="mt-4">
-            <SeparadorRodada rodada={proximaRodada} />
-          </div>
-          <div className="space-y-2">
-            {jogosProximaVisiveis.map((jogo: Jogo) => (
-              <CardJogoPalpite
-                key={jogo.id}
-                jogo={jogo}
-                palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
-                palpitavel={podePalpitar(jogo)}
-                bloqueado={estaBloqueado(jogo)}
-                grupoId={grupoId}
-                ativo={cardAtivo === jogo.id}
-                onFoco={() => onFoco(jogo.id)}
-                onProximoCard={() => {
-                  const proximo = proximoCardId(jogo.id);
-                  if (proximo) onFoco(proximo);
-                }}
-                ehUltimoCard={ehUltimoPalpitavel(jogo.id)}
-              />
-            ))}
-          </div>
-        </>
+      {todosJogos.length > 0 && (
+        <div className="space-y-2">
+          {todosJogos.map((jogo: Jogo) => {
+            const mostrarSeparador = jogo.rodada !== rodadaAnterior;
+            rodadaAnterior = jogo.rodada;
+            return (
+              <div key={jogo.id}>
+                {mostrarSeparador && (
+                  <div className={jogo === todosJogos[0] ? '' : 'mt-4'}>
+                    <SeparadorRodada rodada={jogo.rodada} />
+                  </div>
+                )}
+                <CardJogoPalpite
+                  jogo={jogo}
+                  palpiteInicial={palpitesPorJogo[jogo.id] ?? null}
+                  palpitavel={podePalpitar(jogo)}
+                  bloqueado={estaBloqueado(jogo)}
+                  grupoId={grupoId}
+                  ativo={cardAtivo === jogo.id}
+                  onFoco={() => onFoco(jogo.id)}
+                  onProximoCard={() => {
+                    const proximo = proximoCardId(jogo.id);
+                    if (proximo) onFoco(proximo);
+                  }}
+                  ehUltimoCard={ehUltimoPalpitavel(jogo.id)}
+                />
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Estado vazio */}
-      {jogosAtualVisiveis.length === 0 && jogosProximaVisiveis.length === 0 && !carregandoProxima && !!faseAtual && (
+      {todosJogos.length === 0 && !carregandoProxima && !!faseAtual && (
         <div className="flex flex-col items-center py-12 text-center">
           <IconPalpite size={32} className="text-texto/15 mb-3" />
           <p className="text-texto/40 text-sm">Nenhum jogo disponível</p>
         </div>
       )}
 
-      {/* Loading próxima rodada */}
-      {jogosAtualVisiveis.length === 0 && jogosProximaVisiveis.length === 0 && carregandoProxima && (
+      {/* Loading */}
+      {todosJogos.length === 0 && carregandoProxima && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-[120px] rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse" />
