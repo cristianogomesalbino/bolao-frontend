@@ -15,9 +15,10 @@ import { useWarmUp } from '@/hooks/use-warm-up';
 
 interface PropsFormularioLogin {
   onSubmit: (dados: DadosLoginForm) => Promise<void>;
+  linkCadastro?: string;
 }
 
-export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
+export function FormularioLogin({ onSubmit, linkCadastro = '/cadastro' }: Readonly<PropsFormularioLogin>) {
   const [erroServidor, setErroServidor] = useState<string | null>(null);
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [shake, setShake] = useState(false);
@@ -53,7 +54,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
   }
 
   return (
-    <Card className={`border-[#ffdf00] shadow-[0_0_32px_rgba(255,223,0,0.3)] ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}`} data-testid="login-card">
+    <Card className={`border-primaria shadow-[0_0_20px_rgba(22,163,74,0.3)] ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}`} data-testid="login-card">
       <CardContent className="pt-5 pb-4">
         {(statusServidor === 'verificando' || statusServidor === 'acordando') && (
           <div className="flex items-center gap-2.5 rounded-lg bg-primaria/10 border border-primaria/20 px-3 py-2.5 mb-3.5" data-testid="login-warmup-banner">
@@ -87,7 +88,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
               inputMode="email"
               autoComplete="email"
               placeholder="seu@email.com"
-              className={errors.email ? 'border-erro' : 'border-[#1a4db5]/60 focus-visible:border-[#3b82f6] focus-visible:ring-[#3b82f6]/25 focus-visible:shadow-[0_0_16px_rgba(59,130,246,0.3)]'}
+              className={errors.email ? 'border-erro' : ''}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
               data-testid="login-input-email"
@@ -108,7 +109,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
                 type={mostrarSenha ? 'text' : 'password'}
                 autoComplete="current-password"
                 placeholder="Sua senha"
-                className={`pr-11 ${errors.senha ? 'border-erro' : 'border-[#1a4db5]/60 focus-visible:border-[#3b82f6] focus-visible:ring-[#3b82f6]/25 focus-visible:shadow-[0_0_16px_rgba(59,130,246,0.3)]'}`}
+                className={`pr-11 ${errors.senha ? 'border-erro' : ''}`}
                 aria-invalid={!!errors.senha}
                 aria-describedby={errors.senha ? 'senha-error' : undefined}
                 data-testid="login-input-senha"
@@ -169,7 +170,7 @@ export function FormularioLogin({ onSubmit }: Readonly<PropsFormularioLogin>) {
 
       <CardFooter className="flex flex-col gap-3 pb-5">
         <Link
-          href="/cadastro"
+          href={linkCadastro}
           className="w-full flex items-center justify-center h-11 rounded-lg border border-white/20 bg-white/[0.06] text-texto font-semibold text-sm hover:bg-white/[0.12] hover:border-white/30 transition-all"
           data-testid="login-link-cadastro"
         >
