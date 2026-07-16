@@ -58,6 +58,19 @@ export async function gerarNovoConvite(grupoId: string): Promise<Grupo> {
   return response.data;
 }
 
+export interface InfoGrupoConvite {
+  id: string;
+  nome: string;
+  icone: string | null;
+  privado: boolean;
+  maxParticipantes: number;
+}
+
+export async function buscarInfoGrupoConvite(codigo: string): Promise<InfoGrupoConvite> {
+  const response = await apiClient.get<InfoGrupoConvite>(`/grupos/convite/${codigo}/info`);
+  return response.data;
+}
+
 export async function promoverAdmin(grupoId: string, usuarioId: string): Promise<MembroGrupo> {
   const response = await apiClient.patch<MembroGrupo>(`/grupos/${grupoId}/usuarios/${usuarioId}/cargo`, { role: 'ADMIN' });
   return response.data;

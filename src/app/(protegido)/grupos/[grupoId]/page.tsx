@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Settings, Copy, Check,
+  ArrowLeft, Settings, Link2, Check,
   Lock, Globe, ChevronRight, ChevronDown, Trophy, Calendar, Minus
 } from 'lucide-react';
 import Image from 'next/image';
@@ -212,18 +212,22 @@ export default function DetalhesGrupoPage() {
           <button
             type="button"
             onClick={() => {
-              navigator.clipboard.writeText(grupo.codigoConvite!);
+              const url = `${window.location.origin}/convite/${grupo.codigoConvite}`;
+              navigator.clipboard.writeText(url);
               setCopiado(true);
               setTimeout(() => setCopiado(false), 2000);
             }}
-            className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-md hover:bg-white/[0.04] transition-all"
-            aria-label="Copiar código de convite"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95 ${
+              copiado
+                ? 'bg-sucesso/15 border border-sucesso/30'
+                : 'bg-primaria/10 border border-primaria/30 hover:bg-primaria/20'
+            }`}
+            aria-label="Copiar link de convite"
           >
-            <div className="flex items-center gap-1">
-              <span className="text-[13px] font-mono text-primaria-claro font-bold tracking-wider">{grupo.codigoConvite}</span>
-              {copiado ? <Check size={12} className="text-sucesso" /> : <Copy size={12} className="text-primaria-claro/50" />}
-            </div>
-            <span className="text-[8px] text-texto/30">{copiado ? 'Copiado!' : 'Copiar código'}</span>
+            {copiado ? <Check size={14} className="text-sucesso" /> : <Link2 size={14} className="text-primaria-claro" />}
+            <span className={`text-[11px] font-semibold ${copiado ? 'text-sucesso' : 'text-primaria-claro'}`}>
+              {copiado ? 'Copiado!' : 'Convidar'}
+            </span>
           </button>
         )}
         <Button

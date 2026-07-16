@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FormularioResetarSenha } from '@/components/auth/formulario-resetar-senha';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-export default function ResetarSenhaPage() {
+function ResetarSenhaPageInner() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
@@ -30,4 +31,12 @@ export default function ResetarSenhaPage() {
   }
 
   return <FormularioResetarSenha token={token} />;
+}
+
+export default function ResetarSenhaPage() {
+  return (
+    <Suspense>
+      <ResetarSenhaPageInner />
+    </Suspense>
+  );
 }
