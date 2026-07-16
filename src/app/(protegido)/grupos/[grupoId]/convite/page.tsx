@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, UserPlus, Copy, Share2, Info, RefreshCw, Check } from 'lucide-react';
+import { ArrowLeft, UserPlus, Copy, Share2, Info, RefreshCw, Check, Link2 } from 'lucide-react';
 import { buscarGrupo, gerarNovoConvite } from '@/services/grupo.service';
 import { Button } from '@/components/ui/button';
 import { ModalConfirmacao } from '@/components/ui/modal-confirmacao';
@@ -15,6 +15,7 @@ export default function ConviteGrupoPage() {
   const queryClient = useQueryClient();
 
   const [copiado, setCopiado] = useState(false);
+  const [linkCopiado, setLinkCopiado] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [modalGerar, setModalGerar] = useState(false);
 
@@ -32,15 +33,28 @@ export default function ConviteGrupoPage() {
     }
   }
 
+  function copiarLink() {
+    if (grupo?.codigoConvite) {
+      const url = `${window.location.origin}/convite/${grupo.codigoConvite}`;
+      navigator.clipboard.writeText(url);
+      setLinkCopiado(true);
+      setTimeout(() => setLinkCopiado(false), 2000);
+    }
+  }
+
   function compartilhar() {
     if (grupo?.codigoConvite) {
+      const url = `${window.location.origin}/convite/${grupo.codigoConvite}`;
       if (navigator.share) {
         navigator.share({
           title: `Bolão - ${grupo.nome}`,
-          text: `Entre no meu bolão! Código: ${grupo.codigoConvite}`,
+          text: `Entre no meu bolão "${grupo.nome}"!`,
+          url,
         });
       } else {
-        copiarCodigo();
+        navigator.clipboard.writeText(url);
+        setCopiado(true);
+        setTimeout(() => setCopiado(false), 2000);
       }
     }
   }
@@ -121,7 +135,16 @@ export default function ConviteGrupoPage() {
           </p>
 
           {/* Botões */}
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={copiarLink}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primaria-claro/30 bg-primaria/[0.08] text-sm text-primaria-claro font-medium hover:bg-primaria/[0.14] transition-all active:scale-95"
+              data-testid="convite-btn-copiar-link"
+            >
+              {linkCopiado ? <Check size={14} className="text-sucesso" /> : <Link2 size={14} />}
+              {linkCopiado ? 'Link copiado!' : 'Copiar link'}
+            </button>
             <button
               type="button"
               onClick={copiarCodigo}
