@@ -7,6 +7,8 @@ const withPWA = withPWAInit({
   register: true,
   customWorkerSrc: "worker",
   workboxOptions: {
+    skipWaiting: true,
+    clientsClaim: true,
     runtimeCaching: [
       {
         urlPattern: /^https:\/\/(s\.glbimg\.com|s\.sde\.globo\.com)\/.*/i,
