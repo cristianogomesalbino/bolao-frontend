@@ -129,7 +129,7 @@ export function CardProximosJogos({
           dataHora={dataHora}
           aoVivo={aoVivo}
           grupoId={grupoId}
-          faseNome={campeonatoLabel ?? jogoDestaque.fase.nome}
+          faseNome={campeonatoLabel ?? (jogoDestaque.jogo.rodada ? `Rodada ${jogoDestaque.jogo.rodada}` : jogoDestaque.fase.nome)}
           onVerTodos={irParaPalpite}
         />
 

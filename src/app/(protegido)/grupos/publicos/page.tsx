@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Globe, Search, Users, Loader2 } from 'lucide-react';
-import { listarGruposPublicos, entrarNoGrupo } from '@/services/grupo.service';
+import { listarGruposPublicos, entrarNoGrupo, listarGrupos } from '@/services/grupo.service';
 import { Grupo } from '@/types/grupo.types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -24,12 +24,25 @@ export default function GruposPublicosPage() {
     staleTime: 1000 * 30,
   });
 
+  const { data: meusGrupos } = useQuery({
+    queryKey: ['grupos'],
+    queryFn: listarGrupos,
+    staleTime: 1000 * 60,
+  });
+
+  const meusGruposIds = new Set(meusGrupos?.map((g) => g.id) ?? []);
+
   async function aoEntrar(grupo: Grupo) {
     setErro(null);
     setSucesso(null);
+
+    if (!grupo.codigoConvite) {
+      setErro('Este grupo não possui código de convite. Peça ao administrador para gerar um.');
+      return;
+    }
+
     setEntrando(grupo.id);
     try {
-      if (!grupo.codigoConvite) return;
       await entrarNoGrupo(grupo.codigoConvite);
       await queryClient.invalidateQueries({ queryKey: ['grupos'] });
       await queryClient.invalidateQueries({ queryKey: ['grupos-publicos'] });
@@ -138,19 +151,12 @@ export default function GruposPublicosPage() {
                   </div>
 
                   {/* Botão entrar */}
-                  <Button
-                    size="sm"
-                    onClick={() => aoEntrar(grupo)}
-                    disabled={entrando === grupo.id || !grupo.codigoConvite}
-                    className="text-[11px] h-8 px-3"
-                    data-testid={`grupo-publico-btn-entrar-${grupo.id}`}
-                  >
-                    {entrando === grupo.id ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      'Entrar'
-                    )}
-                  </Button>
+                  <BotaoEntrarGrupo
+                    grupo={grupo}
+                    jaParticipa={meusGruposIds.has(grupo.id)}
+                    entrando={entrando === grupo.id}
+                    onEntrar={() => aoEntrar(grupo)}
+                  />
                 </div>
               </div>
             ))}
@@ -175,5 +181,42 @@ export default function GruposPublicosPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Botão contextual: Participando / Entrar / Indisponível */
+function BotaoEntrarGrupo({
+  grupo,
+  jaParticipa,
+  entrando,
+  onEntrar,
+}: Readonly<{
+  grupo: Grupo;
+  jaParticipa: boolean;
+  entrando: boolean;
+  onEntrar: () => void;
+}>) {
+  if (jaParticipa) {
+    return (
+      <span className="text-[11px] text-texto/40 font-medium px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+        Participando
+      </span>
+    );
+  }
+
+  if (!grupo.codigoConvite) {
+    return <span className="text-[10px] text-texto/30 px-2">Indisponível</span>;
+  }
+
+  return (
+    <Button
+      size="sm"
+      onClick={onEntrar}
+      disabled={entrando}
+      className="text-[11px] h-8 px-3"
+      data-testid={`grupo-publico-btn-entrar-${grupo.id}`}
+    >
+      {entrando ? <Loader2 size={14} className="animate-spin" /> : 'Entrar'}
+    </Button>
   );
 }

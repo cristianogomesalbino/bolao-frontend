@@ -20,17 +20,28 @@ export function calcularCountdown(dataHora: string): { texto: string; encerrado:
 
 /**
  * Calcula tempo de jogo em andamento baseado na dataHora de início.
- * Retorna string com minutos jogados (ex: "35'", "45+", "Intervalo", "90+").
+ * Considera: 45min 1T + ~5min acréscimos + 15min intervalo + 45min 2T + acréscimos.
  */
 export function calcularTempoJogo(dataHora: string): string {
   const diff = Date.now() - new Date(dataHora).getTime();
   if (diff <= 0) return "0'";
+
   const minutos = Math.floor(diff / 60000);
+
+  // 1º tempo: 0-45 min
   if (minutos <= 45) return `${minutos}'`;
-  if (minutos <= 60) return '45+';
-  if (minutos <= 75) return 'Intervalo';
-  const min2t = minutos - 15;
-  if (min2t <= 90) return `${min2t}'`;
+
+  // Acréscimos do 1º tempo: 46-50 min
+  if (minutos <= 50) return '45+';
+
+  // Intervalo: 51-65 min (15 min de descanso)
+  if (minutos <= 65) return 'Intervalo';
+
+  // 2º tempo: a partir de 66 min reais = minuto 46 do jogo
+  const minuto2t = minutos - 20; // remove 5min acréscimo 1T + 15min intervalo
+  if (minuto2t <= 90) return `${minuto2t}'`;
+
+  // Acréscimos do 2º tempo
   return '90+';
 }
 
