@@ -8,6 +8,10 @@ import { CardMeusGrupos } from '@/components/home/card-meus-grupos';
 import { CardAvisos } from '@/components/home/card-avisos';
 import { CardRanking } from '@/components/home/card-ranking';
 import { SinoNotificacoes } from '@/components/layout/sino-notificacoes';
+import { BotaoRefazerTour } from '@/components/tour/botao-refazer-tour';
+import { TourProvider } from '@/components/tour/tour-provider';
+import { getToursPorPagina } from '@/lib/tour-registry';
+import { useTour } from '@/hooks/use-tour';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -40,6 +44,13 @@ export default function InicioPage() {
     ehCopaRanking,
   } = useHomeData();
 
+  const toursDisponiveis = getToursPorPagina('/inicio');
+  const tourHome = toursDisponiveis.find((t) => t.id === 'tour-home');
+  const { iniciarTour } = useTour({
+    tourId: 'tour-home',
+    steps: tourHome?.steps ?? [],
+  });
+
   const primeiroNome = usuario?.nome?.split(' ')[0] || '';
 
   async function aoSair() {
@@ -49,10 +60,14 @@ export default function InicioPage() {
 
   return (
     <div className="min-h-screen" data-testid="home-page">
+      {/* Tour */}
+      {tourHome && <TourProvider tourId="tour-home" steps={tourHome.steps} />}
+
       {/* Header */}
       <header
         className="sticky top-0 z-20 px-5 pt-5 pb-4 bg-fundo/80 backdrop-blur-xl border-b border-white/[0.04]"
         data-testid="home-header"
+        data-tour="boas-vindas"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -61,6 +76,10 @@ export default function InicioPage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            <BotaoRefazerTour
+              toursDisponiveis={toursDisponiveis}
+              onIniciarTour={() => iniciarTour()}
+            />
             <SinoNotificacoes />
           </div>
         </div>
@@ -72,51 +91,57 @@ export default function InicioPage() {
         <CardAvisos />
 
         {/* Próximos jogos — 1 card por campeonato */}
-        {proximosJogosPorCampeonato.length > 0 && (
-          proximosJogosPorCampeonato.map((item) => (
+        <div data-tour="proximos-jogos">
+          {proximosJogosPorCampeonato.length > 0 && (
+            proximosJogosPorCampeonato.map((item) => (
+              <CardProximosJogos
+                key={item.campeonato}
+                jogos={item.jogos}
+                grupoId={item.grupoId}
+                temaCopa={item.ehCopa}
+                campeonatoLabel={item.campeonato}
+              />
+            ))
+          )}
+          {proximosJogosPorCampeonato.length === 0 && proximoJogoPronto && proximosJogos.length > 0 && (
             <CardProximosJogos
-              key={item.campeonato}
-              jogos={item.jogos}
-              grupoId={item.grupoId}
-              temaCopa={item.ehCopa}
-              campeonatoLabel={item.campeonato}
+              jogos={proximosJogos}
+              meuPalpite={meuPalpite}
+              grupoId={grupoFavoritoInicial}
+              temaCopa={ehCopa}
             />
-          ))
-        )}
-        {proximosJogosPorCampeonato.length === 0 && proximoJogoPronto && proximosJogos.length > 0 && (
-          <CardProximosJogos
-            jogos={proximosJogos}
-            meuPalpite={meuPalpite}
-            grupoId={grupoFavoritoInicial}
-            temaCopa={ehCopa}
-          />
-        )}
-        {proximosJogosPorCampeonato.length === 0 && !proximoJogoPronto && (
-          <div className="h-44 rounded-2xl bg-white/[0.03] border border-white/[0.08] animate-pulse" />
-        )}
+          )}
+          {proximosJogosPorCampeonato.length === 0 && !proximoJogoPronto && (
+            <div className="h-44 rounded-2xl bg-white/[0.03] border border-white/[0.08] animate-pulse" />
+          )}
+        </div>
 
         {/* Meus grupos */}
-        <CardMeusGrupos
-          carregando={carregandoGrupos}
-          grupos={(grupos ?? []).map((g) => ({
-            id: g.id,
-            nome: g.nome,
-            campeonato: g.temporada?.campeonato?.nome ?? '',
-            ano: g.temporada?.ano,
-            participantes: g.totalParticipantes ?? 0,
-            ehFavorito: g.id === usuario?.grupoFavoritoId,
-          }))}
-        />
+        <div data-tour="lista-grupos">
+          <CardMeusGrupos
+            carregando={carregandoGrupos}
+            grupos={(grupos ?? []).map((g) => ({
+              id: g.id,
+              nome: g.nome,
+              campeonato: g.temporada?.campeonato?.nome ?? '',
+              ano: g.temporada?.ano,
+              participantes: g.totalParticipantes ?? 0,
+              ehFavorito: g.id === usuario?.grupoFavoritoId,
+            }))}
+          />
+        </div>
 
         {/* Ranking */}
-        <CardRanking
-          ranking={rankingFormatado}
-          grupos={gruposOpcoes}
-          grupoSelecionadoId={grupoSelecionadoId}
-          onTrocarGrupo={setGrupoRankingId}
-          carregando={carregandoRanking}
-          temaCopa={ehCopaRanking}
-        />
+        <div data-tour="card-ranking">
+          <CardRanking
+            ranking={rankingFormatado}
+            grupos={gruposOpcoes}
+            grupoSelecionadoId={grupoSelecionadoId}
+            onTrocarGrupo={setGrupoRankingId}
+            carregando={carregandoRanking}
+            temaCopa={ehCopaRanking}
+          />
+        </div>
       </div>
     </div>
   );
