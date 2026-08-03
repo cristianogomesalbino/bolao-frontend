@@ -19,6 +19,7 @@ import { FormularioAlterarSenha } from '@/components/usuario/formulario-alterar-
 import { SecaoExcluirConta } from '@/components/usuario/secao-excluir-conta';
 import { TogglePush } from '@/components/notificacoes/toggle-push';
 import { SinoNotificacoes } from '@/components/layout/sino-notificacoes';
+import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -64,6 +65,8 @@ export default function MinhaContaPage() {
 
   return (
     <div className="min-h-screen bg-fundo pb-24">
+      <TourPageWrapper />
+
       {/* Header */}
       <header className="sticky top-0 z-20 bg-fundo/80 backdrop-blur-xl border-b border-white/[0.04]">
         <div className="mx-auto max-w-[480px] px-5 py-4 flex items-center justify-between">
@@ -76,13 +79,19 @@ export default function MinhaContaPage() {
             </div>
             <h1 className="text-xl font-bold text-texto">Minha Conta</h1>
           </div>
-          <SinoNotificacoes />
+          <div className="flex items-center gap-2">
+            <TourRefazerBotao />
+            <SinoNotificacoes />
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 pt-6 space-y-5">
         {/* Card do perfil */}
-        <div className="rounded-2xl border border-primaria/20 bg-gradient-to-br from-primaria/[0.04] to-transparent p-5">
+        <div
+          data-tour="conta-perfil"
+          className="rounded-2xl border border-primaria/20 bg-gradient-to-br from-primaria/[0.04] to-transparent p-5"
+        >
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primaria/15 border border-primaria/30 text-primaria font-bold text-xl shadow-[0_0_20px_rgba(22,163,74,0.2)]">
               {obterIniciais(usuario.nome)}
@@ -102,34 +111,40 @@ export default function MinhaContaPage() {
         {/* Menu de seções (estilo iOS settings) */}
         <div className="space-y-2">
           {/* Dados pessoais */}
-          <SecaoAcordeon
-            titulo="Dados pessoais"
-            icone={<User size={18} className="text-primaria-claro" />}
-            aberta={secaoAberta === 'perfil'}
-            onToggle={() => alternarSecao('perfil')}
-          >
-            <FormularioPerfil usuario={usuario} onSubmit={aoAtualizarPerfil} />
-          </SecaoAcordeon>
+          <div data-tour="conta-dados-pessoais">
+            <SecaoAcordeon
+              titulo="Dados pessoais"
+              icone={<User size={18} className="text-primaria-claro" />}
+              aberta={secaoAberta === 'perfil'}
+              onToggle={() => alternarSecao('perfil')}
+            >
+              <FormularioPerfil usuario={usuario} onSubmit={aoAtualizarPerfil} />
+            </SecaoAcordeon>
+          </div>
 
           {/* Alterar senha */}
-          <SecaoAcordeon
-            titulo="Alterar senha"
-            icone={<Lock size={18} className="text-destaque" />}
-            aberta={secaoAberta === 'senha'}
-            onToggle={() => alternarSecao('senha')}
-          >
-            <FormularioAlterarSenha onSubmit={aoAlterarSenha} />
-          </SecaoAcordeon>
+          <div data-tour="conta-alterar-senha">
+            <SecaoAcordeon
+              titulo="Alterar senha"
+              icone={<Lock size={18} className="text-destaque" />}
+              aberta={secaoAberta === 'senha'}
+              onToggle={() => alternarSecao('senha')}
+            >
+              <FormularioAlterarSenha onSubmit={aoAlterarSenha} />
+            </SecaoAcordeon>
+          </div>
 
           {/* Notificações */}
-          <SecaoAcordeon
-            titulo="Notificações push"
-            icone={<Bell size={18} className="text-blue-400" />}
-            aberta={secaoAberta === 'notificacoes'}
-            onToggle={() => alternarSecao('notificacoes')}
-          >
-            <TogglePush />
-          </SecaoAcordeon>
+          <div data-tour="conta-notificacoes">
+            <SecaoAcordeon
+              titulo="Notificações push"
+              icone={<Bell size={18} className="text-blue-400" />}
+              aberta={secaoAberta === 'notificacoes'}
+              onToggle={() => alternarSecao('notificacoes')}
+            >
+              <TogglePush />
+            </SecaoAcordeon>
+          </div>
 
           {/* Admin — visível apenas para SUPER_ADMIN */}
           {usuario.perfil === 'SUPER_ADMIN' && (
@@ -159,14 +174,6 @@ export default function MinhaContaPage() {
           )}
         </div>
 
-        {/* Zona de perigo */}
-        <div className="pt-2">
-          <span className="text-[10px] text-erro/60 uppercase tracking-[0.15em] font-bold mb-2 block">
-            Zona de perigo
-          </span>
-          <SecaoExcluirConta onConfirmar={aoExcluirConta} />
-        </div>
-
         {/* Botão de sair */}
         <button
           type="button"
@@ -177,6 +184,28 @@ export default function MinhaContaPage() {
           <LogOut size={18} />
           <span className="text-sm font-semibold">Sair da conta</span>
         </button>
+
+        {/* Zona de perigo — colapsável */}
+        <div data-tour="conta-zona-perigo" className="rounded-2xl border border-erro/20 bg-erro/[0.02] overflow-hidden">
+          <button
+            type="button"
+            onClick={() => alternarSecao('perigo')}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left"
+          >
+            <span className="text-[10px] text-erro/60 uppercase tracking-[0.12em] font-bold flex-1">
+              Zona de perigo
+            </span>
+            <ChevronDown
+              size={14}
+              className={`text-erro/30 transition-transform duration-200 ${secaoAberta === 'perigo' ? 'rotate-180' : ''}`}
+            />
+          </button>
+          {secaoAberta === 'perigo' && (
+            <div className="px-4 pb-4 border-t border-erro/10 animate-[fadeIn_0.2s_ease-out]">
+              <SecaoExcluirConta onConfirmar={aoExcluirConta} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

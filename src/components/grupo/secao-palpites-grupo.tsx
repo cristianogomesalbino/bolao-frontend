@@ -107,14 +107,14 @@ export function SecaoPalpitesGrupo({ grupoId, temporadaId }: Readonly<PropsSecao
       >
         <span className="text-sm font-semibold text-texto">Palpites do grupo</span>
         <ChevronDown
-          size={18}
-          className={`text-primaria-claro/60 transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`}
+          size={22}
+          className={`text-primaria-claro/60 transition-transform duration-200 ${expandido ? 'rotate-180' : 'animate-bounce'}`}
         />
       </button>
 
       {/* Conteúdo expandido */}
       {expandido && (
-        <div className="border-t border-white/[0.05] px-4 pb-4 pt-3 animate-[fadeIn_0.2s_ease-out]">
+        <div className="border-t border-white/[0.05] px-4 pb-4 pt-3 animate-[fadeIn_0.2s_ease-out]" data-tour="palpites-grupo-conteudo">
           {isLoading && (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
@@ -141,13 +141,14 @@ export function SecaoPalpitesGrupo({ grupoId, temporadaId }: Readonly<PropsSecao
                     {grupo.label}
                   </span>
                   <div className="mt-1.5 space-y-1">
-                    {grupo.jogos.map((jogo) => (
+                    {grupo.jogos.map((jogo, jogoIdx) => (
                       <JogoExpandivel
                         key={jogo.id}
                         jogo={jogo}
                         grupoId={grupoId}
                         aberto={jogoAberto === jogo.id}
                         onToggle={() => alternarJogo(jogo.id)}
+                        ehPrimeiro={idx === 0 && jogoIdx === 0}
                       />
                     ))}
                   </div>
@@ -178,11 +179,13 @@ function JogoExpandivel({
   grupoId,
   aberto,
   onToggle,
+  ehPrimeiro,
 }: Readonly<{
   jogo: Jogo;
   grupoId: string;
   aberto: boolean;
   onToggle: () => void;
+  ehPrimeiro?: boolean;
 }>) {
   const casaSigla = jogo.timeCasa?.sigla ?? '???';
   const foraSigla = jogo.timeFora?.sigla ?? '???';
@@ -239,8 +242,9 @@ function JogoExpandivel({
         </div>
 
         <ChevronDown
-          size={12}
-          className={`text-texto/20 ml-auto transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+          size={16}
+          className={`text-primaria-claro/60 ml-auto transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+          {...(ehPrimeiro ? { 'data-tour': 'chevron-jogo-grupo' } : {})}
         />
       </button>
 

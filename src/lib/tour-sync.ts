@@ -2,15 +2,29 @@ import { marcarTourCompleto } from '@/services/tour.service';
 import type { TourId } from '@/types/tour.types';
 import { TOURS_VALIDOS } from '@/types/tour.types';
 
-const STORAGE_KEY = 'tours-pendentes';
+export const TOUR_STORAGE_KEY = 'tours-pendentes';
 
 function isTourIdValido(value: string): value is TourId {
   return (TOURS_VALIDOS as readonly string[]).includes(value);
 }
 
+export function salvarTourPendente(tourId: string): void {
+  try {
+    const pendentes: string[] = JSON.parse(
+      localStorage.getItem(TOUR_STORAGE_KEY) ?? '[]',
+    ) as string[];
+    if (!pendentes.includes(tourId)) {
+      pendentes.push(tourId);
+      localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(pendentes));
+    }
+  } catch {
+    // localStorage indisponível — ignora
+  }
+}
+
 export async function sincronizarToursPendentes(): Promise<void> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(TOUR_STORAGE_KEY);
     if (!raw) return;
 
     const pendentes: string[] = JSON.parse(raw) as string[];
@@ -32,9 +46,9 @@ export async function sincronizarToursPendentes(): Promise<void> {
     const restantes = pendentes.filter((id) => !sucessos.includes(id));
 
     if (restantes.length === 0) {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(TOUR_STORAGE_KEY);
     } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(restantes));
+      localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(restantes));
     }
   } catch {
     // localStorage indisponível — ignora

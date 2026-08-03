@@ -11,10 +11,7 @@ import { IconPalpite } from '@/components/icons/icon-palpite';
 import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
 import { type CampeonatoSlug } from '@/types/jogo.types';
 import { listarTemporadas, buscarDadosTemporada } from '@/services/jogo.service';
-import { BotaoRefazerTour } from '@/components/tour/botao-refazer-tour';
-import { TourProvider } from '@/components/tour/tour-provider';
-import { getToursPorPagina } from '@/lib/tour-registry';
-import { useTour } from '@/hooks/use-tour';
+import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 const SLUGS_VALIDOS = new Set<CampeonatoSlug>(['brasileirao', 'copa-do-mundo-2026']);
 
@@ -113,13 +110,6 @@ export default function PalpitesPage() {
   const [jaAplicouDeteccao, setJaAplicouDeteccao] = useState(false);
   const [mostrarVoltarTopo, setMostrarVoltarTopo] = useState(false);
 
-  const toursDisponiveis = getToursPorPagina('/palpites');
-  const tourPalpites = toursDisponiveis.find((t) => t.id === 'tour-palpites');
-  const { iniciarTour } = useTour({
-    tourId: 'tour-palpites',
-    steps: tourPalpites?.steps ?? [],
-  });
-
   // Detectar scroll para mostrar botão "voltar ao topo"
   useEffect(() => {
     function aoScrollar() {
@@ -180,7 +170,7 @@ export default function PalpitesPage() {
 
   return (
     <div className={`min-h-screen pb-24 relative ${ehCopaMundo ? 'bg-[#003d1a]' : 'bg-fundo'}`}>
-      {tourPalpites && <TourProvider tourId="tour-palpites" steps={tourPalpites.steps} />}
+      <TourPageWrapper />
       {/* Fundo temático Copa */}
       {ehCopaMundo && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -192,16 +182,13 @@ export default function PalpitesPage() {
         </div>
       )}
       {/* Header */}
-      <header data-tour="boas-vindas" className={`sticky top-0 z-20 px-4 pt-4 pb-3 backdrop-blur-lg border-b ${ehCopaMundo ? 'bg-[#003d1a]/90 border-[#009c3b]/30' : 'bg-fundo/95 border-white/[0.05]'}`}>
+      <header className={`sticky top-0 z-20 px-4 pt-4 pb-3 backdrop-blur-lg border-b ${ehCopaMundo ? 'bg-[#003d1a]/90 border-[#009c3b]/30' : 'bg-fundo/95 border-white/[0.05]'}`}>
         <div className="mx-auto max-w-[480px]">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2" data-tour="boas-vindas">
             <IconPalpite size={22} className="text-primaria-claro" />
             <h1 className="text-lg font-bold text-texto">Palpites</h1>
             <div className="ml-auto">
-              <BotaoRefazerTour
-                toursDisponiveis={toursDisponiveis}
-                onIniciarTour={() => iniciarTour()}
-              />
+              <TourRefazerBotao />
             </div>
           </div>
           {/* Seletor de campeonato */}
@@ -254,6 +241,7 @@ export default function PalpitesPage() {
           </button>
           <button
             onClick={() => setAbaAtiva('meus')}
+            data-tour="aba-meus-palpites"
             className={`flex-1 py-2.5 text-[11px] font-semibold text-center border-b-2 transition-colors ${
               abaAtiva === 'meus' ? 'text-texto border-primaria-claro' : 'text-texto/40 border-transparent'
             }`}

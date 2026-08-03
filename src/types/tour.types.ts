@@ -1,9 +1,13 @@
-export type TourId = 'tour-home' | 'tour-grupo' | 'tour-palpites';
+export type TourId = 'tour-home' | 'tour-grupo' | 'tour-palpites' | 'tour-ranking' | 'tour-conta' | 'tour-grupos-publicos' | 'tour-meus-grupos';
 
 export const TOURS_VALIDOS: TourId[] = [
   'tour-home',
   'tour-grupo',
   'tour-palpites',
+  'tour-ranking',
+  'tour-conta',
+  'tour-grupos-publicos',
+  'tour-meus-grupos',
 ];
 
 export interface StepTour {

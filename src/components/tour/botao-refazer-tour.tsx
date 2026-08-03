@@ -6,12 +6,10 @@ import type { TourId, ConfiguracaoTour } from '@/types/tour.types';
 
 interface PropsBotaoRefazerTour {
   toursDisponiveis: ConfiguracaoTour[];
-  onIniciarTour: (tourId: TourId) => void;
 }
 
 export function BotaoRefazerTour({
   toursDisponiveis,
-  onIniciarTour,
 }: Readonly<PropsBotaoRefazerTour>) {
   const [menuAberto, setMenuAberto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -33,7 +31,7 @@ export function BotaoRefazerTour({
     if (desabilitado) return;
 
     if (toursDisponiveis.length === 1) {
-      onIniciarTour(toursDisponiveis[0].id);
+      window.dispatchEvent(new CustomEvent('refazer-tour', { detail: { tourId: toursDisponiveis[0].id } }));
       return;
     }
 
@@ -42,7 +40,7 @@ export function BotaoRefazerTour({
 
   function handleSelecionarTour(tourId: TourId) {
     setMenuAberto(false);
-    onIniciarTour(tourId);
+    window.dispatchEvent(new CustomEvent('refazer-tour', { detail: { tourId } }));
   }
 
   return (
@@ -55,10 +53,10 @@ export function BotaoRefazerTour({
         className={`p-2 rounded-xl transition-colors ${
           desabilitado
             ? 'opacity-50 cursor-not-allowed text-texto/30'
-            : 'text-texto/60 hover:text-texto hover:bg-white/[0.06]'
+            : 'text-primaria-claro hover:text-primaria-claro hover:bg-primaria/[0.08]'
         }`}
       >
-        <HelpCircle size={20} />
+        <HelpCircle size={22} />
       </button>
 
       {menuAberto && toursDisponiveis.length > 1 && (

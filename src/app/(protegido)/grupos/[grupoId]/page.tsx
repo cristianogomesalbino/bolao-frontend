@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Settings, Link2, Check, Search,
+  Settings, Link2, Check,
   Lock, Globe
 } from 'lucide-react';
 import { buscarGrupo, sairDoGrupo } from '@/services/grupo.service';
@@ -18,6 +18,7 @@ import { AbaClassificacaoCopa } from '@/components/copa-do-mundo/aba-classificac
 import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpites-copa';
 import { SecaoPalpitesGrupo } from '@/components/grupo/secao-palpites-grupo';
 import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
+import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 type AbaCopa = 'dashboard' | 'classificacao' | 'palpites';
 
@@ -49,7 +50,6 @@ export default function DetalhesGrupoPage() {
   });
 
   const proximoJogo = dadosTemporada?.proximoJogo ?? undefined;
-  const totalAdiados = dadosTemporada?.totalAdiados ?? 0;
 
   async function aoSair() {
     setProcessando(true);
@@ -62,8 +62,6 @@ export default function DetalhesGrupoPage() {
       setModalSair(false);
     }
   }
-
-  const temJogosAdiados = totalAdiados > 0;
 
   if (carregandoGrupo) {
     return (
@@ -82,7 +80,9 @@ export default function DetalhesGrupoPage() {
   }
 
   return (
-    <div className={`min-h-screen pb-20 relative ${ehCopa ? '' : 'bg-fundo'}`} style={ehCopa ? { background: 'linear-gradient(180deg, #006b35 0%, #005c2e 25%, #004d27 50%, #004020 75%, #003518 100%)' } : undefined}>
+    <div className={`min-h-screen relative ${ehCopa ? '' : 'bg-fundo'}`} style={ehCopa ? { background: 'linear-gradient(180deg, #006b35 0%, #005c2e 25%, #004d27 50%, #004020 75%, #003518 100%)' } : undefined}>
+      <TourPageWrapper pathname={`/grupos/${grupoId}`} />
+
       {/* Efeitos visuais Brasil */}
       {ehCopa && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -129,6 +129,7 @@ export default function DetalhesGrupoPage() {
             </span>
           </button>
         )}
+        <TourRefazerBotao pathname={`/grupos/${grupoId}`} />
         <Button
           variant="ghost"
           size="icon"
@@ -146,11 +147,10 @@ export default function DetalhesGrupoPage() {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => router.push('/grupos/publicos')}
+            onClick={() => router.push('/grupos/buscar')}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primaria bg-white/[0.03] text-primaria-claro hover:bg-primaria/[0.08] transition-colors text-[12px] font-semibold"
             data-testid="grupo-btn-pesquisar"
           >
-            <Search size={14} />
             Pesquisar
           </button>
           <button

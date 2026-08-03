@@ -170,3 +170,5 @@ src/
 | `pontuacao-formatada.ts` | `formatarPontuacao` (singular/plural) |
 | `pontuacao.ts` | Lógica de cálculo de pontos |
 | `avisos.ts` | Gestão de avisos admin (localStorage) |
+| `tour-registry.ts` | Configuração de tours onboarding por página |
+| `tour-sync.ts` | Sincronização de tours pendentes (offline-first) |
