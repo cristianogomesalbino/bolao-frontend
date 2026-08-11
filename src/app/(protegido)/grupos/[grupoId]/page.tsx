@@ -1,52 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Settings, Link2, Check,
-  Lock, Globe, ChevronRight, ChevronDown, Trophy, Calendar, Minus
+  Settings, Link2, Check,
+  Lock, Globe
 } from 'lucide-react';
-import Image from 'next/image';
-import { buscarGrupo, sairDoGrupo, obterRankingGeral, obterRankingFase } from '@/services/grupo.service';
+import { buscarGrupo, sairDoGrupo } from '@/services/grupo.service';
 import { buscarDadosTemporada } from '@/services/jogo.service';
-import { buscarEstatisticasPalpite } from '@/services/palpite.service';
-import { buscarClassificacao, obterPosicaoTime, obterUltimosJogos } from '@/services/classificacao.service';
-import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ModalConfirmacao } from '@/components/ui/modal-confirmacao';
-import { PalpiteInlineForm } from '@/components/palpite/palpite-inline-form';
 import { AbaDashboardCopa } from '@/components/copa-do-mundo/aba-dashboard-copa';
 import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 import { AbaClassificacaoCopa } from '@/components/copa-do-mundo/aba-classificacao-copa';
 import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpites-copa';
+import { SecaoPalpitesGrupo } from '@/components/grupo/secao-palpites-grupo';
+import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
+import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 type AbaCopa = 'dashboard' | 'classificacao' | 'palpites';
-
-function obterClasseResultado(resultado: string): string {
-  if (resultado === 'V') return 'bg-primaria text-white';
-  if (resultado === 'E') return 'bg-destaque text-white';
-  return 'bg-erro text-white';
-}
 
 export default function DetalhesGrupoPage() {
   const router = useRouter();
   const params = useParams();
   const grupoId = params.grupoId as string;
   const queryClient = useQueryClient();
-  const usuario = useAuthStore((state) => state.usuario);
 
   const [modalSair, setModalSair] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [copiado, setCopiado] = useState(false);
-  const [countdown, setCountdown] = useState('');
-  const [rankingFiltro, setRankingFiltro] = useState<'geral' | 'rodada'>('geral');
-  const [rodadaSelecionada, setRodadaSelecionada] = useState<number | null>(null);
-  const [rodadaListaAberta, setRodadaListaAberta] = useState(false);
-  const [rankingExpandido, setRankingExpandido] = useState(false);
   const [abaCopa, setAbaCopa] = useState<AbaCopa>('dashboard');
-  const [expandidoProximoJogo, setExpandidoProximoJogo] = useState(false);
 
   const { data: grupo, isLoading: carregandoGrupo } = useQuery({
     queryKey: ['grupo', grupoId],
@@ -55,15 +40,6 @@ export default function DetalhesGrupoPage() {
   });
 
   const ehCopa = grupo?.temporada?.campeonato?.nome?.toLowerCase().includes('copa');
-
-  // Queries apenas para modo NÃO-Copa
-  const { data: rankingGeral, isLoading: carregandoRanking } = useQuery({
-    queryKey: ['grupo', grupoId, 'ranking', 'geral'],
-    queryFn: () => obterRankingGeral(grupoId),
-    enabled: !!grupoId && !ehCopa,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
-  });
 
   const { data: dadosTemporada, isLoading: carregandoTemporada } = useQuery({
     queryKey: ['grupo', grupoId, 'dados-temporada'],
@@ -74,69 +50,6 @@ export default function DetalhesGrupoPage() {
   });
 
   const proximoJogo = dadosTemporada?.proximoJogo ?? undefined;
-  const totalAdiados = dadosTemporada?.totalAdiados ?? 0;
-
-  const { data: classificacao } = useQuery({
-    queryKey: ['classificacao'],
-    queryFn: () => buscarClassificacao(),
-    enabled: !ehCopa,
-    staleTime: 1000 * 60 * 60,
-  });
-
-  const { data: rankingRodada } = useQuery({
-    queryKey: ['grupo', grupoId, 'ranking', 'rodada', proximoJogo?.fase.id, rodadaSelecionada],
-    queryFn: () => obterRankingFase(grupoId, proximoJogo?.fase.id ?? '', rodadaSelecionada ?? undefined),
-    enabled: !!grupoId && !ehCopa && !!proximoJogo?.fase.id && rankingFiltro === 'rodada' && !!rodadaSelecionada,
-  });
-
-  const rodadaAtual = proximoJogo?.jogo.rodada ?? null;
-  const rodadaAnterior = rodadaAtual && rodadaAtual > 1 ? rodadaAtual - 1 : null;
-  const { data: rankingAnterior } = useQuery({
-    queryKey: ['grupo', grupoId, 'ranking', 'ateRodada', proximoJogo?.fase.id, rodadaAnterior],
-    queryFn: () => obterRankingFase(grupoId, proximoJogo?.fase.id ?? '', undefined, rodadaAnterior ?? undefined),
-    enabled: !!grupoId && !ehCopa && !!proximoJogo?.fase.id && !!rodadaAnterior,
-  });
-
-  const rankingAtivo = rankingFiltro === 'rodada' && rodadaSelecionada ? rankingRodada : rankingGeral;
-
-  // Estatísticas do próximo jogo (quem palpitou) — lazy loading
-  const jogoIdProximo = proximoJogo?.jogo.id;
-  const { data: estatisticasProximoJogo, isLoading: carregandoEstatisticas } = useQuery({
-    queryKey: ['estatisticas-palpite', grupoId, jogoIdProximo],
-    queryFn: () => buscarEstatisticasPalpite(grupoId, jogoIdProximo ?? ''),
-    enabled: !!grupoId && !!jogoIdProximo && expandidoProximoJogo,
-    staleTime: 1000 * 30,
-  });
-
-  function obterVariacao(usuarioId: string): number {
-    if (!rankingAnterior?.length || !rankingGeral) return 0;
-    const posAnterior = rankingAnterior.find((r) => r.usuarioId === usuarioId)?.posicao;
-    const posAtual = rankingGeral.find((r) => r.usuarioId === usuarioId)?.posicao;
-    if (!posAnterior || !posAtual) return 0;
-    return posAnterior - posAtual;
-  }
-
-  // Countdown até o jogo (modo normal)
-  useEffect(() => {
-    if (!proximoJogo || ehCopa) return;
-    const target = new Date(proximoJogo.jogo.dataHora).getTime() - 60000;
-
-    function atualizar() {
-      const diff = target - Date.now();
-      if (diff <= 0) {
-        setCountdown('encerrado');
-        return;
-      }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setCountdown(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
-    }
-
-    atualizar();
-    const interval = setInterval(atualizar, 1000);
-    return () => clearInterval(interval);
-  }, [proximoJogo, ehCopa]);
 
   async function aoSair() {
     setProcessando(true);
@@ -149,13 +62,6 @@ export default function DetalhesGrupoPage() {
       setModalSair(false);
     }
   }
-
-  const minhaPosicao = rankingGeral?.find((r) => r.usuarioId === usuario?.id);
-  const lider = rankingGeral?.[0];
-  const ptsAtrasDoLider = lider && minhaPosicao ? lider.pontuacaoTotal - minhaPosicao.pontuacaoTotal : 0;
-  const temJogosAdiados = totalAdiados > 0;
-  const top3 = (rankingAtivo?.length ?? 0) >= 3 ? rankingAtivo!.slice(0, 3) : [];
-  const restoRanking = top3.length >= 3 ? (rankingAtivo?.slice(3) ?? []) : (rankingAtivo ?? []);
 
   if (carregandoGrupo) {
     return (
@@ -174,7 +80,9 @@ export default function DetalhesGrupoPage() {
   }
 
   return (
-    <div className={`min-h-screen pb-20 relative ${ehCopa ? '' : 'bg-fundo'}`} style={ehCopa ? { background: 'linear-gradient(180deg, #006b35 0%, #005c2e 25%, #004d27 50%, #004020 75%, #003518 100%)' } : undefined}>
+    <div className={`min-h-screen relative ${ehCopa ? '' : 'bg-fundo'}`} style={ehCopa ? { background: 'linear-gradient(180deg, #006b35 0%, #005c2e 25%, #004d27 50%, #004020 75%, #003518 100%)' } : undefined}>
+      <TourPageWrapper pathname={`/grupos/${grupoId}`} />
+
       {/* Efeitos visuais Brasil */}
       {ehCopa && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -187,16 +95,7 @@ export default function DetalhesGrupoPage() {
       )}
 
       {/* Header */}
-      <header className={`sticky top-0 z-20 flex items-center gap-0 px-1 py-4 backdrop-blur-lg border-b ${ehCopa ? 'bg-[#003d1a]/80 border-[#009c3b]/30' : 'bg-fundo/80 border-white/[0.05]'}`}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-          aria-label="Voltar"
-          className="text-texto/70 hover:text-texto shrink-0"
-        >
-          <ArrowLeft size={20} />
-        </Button>
+      <header className={`sticky top-0 z-20 flex items-center gap-0 px-4 py-4 backdrop-blur-lg border-b ${ehCopa ? 'bg-[#003d1a]/80 border-[#009c3b]/30' : 'bg-fundo/80 border-white/[0.05]'}`}>
         <div className="flex items-center gap-2.5 flex-1">
           <div>
             <div className="flex items-center gap-1.5">
@@ -230,6 +129,7 @@ export default function DetalhesGrupoPage() {
             </span>
           </button>
         )}
+        <TourRefazerBotao pathname={`/grupos/${grupoId}`} />
         <Button
           variant="ghost"
           size="icon"
@@ -243,6 +143,25 @@ export default function DetalhesGrupoPage() {
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 pt-2 space-y-2">
+        {/* Botões de ação rápida */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => router.push('/grupos/buscar')}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primaria bg-white/[0.03] text-primaria-claro hover:bg-primaria/[0.08] transition-colors text-[12px] font-semibold"
+            data-testid="grupo-btn-pesquisar"
+          >
+            Pesquisar
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/grupos/explorar')}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primaria bg-white/[0.03] text-primaria-claro hover:bg-primaria/[0.08] transition-colors text-[12px] font-semibold"
+            data-testid="grupo-btn-meus-grupos"
+          >
+            Meus grupos
+          </button>
+        </div>
         {/* ═══════════════════════════════════════════════════════ */}
         {/* MODO COPA DO MUNDO — 3 Abas                           */}
         {/* ═══════════════════════════════════════════════════════ */}
@@ -304,20 +223,7 @@ export default function DetalhesGrupoPage() {
         {!ehCopa && (
           <>
             {/* Alerta de jogos atrasados */}
-            {temJogosAdiados && (
-              <button
-                type="button"
-                onClick={() => router.push(`/grupos/${grupoId}/jogos-adiados`)}
-                className="flex items-center gap-2"
-              >
-                <span className="text-destaque text-sm">⏱</span>
-                <span className="text-[12px] text-destaque font-semibold">Há jogos atrasados</span>
-                <span className="text-texto/30">•</span>
-                <span className="text-[11px] text-primaria-claro font-medium flex items-center gap-0.5">
-                  Ver todos <ChevronRight size={10} />
-                </span>
-              </button>
-            )}
+            <AlertaJogosAtrasados temporadaId={grupo.temporadaId} grupoId={grupoId} />
 
             {/* Próximo Jogo */}
             {proximoJogo && (
@@ -338,206 +244,9 @@ export default function DetalhesGrupoPage() {
               </Card>
             )}
 
-            {/* Sua Posição */}
-            {minhaPosicao && (
-              <Card data-testid="grupo-card-minha-posicao" className="border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                      Sua Posição
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="text-4xl font-bold text-texto">{minhaPosicao.posicao}º</span>
-                      <div>
-                        <p className="text-lg font-bold text-texto">{minhaPosicao.pontuacaoTotal} pts</p>
-                        {ptsAtrasDoLider > 0 && (
-                          <p className="text-[11px] text-texto/40">{ptsAtrasDoLider} pts atrás do líder</p>
-                        )}
-                        {ptsAtrasDoLider === 0 && minhaPosicao.posicao === 1 && (
-                          <p className="text-[11px] text-primaria/70">Você é o líder!</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primaria/[0.08] border border-primaria/20">
-                      <Trophy size={22} className="text-primaria-claro" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Palpites do grupo — expandível */}
+            <SecaoPalpitesGrupo grupoId={grupoId} temporadaId={grupo.temporadaId} />
 
-            {/* Ranking */}
-            <Card data-testid="grupo-card-ranking" className="border-[#ffdf00] shadow-[0_0_24px_rgba(255,223,0,0.3)]">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-[11px] text-texto/50 uppercase tracking-wider font-semibold">
-                    Ranking
-                  </span>
-                  <div className="flex items-center gap-1 ml-auto">
-                    <button
-                      onClick={() => { setRankingFiltro('geral'); setRodadaSelecionada(null); }}
-                      className={`text-[10px] px-2 py-1 rounded-md transition-colors ${
-                        rankingFiltro === 'geral'
-                          ? 'bg-primaria/15 text-primaria-claro font-semibold border border-primaria/30'
-                          : 'text-texto/40 border border-white/[0.08] hover:text-texto/60'
-                      }`}
-                    >
-                      Geral
-                    </button>
-                    <button
-                      onClick={() => { setRankingFiltro('rodada'); if (!rodadaSelecionada && proximoJogo?.jogo.rodada) setRodadaSelecionada(proximoJogo.jogo.rodada); }}
-                      className={`text-[10px] px-2 py-1 rounded-md transition-colors ${
-                        rankingFiltro === 'rodada'
-                          ? 'bg-primaria/15 text-primaria-claro font-semibold border border-primaria/30'
-                          : 'text-texto/40 border border-white/[0.08] hover:text-texto/60'
-                      }`}
-                    >
-                      Rodada
-                    </button>
-                  </div>
-                </div>
-
-                {/* Seletor de rodada */}
-                {rankingFiltro === 'rodada' && (
-                  <div className="relative mb-3">
-                    <div className="flex items-center justify-center gap-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <button
-                        type="button"
-                        onClick={() => { setRodadaSelecionada((prev) => prev && prev > 1 ? prev - 1 : prev); setRodadaListaAberta(false); }}
-                        disabled={!rodadaSelecionada || rodadaSelecionada <= 1}
-                        className="h-8 w-8 rounded-full flex items-center justify-center text-primaria-claro hover:text-primaria disabled:opacity-20 transition-colors"
-                      >
-                        <ChevronRight size={20} className="rotate-180" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRodadaListaAberta(!rodadaListaAberta)}
-                        className="text-[12px] text-texto/70 font-medium min-w-[100px] text-center hover:text-primaria-claro transition-colors"
-                      >
-                        {rodadaSelecionada ? `Rodada ${rodadaSelecionada}` : 'Selecione a rodada'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setRodadaSelecionada((prev) => prev ? Math.min(prev + 1, proximoJogo?.jogo.rodada ?? 38) : 1); setRodadaListaAberta(false); }}
-                        disabled={rodadaSelecionada === (proximoJogo?.jogo.rodada ?? 38)}
-                        className="h-8 w-8 rounded-full flex items-center justify-center text-primaria-claro hover:text-primaria disabled:opacity-20 transition-colors"
-                      >
-                        <ChevronRight size={20} />
-                      </button>
-                    </div>
-
-                    {rodadaListaAberta && (
-                      <div className="absolute z-10 top-full mt-1 left-0 right-0 max-h-[200px] overflow-y-auto rounded-xl border border-white/[0.1] bg-[#1a1a2e] shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-                        <div className="grid grid-cols-4 gap-1 p-2">
-                          {Array.from({ length: proximoJogo?.jogo.rodada ?? 1 }, (_, i) => i + 1).map((r) => (
-                            <button
-                              key={r}
-                              type="button"
-                              onClick={() => { setRodadaSelecionada(r); setRodadaListaAberta(false); }}
-                              className={`py-2 rounded-lg text-[11px] font-medium transition-all ${
-                                r === rodadaSelecionada
-                                  ? 'bg-primaria/20 text-primaria-claro border border-primaria/40'
-                                  : 'text-texto/50 hover:bg-white/[0.06] hover:text-texto/80'
-                              }`}
-                            >
-                              {r}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Pódio Top 3 */}
-                {top3.length >= 3 && (
-                  <div className="flex items-end justify-center gap-3 mb-4 pb-4 border-b border-white/[0.05]">
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-gray-400/80 font-bold mb-1">2</span>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-gray-400/50">
-                        {top3[1].nomeUsuario.charAt(0)}
-                      </div>
-                      <span className="text-[10px] text-texto/60 font-medium mt-1">{top3[1].nomeUsuario.split(' ')[0]}</span>
-                      <span className="text-[10px] text-primaria font-bold">{top3[1].pontuacaoTotal} pts</span>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[8px] text-sucesso/70">🎯{top3[1].acertosEmCheio ?? 0}</span>
-                        <span className="text-[8px] text-destaque/70">⚡{top3[1].acertosDeResultado ?? 0}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center -mt-3">
-                      <span className="text-destaque text-sm mb-1">👑</span>
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primaria/20 text-primaria text-base font-bold border-2 border-yellow-400/70 shadow-[0_0_16px_rgba(234,179,8,0.25)]">
-                        {top3[0].nomeUsuario.charAt(0)}
-                      </div>
-                      <span className="text-[11px] text-texto/80 font-semibold mt-1">{top3[0].nomeUsuario.split(' ')[0]}</span>
-                      <span className="text-[11px] text-primaria font-bold">{top3[0].pontuacaoTotal} pts</span>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[8px] text-sucesso/70">🎯{top3[0].acertosEmCheio ?? 0}</span>
-                        <span className="text-[8px] text-destaque/70">⚡{top3[0].acertosDeResultado ?? 0}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-orange-500/80 font-bold mb-1">3</span>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-texto/60 text-sm font-bold border-2 border-orange-500/50">
-                        {top3[2].nomeUsuario.charAt(0)}
-                      </div>
-                      <span className="text-[10px] text-texto/60 font-medium mt-1">{top3[2].nomeUsuario.split(' ')[0]}</span>
-                      <span className="text-[10px] text-texto/50 font-bold">{top3[2].pontuacaoTotal} pts</span>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[8px] text-sucesso/70">🎯{top3[2].acertosEmCheio ?? 0}</span>
-                        <span className="text-[8px] text-destaque/70">⚡{top3[2].acertosDeResultado ?? 0}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Resto do ranking (4+) */}
-                {restoRanking.length > 0 && (
-                  <div className="space-y-1">
-                    {(rankingExpandido ? restoRanking : restoRanking.slice(0, 5)).map((item) => {
-                      const variacao = rankingFiltro === 'geral' ? obterVariacao(item.usuarioId) : 0;
-                      return (
-                        <div key={item.usuarioId} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/[0.02]">
-                          <span className="text-[11px] text-texto/30 font-medium w-4 text-center">{item.posicao}</span>
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primaria/10 text-primaria text-[10px] font-bold">
-                            {item.nomeUsuario.charAt(0)}
-                          </div>
-                          <span className="flex-1 text-sm text-texto/70">{item.nomeUsuario}</span>
-                          <span className="text-sm text-texto/50 font-medium">{item.pontuacaoTotal} pts</span>
-                          <span className="w-6 text-center">
-                            {variacao > 0 && <span className="text-[10px] text-primaria font-bold">↑{variacao}</span>}
-                            {variacao < 0 && <span className="text-[10px] text-erro font-bold">↓{Math.abs(variacao)}</span>}
-                            {variacao === 0 && <Minus size={10} className="text-texto/20 inline" />}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {(!rankingAtivo || rankingAtivo.length === 0) && !carregandoRanking && (
-                  <p className="text-[11px] text-texto/30 text-center py-4">Nenhuma pontuação registrada ainda</p>
-                )}
-                {(!rankingAtivo || rankingAtivo.length === 0) && carregandoRanking && (
-                  <div className="space-y-2 py-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={`skeleton-ranking-${i}`} className="h-8 rounded-lg bg-white/[0.03] animate-pulse" />
-                    ))}
-                  </div>
-                )}
-
-                {restoRanking.length > 5 && (
-                  <button
-                    onClick={() => setRankingExpandido(!rankingExpandido)}
-                    className="w-full flex items-center justify-center gap-1 mt-3 pt-3 border-t border-white/[0.05] text-[11px] text-primaria-claro/70 hover:text-primaria-claro"
-                  >
-                    {rankingExpandido ? 'Ver menos' : 'Ver todos'} <ChevronRight size={10} className={rankingExpandido ? 'rotate-90' : ''} />
-                  </button>
-                )}
-              </CardContent>
-            </Card>
           </>
         )}
       </div>
@@ -555,21 +264,4 @@ export default function DetalhesGrupoPage() {
       />
     </div>
   );
-}
-
-function formatarDataJogo(dataHora: string): string {
-  const jogoDate = new Date(dataHora);
-  const hoje = new Date();
-  const amanha = new Date();
-  amanha.setDate(amanha.getDate() + 1);
-
-  const opcoesBR = { timeZone: 'America/Sao_Paulo' as const };
-
-  if (jogoDate.toLocaleDateString('pt-BR', opcoesBR) === hoje.toLocaleDateString('pt-BR', opcoesBR)) {
-    return 'Hoje';
-  }
-  if (jogoDate.toLocaleDateString('pt-BR', opcoesBR) === amanha.toLocaleDateString('pt-BR', opcoesBR)) {
-    return 'Amanhã';
-  }
-  return jogoDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' });
 }

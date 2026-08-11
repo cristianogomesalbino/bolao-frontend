@@ -766,3 +766,79 @@ Resultado: R5 preenchido com CDM (2º do Grupo E) automaticamente.
 - **Estados Vazios** — NUNCA mostrar empty state antes de finalizar requests
 - **Hook `usePalpiteCard`** — semântica de `undefined` vs `null` vs objeto para `palpiteInicial`
 - **Jogos Simultâneos na Home** — mostrar todos + batch de palpites
+
+
+## Sessão 7 — Tours Onboarding + Refactoring da Página de Grupos
+
+### Objetivo
+Adicionar tour onboarding nas páginas de buscar/encontrar grupos e meus grupos. Refatorar a página `/grupos/publicos` para incluir busca por código de convite e renomear a rota.
+
+---
+
+### Página renomeada: `/grupos/publicos` → `/grupos/buscar`
+
+**Motivo:** A página agora faz mais do que listar grupos públicos — também permite entrada por código de convite.
+
+**Título visual:** "Encontrar Grupos"
+
+**Duas abas:**
+- **Grupos Públicos** — busca por nome (funcionalidade original)
+- **Código de Convite** — nova seção para entrar em grupos privados usando o código
+
+**Fluxo do código de convite:**
+1. Usuário digita código (uppercase, monospace)
+2. Submete → busca grupo via `GET /grupos/convite/:codigo/info`
+3. Preview do grupo encontrado (nome, visibilidade, limite de participantes)
+4. Segundo clique → `POST /grupos/entrar` com o código
+5. Sucesso → redireciona para `/grupos`
+6. Tratamento de erros: código inválido (404), já é membro (409), grupo inativo
+
+---
+
+### Página `/grupos/explorar` — Ajustes
+
+- Removido: card "Entrar com código de convite" + `FormularioEntrarGrupo` (movido para `/grupos/buscar`)
+- Adicionado: botão "+" no header para criar grupo (`/grupos/criar`)
+- Adicionado: tour onboarding integrado
+
+---
+
+### Tours adicionados
+
+| Tour ID | Página | Steps |
+|---------|--------|-------|
+| `tour-grupos-publicos` | `/grupos/buscar` | Título, Abas, Busca, Lista, Refazer |
+| `tour-meus-grupos` | `/grupos/explorar` | Título, Criar, Favorito, Refazer |
+
+### Arquivos alterados/criados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/app/(protegido)/grupos/buscar/page.tsx` | **Novo** — substituiu `publicos/page.tsx` |
+| `src/app/(protegido)/grupos/explorar/page.tsx` | Removido convite, adicionado tour + botão criar |
+| `src/lib/tour-registry.ts` | 2 novos tours + `getToursPorPagina` atualizado |
+| `src/types/tour.types.ts` | Adicionados `'tour-grupos-publicos'` e `'tour-meus-grupos'` |
+| `src/app/(protegido)/grupos/[grupoId]/page.tsx` | Link "Pesquisar" aponta para `/grupos/buscar` |
+| `src/components/tour/tour-provider.tsx` | `scrollOffset` 100→200 (headers mais altos) |
+
+### Backend alterado
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/modules/usuarios/usuarios.constants.ts` | `TOURS_VALIDOS` += `'tour-grupos-publicos'`, `'tour-meus-grupos'` |
+
+### Link contextual no empty state
+
+Na busca de grupos (`/grupos/buscar`), quando a lista está vazia:
+- Exibe link "Não encontrou? Crie um novo grupo" → `/grupos/criar`
+
+---
+
+### Validação
+
+| Check | Resultado |
+|-------|-----------|
+| getDiagnostics (todos arquivos) | ✅ 0 errors |
+| Backend `TOURS_VALIDOS` | ✅ Aceita novos IDs |
+| Rota antiga removida | ✅ `publicos/` deletada |
+| Referências atualizadas | ✅ 0 ocorrências de `/grupos/publicos` |

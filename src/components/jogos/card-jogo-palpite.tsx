@@ -8,6 +8,7 @@ import { buscarEstatisticasPalpite, buscarDetalhamentoJogo, EstatisticasPalpite 
 import { calcularPontos } from '@/lib/pontuacao';
 import { formatarPontuacao } from '@/lib/pontuacao-formatada';
 import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
+import { calcularTempoJogo } from '@/lib/jogo-helpers';
 import { Card, CardContent } from '@/components/ui/card';
 import { Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
@@ -24,6 +25,7 @@ interface PropsCardJogoPalpite {
   onProximoCard?: () => void;
   ehUltimoCard?: boolean;
   temaCopa?: boolean;
+  ehPrimeiroCard?: boolean;
 }
 
 // --- Sub-componentes ---
@@ -360,7 +362,7 @@ function ConteudoExpandido({ carregando, estatisticas, statusJogo, grupoId, jogo
 
 // --- Componente principal ---
 
-export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco, onProximoCard, ehUltimoCard, temaCopa }: Readonly<PropsCardJogoPalpite>) {
+export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco, onProximoCard, ehUltimoCard, temaCopa, ehPrimeiroCard }: Readonly<PropsCardJogoPalpite>) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [expandido, setExpandido] = useState(false);
 
@@ -414,7 +416,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
   }
 
   return (
-    <div ref={cardRef} className="scroll-mt-[140px]">
+    <div ref={cardRef} className="scroll-mt-[140px]" {...(ehPrimeiroCard ? { 'data-tour': 'primeiro-card-jogo' } : {})}>
       <Card className={`${cardBorda} transition-all duration-300 overflow-hidden`}>
         <CardContent className="p-3">
           {/* Data/hora + status */}
@@ -434,7 +436,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
             {jogo.status === 'EM_ANDAMENTO' && (
               <span className="flex items-center gap-1 text-[8px] text-erro font-bold">
                 <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />{' '}
-                AO VIVO
+                AO VIVO • {jogo.dataHora ? calcularTempoJogo(jogo.dataHora) : ''}
               </span>
             )}
             {jogo.status === 'FINALIZADO' && (
@@ -485,7 +487,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           )}
 
           {/* Expandir */}
-          <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1">
+          <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1" {...(ehPrimeiroCard ? { 'data-tour': 'chevron-palpites' } : {})}>
             <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandido ? 'rotate-180' : ''}`} />
           </button>
 

@@ -10,13 +10,10 @@ export default function RootPage() {
   const estaCarregando = useAuthStore((state) => state.estaCarregando);
 
   useEffect(() => {
-    if (!estaCarregando) {
-      if (estaAutenticado) {
-        router.replace('/inicio');
-      } else {
-        router.replace('/login');
-      }
-    }
+    if (estaCarregando) return;
+
+    const destino = estaAutenticado ? '/palpites' : '/login';
+    router.replace(destino);
   }, [estaCarregando, estaAutenticado, router]);
 
   return (

@@ -93,6 +93,7 @@ src/
 | PATCH | /usuarios/:id | Atualizar perfil |
 | DELETE | /usuarios/:id | Excluir conta |
 | PATCH | /usuarios/me/grupo-favorito | Definir grupo favorito |
+| PATCH | /usuarios/me/tours | Marcar tour completo |
 
 ### Grupos
 | Método | Rota | Descrição |
@@ -158,6 +159,7 @@ src/
 6. ~~Ranking — geral, por fase, detalhamento~~ ✅
 7. Login com Google (OAuth)
 8. Notificações push
+9. ~~Tour de Onboarding~~ ✅
 
 ## Utilitários Compartilhados (`src/lib/`)
 
@@ -170,3 +172,5 @@ src/
 | `pontuacao-formatada.ts` | `formatarPontuacao` (singular/plural) |
 | `pontuacao.ts` | Lógica de cálculo de pontos |
 | `avisos.ts` | Gestão de avisos admin (localStorage) |
+| `tour-registry.ts` | Configuração de tours onboarding por página |
+| `tour-sync.ts` | Sincronização de tours pendentes (offline-first) |
