@@ -14,6 +14,13 @@ export const TOURS: ConfiguracaoTour[] = [
         placement: 'bottom',
       },
       {
+        target: '[data-tour="alerta-jogos-atrasados"]',
+        titulo: 'Jogos atrasados',
+        conteudo:
+          'Quando houver jogos que você ainda não palpitou e já deveriam ter sido feitos, este alerta aparece. Toque para ver e palpitar.',
+        placement: 'bottom',
+      },
+      {
         target: '[data-tour="primeiro-card-jogo"]',
         titulo: 'Faça seu palpite',
         conteudo:
