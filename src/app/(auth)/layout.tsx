@@ -14,7 +14,7 @@ function AuthLayoutInner({ children }: { readonly children: React.ReactNode }) {
   useEffect(() => {
     if (!estaCarregando && estaAutenticado) {
       const redirect = searchParams.get('redirect');
-      const destino = redirect?.startsWith('/') ? redirect : '/inicio';
+      const destino = redirect?.startsWith('/') ? redirect : '/palpites';
       router.replace(destino);
     }
   }, [estaCarregando, estaAutenticado, router, searchParams]);

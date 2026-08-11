@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implementação de um sistema de tours interativos contextuais por página usando `react-joyride` no frontend e persistência de progresso no backend via campo `toursCompletos` no model Usuario. A implementação segue a ordem: backend (migration, repository, service, controller, testes) → frontend (tipos, service, hook, componentes, registry, integração nas páginas, testes).
+Implementação de um sistema de tours interativos contextuais por página usando `react-joyride` no frontend e persistência de progresso no backend via campo `toursCompletos` no model Usuario. A implementação segue a ordem: backend (migration, repository, service, controller, testes) → frontend (tipos, service, hook, componentes, registry, integração nas páginas, testes). São 3 tours: Home (`/inicio`), Grupo (`/grupos/[grupoId]`), Palpites (`/palpites`). O ranking está integrado na página do grupo, não tem página separada.
 
 ## Tasks
 
@@ -15,7 +15,7 @@ Implementação de um sistema de tours interativos contextuais por página usand
     - _Requirements: 5.2, 5.4_
 
   - [ ] 1.2 Adicionar constantes do módulo de tours no backend
-    - Criar constante `TOURS_VALIDOS` em `src/modules/usuarios/usuarios.constants.ts` com os IDs válidos: `'tour-dashboard' | 'tour-grupo' | 'tour-palpites' | 'tour-ranking'`
+    - Criar constante `TOURS_VALIDOS` em `src/modules/usuarios/usuarios.constants.ts` com os IDs válidos: `'tour-home' | 'tour-grupo' | 'tour-palpites'`
     - Adicionar mensagens de resposta (`MENSAGENS.TOUR_MARCADO_COMPLETO`, `MENSAGENS.TOUR_ID_INVALIDO`)
     - _Requirements: 5.5_
 
@@ -30,7 +30,7 @@ Implementação de um sistema de tours interativos contextuais por página usand
   - [ ] 2.2 Criar DTO `MarcarTourCompletoDto`
     - Criar `src/modules/usuarios/dto/marcar-tour-completo.dto.ts`
     - Campo `tourId` com `@IsIn(TOURS_VALIDOS)` e `@IsString({ message: 'tourId deve ser uma string' })`
-    - Tipar como union type: `'tour-dashboard' | 'tour-grupo' | 'tour-palpites' | 'tour-ranking'`
+    - Tipar como union type: `'tour-home' | 'tour-grupo' | 'tour-palpites'`
     - Decorar com `@ApiProperty`
     - _Requirements: 5.5_
 
@@ -68,6 +68,7 @@ Implementação de um sistema de tours interativos contextuais por página usand
 - [ ] 4. Frontend — Tipos e Service
   - [ ] 4.1 Criar tipos do tour (`tour.types.ts`)
     - Criar `src/types/tour.types.ts` com: `TourId`, `TOURS_VALIDOS`, `StepTour`, `ConfiguracaoTour`
+    - `TourId = 'tour-home' | 'tour-grupo' | 'tour-palpites'`
     - Exportar no barrel file `src/types/index.ts`
     - _Requirements: 6.1, 7.5_
 
@@ -143,11 +144,11 @@ Implementação de um sistema de tours interativos contextuais por página usand
 - [ ] 7. Frontend — Tour Registry
   - [ ] 7.1 Criar tour-registry com configuração de todos os tours
     - Criar `src/lib/tour-registry.ts`
-    - Definir `TOURS: ConfiguracaoTour[]` com 4 tours: `tour-dashboard`, `tour-grupo`, `tour-palpites`, `tour-ranking`
+    - Definir `TOURS: ConfiguracaoTour[]` com 3 tours: `tour-home`, `tour-grupo`, `tour-palpites`
     - Cada tour com steps usando seletores `[data-tour="nome"]`
     - Último step de cada tour aponta para `[data-tour="botao-refazer-tour"]`
     - Exportar helper `getToursPorPagina(pathname: string): ConfiguracaoTour[]`
-    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
   - [ ]* 7.2 Escrever property tests do tour-registry (Properties 8 e 9)
     - **Property 8: Todos os steps usam seletores data-tour**
@@ -162,20 +163,22 @@ Implementação de um sistema de tours interativos contextuais por página usand
 
 - [ ] 9. Frontend — Integração nas páginas
   - [ ] 9.1 Adicionar atributos `data-tour` nos elementos-alvo das páginas
-    - Dashboard (`/inicio`): `data-tour="boas-vindas"`, `data-tour="lista-grupos"`, `data-tour="botao-criar-grupo"`
-    - Grupo (`/grupos/[grupoId]`): `data-tour="convidar-amigos"`, `data-tour="jogos-rodada"`, `data-tour="navegacao-rodadas"`
-    - Palpites (`/palpites/[grupoId]/[faseId]`): `data-tour="escolher-placar"`, `data-tour="palpite-dobrado"`, `data-tour="salvar-palpites"`
-    - Ranking (`/grupos/[grupoId]/ranking`): `data-tour="posicao-ranking"`, `data-tour="tabela-pontuacao"`, `data-tour="filtro-fase"`
-    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.6_
+    - Home (`/inicio`): `data-tour="boas-vindas"`, `data-tour="proximos-jogos"`, `data-tour="lista-grupos"`, `data-tour="card-ranking"`
+    - Grupo (`/grupos/[grupoId]`): `data-tour="convidar-amigos"`, `data-tour="jogos-rodada"`, `data-tour="ranking-grupo"`, `data-tour="navegacao-rodadas"`
+    - Palpites (`/palpites`): `data-tour="escolher-placar"`, `data-tour="palpite-dobrado"`, `data-tour="salvar-palpites"`
+    - _Requirements: 7.1, 7.2, 7.3, 7.5_
 
-  - [ ] 9.2 Integrar BotaoRefazerTour no layout protegido (header)
-    - Adicionar `BotaoRefazerTour` no header do layout `(protegido)/layout.tsx`
+  - [ ] 9.2 Integrar BotaoRefazerTour no header de cada página com tour
+    - Adicionar `BotaoRefazerTour` no header da página Home (`/inicio`) ao lado do `SinoNotificacoes`
+    - Adicionar `BotaoRefazerTour` no header da página Grupo (`/grupos/[grupoId]`)
+    - Adicionar `BotaoRefazerTour` no header da página Palpites (`/palpites`)
     - Usar `getToursPorPagina` para determinar tours disponíveis na página atual
     - Atributo `data-tour="botao-refazer-tour"` no botão
+    - Nota: não há layout global com header — cada página tem seu próprio header inline
     - _Requirements: 4.1, 3.1_
 
   - [ ] 9.3 Integrar react-joyride e useTour nas páginas com tour
-    - Em cada página com tour (Dashboard, Grupo, Palpites, Ranking): importar `useTour` + steps do registry
+    - Em cada página com tour (Home `/inicio`, Grupo `/grupos/[grupoId]`, Palpites `/palpites`): importar `useTour` + steps do registry
     - Renderizar `<Joyride>` com `tooltipComponent={TooltipTour}`, `callback={handleCallback}`, `run={tourAtivo}`, `stepIndex={stepAtual}`, `steps={steps}`
     - Configurar `continuous`, `showSkipButton`, `disableOverlayClose`, `spotlightClicks`
     - Configurar overlay escurecido com `styles.overlay: { backgroundColor: 'rgba(0,0,0,0.5)' }`
@@ -208,6 +211,9 @@ Implementação de um sistema de tours interativos contextuais por página usand
 - Backend commands via Docker: `sh dev npx vitest run` para testes, `sh dev npx prisma migrate dev` para migrations
 - Frontend usa fast-check (já instalado) para property-based tests
 - Todos os tours terminam apontando para `[data-tour="botao-refazer-tour"]` (Property 9)
+- O app não tem header global — cada página tem seu próprio header inline. O BotaoRefazerTour é adicionado individualmente em cada página com tour
+- Não existe página de ranking separada; o ranking está integrado na página do grupo (`/grupos/[grupoId]`)
+- A página de palpites é `/palpites` (flat, com seleção de campeonato via query params), não uma rota aninhada
 
 ## Task Dependency Graph
 

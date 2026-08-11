@@ -11,6 +11,8 @@ Sistema de tours interativos contextuais por página para guiar novos usuários 
 - Atributos `data-tour` nos elementos-alvo para referência estável
 - Persistência otimista com fallback local em caso de falha de rede
 - Tooltip customizado com glassmorphism integrado ao design system
+- 3 tours contextuais: Home, Grupo, Palpites (ranking integrado no tour-grupo, não há página separada)
+- Botão de refazer posicionado no header de cada página (ao lado do SinoNotificacoes), não num layout global
 
 ## Architecture
 
@@ -125,7 +127,8 @@ interface PropsBotaoRefazerTour {
 }
 ```
 
-- Renderiza ícone `HelpCircle` (lucide) no header
+- Renderiza ícone `HelpCircle` (lucide) no header de cada página com tour
+- Posicionado ao lado do `SinoNotificacoes` (ou equivalente) nas páginas Home, Grupo e Palpites
 - Se `toursDisponiveis.length === 0` → desabilitado com `opacity-50 cursor-not-allowed`
 - Se `toursDisponiveis.length === 1` → click inicia tour diretamente
 - Se `toursDisponiveis.length > 1` → click abre dropdown com lista de tours
@@ -134,7 +137,7 @@ interface PropsBotaoRefazerTour {
 ### Tour Registry (`tour-registry.ts`)
 
 ```typescript
-type TourId = 'tour-dashboard' | 'tour-grupo' | 'tour-palpites' | 'tour-ranking';
+type TourId = 'tour-home' | 'tour-grupo' | 'tour-palpites';
 
 interface StepTour {
   target: string;        // seletor data-tour: '[data-tour="nome"]'
@@ -155,10 +158,9 @@ interface ConfiguracaoTour {
 
 | Tour ID | Página | Steps |
 |---------|--------|-------|
-| `tour-dashboard` | `/inicio` | Boas-vindas, Lista de grupos, Botão criar grupo, Botão refazer |
-| `tour-grupo` | `/grupos/[grupoId]` | Convidar amigos, Jogos da rodada, Navegação rodadas, Botão refazer |
-| `tour-palpites` | `/palpites/[grupoId]/[faseId]` | Escolher placar, Palpite dobrado, Salvar palpites, Botão refazer |
-| `tour-ranking` | `/grupos/[grupoId]/ranking` | Posição no ranking, Tabela pontuação, Filtro por fase, Botão refazer |
+| `tour-home` | `/inicio` | Boas-vindas, Card próximos jogos, Lista de grupos, Card ranking, Botão refazer |
+| `tour-grupo` | `/grupos/[grupoId]` | Convidar amigos, Jogos da rodada, Ranking do grupo, Navegação rodadas, Botão refazer |
+| `tour-palpites` | `/palpites` | Escolher placar, Palpite dobrado, Salvar palpites, Botão refazer |
 
 Todos os tours terminam com step final apontando para `[data-tour="botao-refazer-tour"]`.
 
@@ -179,7 +181,7 @@ export async function marcarTourCompleto(tourId: TourId): Promise<void> {
 class MarcarTourCompletoDto {
   @IsIn(TOURS_VALIDOS)
   @IsString({ message: 'tourId deve ser uma string' })
-  tourId: 'tour-dashboard' | 'tour-grupo' | 'tour-palpites' | 'tour-ranking';
+  tourId: 'tour-home' | 'tour-grupo' | 'tour-palpites';
 }
 ```
 
@@ -216,13 +218,12 @@ Migration: `npx prisma migrate dev --name adicionar_tours_completos_usuario`
 ### Frontend Types (`tour.types.ts`)
 
 ```typescript
-export type TourId = 'tour-dashboard' | 'tour-grupo' | 'tour-palpites' | 'tour-ranking';
+export type TourId = 'tour-home' | 'tour-grupo' | 'tour-palpites';
 
 export const TOURS_VALIDOS: TourId[] = [
-  'tour-dashboard',
+  'tour-home',
   'tour-grupo',
   'tour-palpites',
-  'tour-ranking',
 ];
 
 export interface StepTour {
@@ -257,12 +258,12 @@ export interface Usuario {
 
 **PATCH `/usuarios/me/tours`**
 - Auth: JWT (guard global)
-- Body: `{ "tourId": "tour-dashboard" }`
+- Body: `{ "tourId": "tour-home" }`
 - Resposta 200: `{ "mensagem": "Tour marcado como completo" }`
 - Resposta 400: `{ "erros": [{ "campo": "tourId", "mensagens": ["tourId deve ser um dos valores válidos"] }] }`
 
 **GET `/usuarios/me`** (alteração)
-- Resposta agora inclui: `"toursCompletos": ["tour-dashboard", "tour-grupo"]`
+- Resposta agora inclui: `"toursCompletos": ["tour-home", "tour-grupo"]`
 
 ## Correctness Properties
 

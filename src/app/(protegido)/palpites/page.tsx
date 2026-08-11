@@ -8,10 +8,37 @@ import { AbaTodosJogos } from '@/components/palpites/aba-todos-jogos';
 import { AbaMeusPalpites } from '@/components/palpites/aba-meus-palpites';
 import { AbaJogosCopa } from '@/components/palpites/aba-jogos-copa';
 import { IconPalpite } from '@/components/icons/icon-palpite';
+import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
 import { type CampeonatoSlug } from '@/types/jogo.types';
 import { listarTemporadas, buscarDadosTemporada } from '@/services/jogo.service';
+import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 const SLUGS_VALIDOS = new Set<CampeonatoSlug>(['brasileirao', 'copa-do-mundo-2026']);
+
+/**
+ * Retorna os slugs dos campeonatos ativos (status !== 'FINALIZADO').
+ * Fallback: ['brasileirao'] se não há dados ou nenhum ativo.
+ */
+function useCampeonatosAtivos(): CampeonatoSlug[] {
+  const { data: temporadas } = useQuery({
+    queryKey: ['temporadas'],
+    queryFn: listarTemporadas,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  if (!temporadas) return ['brasileirao'];
+
+  const ativos: CampeonatoSlug[] = [];
+  for (const t of temporadas) {
+    if (t.campeonato?.status === 'FINALIZADO') continue;
+    const nome = t.campeonato?.nome?.toLowerCase() ?? '';
+    const ehCopa = nome.includes('copa') && nome.includes('mundo');
+    const slug: CampeonatoSlug = ehCopa ? 'copa-do-mundo-2026' : 'brasileirao';
+    if (!ativos.includes(slug)) ativos.push(slug);
+  }
+
+  return ativos.length > 0 ? ativos : ['brasileirao'];
+}
 
 /**
  * Detecta qual campeonato tem o próximo jogo mais próximo.
@@ -72,10 +99,11 @@ export default function PalpitesPage() {
   const paramCampeonato = searchParams.get('campeonato');
   const paramFoco = searchParams.get('foco');
   const campeonatoDetectado = useCampeonatoComProximoJogo();
+  const campeonatosAtivos = useCampeonatosAtivos();
 
   const campeonatoInicial: CampeonatoSlug = SLUGS_VALIDOS.has(paramCampeonato as CampeonatoSlug)
     ? (paramCampeonato as CampeonatoSlug)
-    : 'brasileirao';
+    : campeonatosAtivos[0] ?? 'brasileirao';
   const [abaAtiva, setAbaAtiva] = useState<'todos' | 'meus'>('todos');
   const [cardAtivo, setCardAtivo] = useState<string | null>(paramFoco);
   const [campeonato, setCampeonato] = useState<CampeonatoSlug>(campeonatoInicial);
@@ -142,6 +170,7 @@ export default function PalpitesPage() {
 
   return (
     <div className={`min-h-screen pb-24 relative ${ehCopaMundo ? 'bg-[#003d1a]' : 'bg-fundo'}`}>
+      <TourPageWrapper />
       {/* Fundo temático Copa */}
       {ehCopaMundo && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -155,39 +184,51 @@ export default function PalpitesPage() {
       {/* Header */}
       <header className={`sticky top-0 z-20 px-4 pt-4 pb-3 backdrop-blur-lg border-b ${ehCopaMundo ? 'bg-[#003d1a]/90 border-[#009c3b]/30' : 'bg-fundo/95 border-white/[0.05]'}`}>
         <div className="mx-auto max-w-[480px]">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2" data-tour="boas-vindas">
             <IconPalpite size={22} className="text-primaria-claro" />
             <h1 className="text-lg font-bold text-texto">Palpites</h1>
+            <div className="ml-auto">
+              <TourRefazerBotao />
+            </div>
           </div>
           {/* Seletor de campeonato */}
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setCampeonato('brasileirao')}
-              className={`flex-1 py-2 px-2 rounded-lg text-[11px] font-semibold transition-all text-center ${
-                campeonato === 'brasileirao'
-                  ? 'bg-primaria/20 text-primaria-claro border border-primaria/30'
-                  : 'bg-white/[0.03] text-texto/40 border border-white/[0.06]'
-              }`}
-            >
-              Brasileirão
-            </button>
-            <button
-              type="button"
-              onClick={() => setCampeonato('copa-do-mundo-2026')}
-              className={`flex-1 py-2 px-2 rounded-lg text-[11px] font-semibold transition-all text-center ${
-                campeonato === 'copa-do-mundo-2026'
-                  ? 'bg-[#009c3b]/20 text-[#ffdf00] border border-[#009c3b]/40'
-                  : 'bg-white/[0.03] text-texto/40 border border-white/[0.06]'
-              }`}
-            >
-              Copa do Mundo
-            </button>
+          <div className="flex gap-1.5" data-tour="seletor-campeonato">
+            {campeonatosAtivos.includes('brasileirao') && (
+              <button
+                type="button"
+                onClick={() => setCampeonato('brasileirao')}
+                className={`flex-1 py-2 px-2 rounded-lg text-[11px] font-semibold transition-all text-center ${
+                  campeonato === 'brasileirao'
+                    ? 'bg-primaria/20 text-primaria-claro border border-primaria/30'
+                    : 'bg-white/[0.03] text-texto/40 border border-white/[0.06]'
+                }`}
+              >
+                Brasileirão
+              </button>
+            )}
+            {campeonatosAtivos.includes('copa-do-mundo-2026') && (
+              <button
+                type="button"
+                onClick={() => setCampeonato('copa-do-mundo-2026')}
+                className={`flex-1 py-2 px-2 rounded-lg text-[11px] font-semibold transition-all text-center ${
+                  campeonato === 'copa-do-mundo-2026'
+                    ? 'bg-[#009c3b]/20 text-[#ffdf00] border border-[#009c3b]/40'
+                    : 'bg-white/[0.03] text-texto/40 border border-white/[0.06]'
+                }`}
+              >
+                Copa do Mundo
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 pt-3">
+        {/* Alerta de jogos atrasados */}
+        {grupoId && temporadaId && (
+          <AlertaJogosAtrasados temporadaId={temporadaId} grupoId={grupoId} />
+        )}
+
         {/* Abas */}
         <div className="flex items-center gap-0 border-b border-white/[0.06] mb-4">
           <button
@@ -200,6 +241,7 @@ export default function PalpitesPage() {
           </button>
           <button
             onClick={() => setAbaAtiva('meus')}
+            data-tour="aba-meus-palpites"
             className={`flex-1 py-2.5 text-[11px] font-semibold text-center border-b-2 transition-colors ${
               abaAtiva === 'meus' ? 'text-texto border-primaria-claro' : 'text-texto/40 border-transparent'
             }`}

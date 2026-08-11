@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Trophy, User } from 'lucide-react';
+import { Trophy, Users, User } from 'lucide-react';
 import { IconPalpite } from '@/components/icons/icon-palpite';
 
 const itens = [
-  { href: '/inicio', label: 'Home', icone: Home },
-  { href: '/grupos', label: 'Grupos', icone: Trophy },
   { href: '/palpites', label: 'Palpites', icone: IconPalpite },
+  { href: '/grupos', label: 'Grupos', icone: Users },
+  { href: '/ranking', label: 'Ranking', icone: Trophy },
   { href: '/minha-conta', label: 'Conta', icone: User },
 ];
 
