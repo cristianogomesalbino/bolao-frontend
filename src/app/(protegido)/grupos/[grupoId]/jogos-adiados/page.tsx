@@ -33,9 +33,18 @@ export default function JogosAdiados() {
       const resultado: Array<{ jogo: Jogo; fase: Fase }> = [];
 
       for (const fase of fases) {
-        const { jogos } = await listarJogosFase(fase.id);
-        const pendentes = jogos.filter((j) => j.status === 'ADIADO' || j.status === 'AGENDADO');
-        for (const jogo of pendentes) {
+        // Buscar jogos adiados e a rodada atual da fase
+        const [respostaAdiados, respostaAtual] = await Promise.all([
+          listarJogosFase(fase.id, undefined, 'ADIADO'),
+          listarJogosFase(fase.id),
+        ]);
+        const rodadaAtual = respostaAtual.rodadaAtual;
+
+        // Filtrar apenas jogos de rodadas anteriores à atual
+        const atrasados = respostaAdiados.jogos.filter(
+          (j) => j.rodada !== null && rodadaAtual !== null && j.rodada < rodadaAtual,
+        );
+        for (const jogo of atrasados) {
           resultado.push({ jogo, fase });
         }
       }
@@ -60,7 +69,6 @@ export default function JogosAdiados() {
         </Button>
         <div className="flex-1">
           <h1 className="text-base font-semibold text-texto">Jogos Atrasados</h1>
-          <p className="text-[10px] text-texto/35">{grupo?.nome}</p>
         </div>
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-destaque/10 border border-destaque/20">
           <Clock size={12} className="text-destaque" />

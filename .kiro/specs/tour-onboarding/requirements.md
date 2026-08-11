@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Tour de onboarding interativo para guiar novos usuários pelo app de bolão. A feature utiliza tours contextuais por página (Dashboard, Grupo, Palpites, Ranking) com a biblioteca react-joyride, persistência de progresso no backend via array de IDs de tours completos, e possibilidade de refazer tours a qualquer momento através de um botão acessível no header.
+Tour de onboarding interativo para guiar novos usuários pelo app de bolão. A feature utiliza tours contextuais por página (Home, Grupo, Palpites) com a biblioteca react-joyride, persistência de progresso no backend via array de IDs de tours completos, e possibilidade de refazer tours a qualquer momento através de um botão acessível no header de cada página (ao lado do SinoNotificacoes ou equivalente).
 
 ## Glossary
 
@@ -10,10 +10,10 @@ Tour de onboarding interativo para guiar novos usuários pelo app de bolão. A f
 - **Servico_Tour_Backend**: Endpoint do backend responsável por persistir e retornar o progresso de tours completados pelo usuário (campo `toursCompletos` no model Usuario).
 - **Tour**: Sequência de steps interativos que guiam o usuário por funcionalidades de uma página específica do app.
 - **Step**: Elemento individual dentro de um tour que destaca um componente da interface e exibe instrução contextual.
-- **Tour_ID**: Identificador único de cada tour contextual (ex: `tour-dashboard`, `tour-grupo`, `tour-palpites`, `tour-ranking`).
+- **Tour_ID**: Identificador único de cada tour contextual (ex: `tour-home`, `tour-grupo`, `tour-palpites`).
 - **Tours_Completos**: Array de Tour_IDs armazenado no perfil do usuário indicando quais tours já foram visualizados.
 - **Hook_useTour**: Hook customizado React que gerencia o ciclo de vida de um tour específico (verificação de conclusão, início, controle de steps, marcação como completo).
-- **Botao_Refazer_Tour**: Elemento de interface acessível no header das páginas protegidas que permite ao usuário reiniciar tours.
+- **Botao_Refazer_Tour**: Elemento de interface acessível no header de cada página protegida (ao lado do SinoNotificacoes) que permite ao usuário reiniciar tours.
 
 ## Requirements
 
@@ -60,7 +60,7 @@ Tour de onboarding interativo para guiar novos usuários pelo app de bolão. A f
 
 #### Acceptance Criteria
 
-1. THE Sistema_Tour SHALL exibir o Botao_Refazer_Tour no header das páginas protegidas com ícone de ajuda (?).
+1. THE Sistema_Tour SHALL exibir o Botao_Refazer_Tour no header de cada página protegida que possui tour configurado, posicionado ao lado do SinoNotificacoes (ou equivalente), com ícone de ajuda (?).
 2. WHEN o usuário clica no Botao_Refazer_Tour e a página atual possui mais de um tour disponível, THE Sistema_Tour SHALL exibir uma lista com os nomes dos tours disponíveis para a página atual em até 500ms.
 3. WHEN o usuário clica no Botao_Refazer_Tour e a página atual possui exatamente um tour disponível, THE Sistema_Tour SHALL iniciar esse tour diretamente desde o primeiro step sem exibir menu de seleção.
 4. WHEN o usuário seleciona um tour para refazer, THE Sistema_Tour SHALL reiniciar o tour selecionado desde o primeiro step, independente de já estar marcado como completo.
@@ -77,7 +77,7 @@ Tour de onboarding interativo para guiar novos usuários pelo app de bolão. A f
 2. WHEN a requisição PATCH é recebida com um Tour_ID válido, THE Servico_Tour_Backend SHALL adicionar o Tour_ID ao array Tours_Completos do usuário sem remover IDs já existentes e sem criar duplicatas caso o mesmo Tour_ID já esteja presente no array.
 3. IF a requisição PATCH falhar por erro de rede ou timeout (sem resposta em até 5 segundos), THEN THE Sistema_Tour SHALL marcar o tour como completo no armazenamento local do dispositivo e retentar a sincronização automaticamente na próxima requisição bem-sucedida ao backend (qualquer chamada GET ou PATCH que retorne status 2xx).
 4. WHEN o perfil do usuário é carregado via `GET /usuarios/me`, THE Servico_Tour_Backend SHALL retornar o array Tours_Completos no payload de resposta.
-5. IF a requisição PATCH for recebida com um Tour_ID que não corresponde a nenhum tour cadastrado no sistema, THEN THE Servico_Tour_Backend SHALL rejeitar a requisição com erro indicando que o Tour_ID é inválido, sem modificar o array Tours_Completos do usuário.
+5. IF a requisição PATCH for recebida com um Tour_ID que não corresponde a nenhum tour cadastrado no sistema (valores válidos: `tour-home`, `tour-grupo`, `tour-palpites`), THEN THE Servico_Tour_Backend SHALL rejeitar a requisição com erro indicando que o Tour_ID é inválido, sem modificar o array Tours_Completos do usuário.
 
 ### Requirement 6: Hook customizado useTour
 
@@ -91,6 +91,7 @@ Tour de onboarding interativo para guiar novos usuários pelo app de bolão. A f
 4. THE Hook_useTour SHALL expor funções para: iniciar o tour (definir ativo como true e step atual como 0), avançar para o próximo step, retroceder para o step anterior, e encerrar o tour (definir ativo como false).
 5. WHEN o callback do react-joyride recebe um evento com status FINISHED ou SKIPPED, THE Hook_useTour SHALL encerrar o tour e invocar a chamada de persistência ao Servico_Tour_Backend com o Tour_ID correspondente.
 6. IF o Tour_ID já está presente no array Tours_Completos quando o hook é inicializado, THEN THE Hook_useTour SHALL manter o tour inativo sem invocar persistência ao backend.
+7. THE Hook_useTour SHALL atualizar o array Tours_Completos no auth store localmente (via `atualizarUsuario`) imediatamente após encerrar o tour, independentemente do resultado da chamada ao backend.
 
 ### Requirement 7: Tours contextuais por página
 
@@ -98,12 +99,11 @@ Tour de onboarding interativo para guiar novos usuários pelo app de bolão. A f
 
 #### Acceptance Criteria
 
-1. THE Sistema_Tour SHALL disponibilizar um tour para a página Dashboard (tour-dashboard) com steps cobrindo: boas-vindas ao app, lista de grupos do usuário, e botão de criar novo grupo.
-2. THE Sistema_Tour SHALL disponibilizar um tour para a página Grupo (tour-grupo) com steps cobrindo: link/botão de convidar amigos, seção de jogos da rodada atual, e navegação entre rodadas.
+1. THE Sistema_Tour SHALL disponibilizar um tour para a página Home (tour-home) com steps cobrindo: boas-vindas ao app, card de próximos jogos, lista de grupos do usuário, e card de ranking.
+2. THE Sistema_Tour SHALL disponibilizar um tour para a página Grupo (tour-grupo) com steps cobrindo: link/botão de convidar amigos, seção de jogos da rodada atual, seção de ranking do grupo, e navegação entre rodadas.
 3. THE Sistema_Tour SHALL disponibilizar um tour para a página Palpites (tour-palpites) com steps cobrindo: como escolher placar de um jogo, como ativar o palpite dobrado, e como salvar palpites.
-4. THE Sistema_Tour SHALL disponibilizar um tour para a página Ranking (tour-ranking) with steps cobrindo: posição do usuário no ranking, tabela de pontuação, e filtro por fase.
-5. WHEN um novo tour é adicionado ao sistema, THE Sistema_Tour SHALL operar independentemente dos tours existentes sem necessidade de resetar dados de outros tours.
-6. THE Sistema_Tour SHALL utilizar atributos `data-tour` nos elementos-alvo de cada step para referenciá-los de forma estável, independente de mudanças de estilo ou estrutura do DOM.
+4. WHEN um novo tour é adicionado ao sistema, THE Sistema_Tour SHALL operar independentemente dos tours existentes sem necessidade de resetar dados de outros tours.
+5. THE Sistema_Tour SHALL utilizar atributos `data-tour` nos elementos-alvo de cada step para referenciá-los de forma estável, independente de mudanças de estilo ou estrutura do DOM.
 
 ### Requirement 8: Estilização dos tooltips com design system
 

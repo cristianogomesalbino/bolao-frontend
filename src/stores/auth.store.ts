@@ -4,6 +4,7 @@ import { DadosLogin } from '@/types/auth.types';
 import apiClient, { configurarTokenHandlers } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 import { sincronizarPushPendente } from '@/lib/push-notifications';
+import { sincronizarToursPendentes } from '@/lib/tour-sync';
 
 // --- Gerenciador de Tokens ---
 let accessToken: string | null = null;
@@ -68,6 +69,8 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
 
       // Sincronizar push subscription pendente (fire-and-forget)
       sincronizarPushPendente().catch(() => {});
+      // Sincronizar tours pendentes (fire-and-forget)
+      sincronizarToursPendentes().catch(() => {});
     },
 
     logout: async () => {
@@ -110,6 +113,8 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
 
         // Sincronizar push subscription pendente (fire-and-forget)
         sincronizarPushPendente().catch(() => {});
+        // Sincronizar tours pendentes (fire-and-forget)
+        sincronizarToursPendentes().catch(() => {});
       } catch {
         limparTokens();
         set({ usuario: null, estaAutenticado: false, estaCarregando: false });

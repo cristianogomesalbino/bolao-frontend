@@ -14,7 +14,7 @@ export interface Temporada {
   nome: string;
   ano: number;
   campeonatoId: string;
-  campeonato?: { id: string; nome: string };
+  campeonato?: { id: string; nome: string; status: 'NAO_INICIADO' | 'EM_ANDAMENTO' | 'FINALIZADO' };
 }
 
 export interface DadosTemporada {

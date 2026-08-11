@@ -121,7 +121,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
 
   const faseAtual = fases?.[0];
 
-  // Jogos rodada atual
+  // Jogos rodada atual (inclui EM_ANDAMENTO para exibir ao vivo)
   const { data: jogosRodadaAtual, isLoading } = useQuery({
     queryKey: ['jogos-rodada-atual', faseAtual?.id],
     queryFn: () => listarJogosFase(faseAtual!.id),
@@ -136,12 +136,26 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
 
   const rodadaAtual = jogosRodadaAtual?.rodadaAtual ?? null;
 
-  // Buscar TODOS os jogos AGENDADOS da fase em ordem cronológica (independente de rodada)
+  // Buscar TODOS os jogos não finalizados da fase (AGENDADO + EM_ANDAMENTO + ADIADO)
   const { data: todosAgendadosData, isLoading: carregandoProxima } = useQuery({
     queryKey: ['jogos-todos-agendados', faseAtual?.id],
-    queryFn: () => listarJogosFase(faseAtual!.id, undefined, 'AGENDADO'),
+    queryFn: async () => {
+      const [agendados, emAndamento] = await Promise.all([
+        listarJogosFase(faseAtual!.id, undefined, 'AGENDADO'),
+        listarJogosFase(faseAtual!.id, undefined, 'EM_ANDAMENTO'),
+      ]);
+      return {
+        ...agendados,
+        jogos: [...emAndamento.jogos, ...agendados.jogos],
+      };
+    },
     enabled: !!faseAtual?.id,
     staleTime: 5 * 60_000,
+    refetchInterval: (query) => {
+      const jogos = query.state.data?.jogos ?? [];
+      const temAoVivo = jogos.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
+      return temAoVivo ? 60_000 : false;
+    },
   });
 
   // Ordenar todos os jogos AGENDADOS por data (cronológico puro)
