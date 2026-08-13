@@ -18,7 +18,6 @@ import { AbaClassificacaoCopa } from '@/components/copa-do-mundo/aba-classificac
 import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpites-copa';
 import { SecaoPalpitesGrupo } from '@/components/grupo/secao-palpites-grupo';
 import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
-import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 type AbaCopa = 'dashboard' | 'classificacao' | 'palpites';
 
@@ -81,7 +80,6 @@ export default function DetalhesGrupoPage() {
 
   return (
     <div className={`min-h-screen relative ${ehCopa ? '' : 'bg-fundo'}`} style={ehCopa ? { background: 'linear-gradient(180deg, #006b35 0%, #005c2e 25%, #004d27 50%, #004020 75%, #003518 100%)' } : undefined}>
-      <TourPageWrapper pathname={`/grupos/${grupoId}`} />
 
       {/* Efeitos visuais Brasil */}
       {ehCopa && (
@@ -129,7 +127,6 @@ export default function DetalhesGrupoPage() {
             </span>
           </button>
         )}
-        <TourRefazerBotao pathname={`/grupos/${grupoId}`} />
         <Button
           variant="ghost"
           size="icon"

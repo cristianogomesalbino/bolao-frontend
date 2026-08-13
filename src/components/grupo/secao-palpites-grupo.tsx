@@ -114,7 +114,7 @@ export function SecaoPalpitesGrupo({ grupoId, temporadaId }: Readonly<PropsSecao
 
       {/* Conteúdo expandido */}
       {expandido && (
-        <div className="border-t border-white/[0.05] px-4 pb-4 pt-3 animate-[fadeIn_0.2s_ease-out]" data-tour="palpites-grupo-conteudo">
+        <div className="border-t border-white/[0.05] px-4 pb-4 pt-3 animate-[fadeIn_0.2s_ease-out]" data-dica="palpites-grupo-conteudo">
           {isLoading && (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (

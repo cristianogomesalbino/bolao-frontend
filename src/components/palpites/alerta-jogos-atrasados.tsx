@@ -28,7 +28,7 @@ export function AlertaJogosAtrasados({ temporadaId, grupoId }: Readonly<PropsAle
       type="button"
       onClick={() => router.push(`/grupos/${grupoId}/jogos-adiados`)}
       className="w-full flex items-center gap-2 mb-3 py-2 px-3 rounded-lg bg-destaque/[0.06] border border-destaque/20"
-      data-tour="alerta-jogos-atrasados"
+      data-dica="alerta-jogos-atrasados"
     >
       <span className="text-destaque text-sm">⏱</span>
       <span className="text-[12px] text-destaque font-semibold flex-1 text-left">

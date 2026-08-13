@@ -7,4 +7,6 @@ export interface Usuario {
   perfil: 'SUPER_ADMIN' | 'USER';
   grupoFavoritoId: string | null;
   toursCompletos: TourId[];
+  dicasDispensadas: string[];
+  toastDescobrilidadeVisto: boolean;
 }

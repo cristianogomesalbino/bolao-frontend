@@ -248,7 +248,7 @@ export const DICAS: ConfiguracaoDica[] = [
   // ═══════ Buscar Grupos ═══════
   {
     dicaId: 'dica-buscar-titulo',
-    target: '[data-dica="buscar-titulo"]',
+    target: '[data-dica="grupos-publicos-titulo"]',
     titulo: 'Encontrar Grupos',
     conteudo:
       'Aqui você encontra grupos para participar. Busque grupos públicos ou entre com um código de convite!',
@@ -258,7 +258,7 @@ export const DICAS: ConfiguracaoDica[] = [
   },
   {
     dicaId: 'dica-buscar-abas',
-    target: '[data-dica="buscar-abas"]',
+    target: '[data-dica="grupos-publicos-abas"]',
     titulo: 'Duas formas de entrar',
     conteudo:
       'Use "Grupos Públicos" para explorar grupos abertos e buscar por nome, ou "Código de Convite" para entrar em grupos privados.',
@@ -268,7 +268,7 @@ export const DICAS: ConfiguracaoDica[] = [
   },
   {
     dicaId: 'dica-buscar-campo',
-    target: '[data-dica="buscar-campo"]',
+    target: '[data-dica="grupos-publicos-busca"]',
     titulo: 'Buscar grupos',
     conteudo:
       'Use o campo de busca para encontrar grupos pelo nome. A lista é filtrada em tempo real.',
@@ -278,7 +278,7 @@ export const DICAS: ConfiguracaoDica[] = [
   },
   {
     dicaId: 'dica-buscar-lista',
-    target: '[data-dica="buscar-lista"]',
+    target: '[data-dica="grupos-publicos-lista"]',
     titulo: 'Lista de grupos',
     conteudo:
       'Cada card mostra o nome do grupo e quantos participantes possui. Toque em "Entrar" para participar.',
@@ -290,7 +290,7 @@ export const DICAS: ConfiguracaoDica[] = [
   // ═══════ Meus Grupos ═══════
   {
     dicaId: 'dica-explorar-titulo',
-    target: '[data-dica="explorar-titulo"]',
+    target: '[data-dica="meus-grupos-titulo"]',
     titulo: 'Meus Grupos',
     conteudo:
       'Aqui ficam todos os grupos que você participa. Toque em qualquer um para acessar palpites e ranking.',
@@ -300,7 +300,7 @@ export const DICAS: ConfiguracaoDica[] = [
   },
   {
     dicaId: 'dica-explorar-criar',
-    target: '[data-dica="explorar-criar"]',
+    target: '[data-dica="meus-grupos-criar"]',
     titulo: 'Criar grupo',
     conteudo: 'Toque aqui para criar um novo grupo e convidar seus amigos.',
     posicao: 'bottom',
@@ -309,7 +309,7 @@ export const DICAS: ConfiguracaoDica[] = [
   },
   {
     dicaId: 'dica-explorar-favorito',
-    target: '[data-dica="explorar-favorito"]',
+    target: '[data-dica="meus-grupos-favorito"]',
     titulo: 'Grupo favorito',
     conteudo:
       'O grupo com a estrela dourada é seu favorito. Ele aparece em destaque na home. Toque na estrela de outro grupo para trocar.',

@@ -113,7 +113,7 @@ function Podio({ top3 }: Readonly<{ top3: EntradaRanking[] }>) {
   ];
 
   return (
-    <div className="flex items-end justify-center gap-3 mb-3 pt-2" data-tour="ranking-podio">
+    <div className="flex items-end justify-center gap-3 mb-3 pt-2" data-dica="ranking-podio">
       {ordem.map((entrada, i) => (
         <div key={`podio-${i}-${entrada.nome}`} className="flex flex-col items-center gap-1">
           {i === 1 && <Crown size={18} className="text-yellow-400 mb-0.5" />}
