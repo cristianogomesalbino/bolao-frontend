@@ -19,6 +19,7 @@ import { FormularioAlterarSenha } from '@/components/usuario/formulario-alterar-
 import { SecaoExcluirConta } from '@/components/usuario/secao-excluir-conta';
 import { TogglePush } from '@/components/notificacoes/toggle-push';
 import { SinoNotificacoes } from '@/components/layout/sino-notificacoes';
+import { BotaoResetarDicas } from '@/components/dicas/botao-resetar-dicas';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -181,6 +182,9 @@ export default function MinhaContaPage() {
           <LogOut size={18} />
           <span className="text-sm font-semibold">Sair da conta</span>
         </button>
+
+        {/* Resetar dicas */}
+        <BotaoResetarDicas />
 
         {/* Zona de perigo — colapsável */}
         <div data-dica="conta-zona-perigo" className="rounded-2xl border border-erro/20 bg-erro/[0.02] overflow-hidden">
