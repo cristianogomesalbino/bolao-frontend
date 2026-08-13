@@ -201,6 +201,7 @@ function FiltroGrupoDropdown({
         onClick={() => setAberto(!aberto)}
         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] hover:border-primaria/30 transition-all"
         data-testid="home-ranking-filtro-grupo"
+        data-dica="ranking-filtro-grupo"
       >
         <span className="text-[10px] font-semibold text-texto/60 max-w-[80px] truncate">
           {grupoAtivo?.nome ?? 'Grupo'}

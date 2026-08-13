@@ -37,7 +37,7 @@ function agruparPorDataRealizacao(jogos: Jogo[]): GrupoRodada[] {
     const rodada = jogo.rodada ?? 0;
     const ehAtrasado = jogo.foiAdiado === true;
 
-    if (grupoAtual && grupoAtual.rodada === rodada && !ehAtrasado) {
+    if (grupoAtual?.rodada === rodada && !ehAtrasado) {
       grupoAtual.jogos.push(jogo);
     } else if (ehAtrasado && grupoAtual) {
       // Jogo atrasado: agrupa como "Atrasado (R4)" dentro do bloco atual
@@ -104,6 +104,7 @@ export function SecaoPalpitesGrupo({ grupoId, temporadaId }: Readonly<PropsSecao
         onClick={() => setExpandido(!expandido)}
         className="w-full flex items-center justify-between p-4 hover:bg-white/[0.03] transition-colors"
         data-testid="grupo-btn-palpites"
+        data-dica="grupo-palpites"
       >
         <span className="text-sm font-semibold text-texto">Palpites do grupo</span>
         <ChevronDown
@@ -244,7 +245,7 @@ function JogoExpandivel({
         <ChevronDown
           size={16}
           className={`text-primaria-claro/60 ml-auto transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
-          {...(ehPrimeiro ? { 'data-tour': 'chevron-jogo-grupo' } : {})}
+          {...(ehPrimeiro ? { 'data-dica': 'chevron-jogo-grupo' } : {})}
         />
       </button>
 

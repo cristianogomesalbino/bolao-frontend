@@ -97,7 +97,7 @@ export default function DetalhesGrupoPage() {
         <div className="flex items-center gap-2.5 flex-1">
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-base font-semibold text-texto" data-testid="grupo-detalhe-nome">{grupo.nome}</h1>
+              <h1 className="text-base font-semibold text-texto" data-testid="grupo-detalhe-nome" data-dica="grupo-nome">{grupo.nome}</h1>
             </div>
             <p className="text-[10px] text-texto/35 flex items-center gap-1">
               {grupo.privado ? <Lock size={9} /> : <Globe size={9} />}
@@ -120,6 +120,7 @@ export default function DetalhesGrupoPage() {
                 : 'bg-primaria/10 border border-primaria/30 hover:bg-primaria/20'
             }`}
             aria-label="Copiar link de convite"
+            data-dica="grupo-convite"
           >
             {copiado ? <Check size={14} className="text-sucesso" /> : <Link2 size={14} className="text-primaria-claro" />}
             <span className={`text-[11px] font-semibold ${copiado ? 'text-sucesso' : 'text-primaria-claro'}`}>
@@ -134,6 +135,7 @@ export default function DetalhesGrupoPage() {
           aria-label="Configurações do grupo"
           className="h-10 w-10 text-primaria-claro hover:text-primaria-claro drop-shadow-[0_0_14px_rgba(34,211,94,1)] [&_svg]:size-7"
           data-testid="grupo-btn-configuracoes"
+          data-dica="grupo-configuracoes"
         >
           <Settings size={28} strokeWidth={1.8} />
         </Button>
@@ -147,6 +149,7 @@ export default function DetalhesGrupoPage() {
             onClick={() => router.push('/grupos/buscar')}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primaria bg-white/[0.03] text-primaria-claro hover:bg-primaria/[0.08] transition-colors text-[12px] font-semibold"
             data-testid="grupo-btn-pesquisar"
+            data-dica="grupo-pesquisar"
           >
             Pesquisar
           </button>
@@ -155,6 +158,7 @@ export default function DetalhesGrupoPage() {
             onClick={() => router.push('/grupos/explorar')}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primaria bg-white/[0.03] text-primaria-claro hover:bg-primaria/[0.08] transition-colors text-[12px] font-semibold"
             data-testid="grupo-btn-meus-grupos"
+            data-dica="grupo-meus-grupos"
           >
             Meus grupos
           </button>

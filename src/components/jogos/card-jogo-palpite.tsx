@@ -416,7 +416,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
   }
 
   return (
-    <div ref={cardRef} className="scroll-mt-[140px]" {...(ehPrimeiroCard ? { 'data-tour': 'primeiro-card-jogo' } : {})}>
+    <div ref={cardRef} className="scroll-mt-[140px]" {...(ehPrimeiroCard ? { 'data-dica': 'primeiro-card-jogo' } : {})}>
       <Card className={`${cardBorda} transition-all duration-300 overflow-hidden`}>
         <CardContent className="p-3">
           {/* Data/hora + status */}
@@ -487,7 +487,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           )}
 
           {/* Expandir */}
-          <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1" {...(ehPrimeiroCard ? { 'data-tour': 'chevron-palpites' } : {})}>
+          <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1" {...(ehPrimeiroCard ? { 'data-dica': 'chevron-palpites' } : {})}>
             <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandido ? 'rotate-180' : ''}`} />
           </button>
 

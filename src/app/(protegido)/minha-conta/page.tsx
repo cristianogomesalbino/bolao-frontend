@@ -178,6 +178,7 @@ export default function MinhaContaPage() {
           onClick={aoSair}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-erro/20 bg-erro/[0.03] text-erro/70 hover:text-erro hover:bg-erro/[0.06] hover:border-erro/30 transition-all"
           data-testid="btn-logout"
+          data-dica="conta-logout"
         >
           <LogOut size={18} />
           <span className="text-sm font-semibold">Sair da conta</span>
