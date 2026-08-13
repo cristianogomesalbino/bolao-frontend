@@ -3,11 +3,11 @@ import { dispensarDica as dispensarDicaApi, resetarDicas as resetarDicasApi } fr
 import { salvarDicaPendente } from '@/lib/dica-sync';
 import type { EstadoDica } from '@/types/dica.types';
 
-const STORAGE_KEY_EXIBIDAS = 'dicas-exibidas';
+const CHAVE_EXIBIDOS = 'dicas-exibidos';
 
-function carregarExibidasDoStorage(): Set<string> {
+function carregarExibidosLocal(): Set<string> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_EXIBIDAS);
+    const raw = localStorage.getItem(CHAVE_EXIBIDOS);
     if (!raw) return new Set();
     return new Set(JSON.parse(raw) as string[]);
   } catch {
@@ -15,9 +15,9 @@ function carregarExibidasDoStorage(): Set<string> {
   }
 }
 
-function salvarExibidasNoStorage(exibidas: Set<string>): void {
+function salvarExibidosLocal(exibidos: Set<string>): void {
   try {
-    localStorage.setItem(STORAGE_KEY_EXIBIDAS, JSON.stringify([...exibidas]));
+    localStorage.setItem(CHAVE_EXIBIDOS, JSON.stringify([...exibidos]));
   } catch {
     // localStorage indisponível
   }
@@ -30,10 +30,10 @@ interface EstadoDicasStore {
   filaAutoExibicao: string[];
 
   inicializar: (dispensadasDoBackend: string[]) => void;
-  dispensar: (dicaId: string) => void;
+  dispensarDica: (dicaId: string) => void;
   marcarComoExibida: (dicaId: string) => void;
-  abrir: (dicaId: string) => void;
-  fechar: () => void;
+  abrirDica: (dicaId: string) => void;
+  fecharDica: () => void;
   enfileirar: (dicaId: string) => void;
   desenfileirar: () => string | null;
   resetarTodas: () => Promise<void>;
@@ -42,29 +42,33 @@ interface EstadoDicasStore {
 
 export const useDicasStore = create<EstadoDicasStore>((set, get) => ({
   dicasDispensadas: new Set(),
-  dicasExibidas: carregarExibidasDoStorage(),
+  dicasExibidas: new Set(),
   dicaAtiva: null,
   filaAutoExibicao: [],
 
   inicializar: (dispensadasDoBackend: string[]) => {
-    set({ dicasDispensadas: new Set(dispensadasDoBackend) });
+    const exibidosLocal = carregarExibidosLocal();
+    set({
+      dicasDispensadas: new Set(dispensadasDoBackend),
+      dicasExibidas: exibidosLocal,
+    });
   },
 
-  dispensar: (dicaId: string) => {
-    const { dicasDispensadas, dicasExibidas, dicaAtiva, filaAutoExibicao } = get();
+  dispensarDica: (dicaId: string) => {
+    const { dicasDispensadas, dicasExibidas } = get();
+    if (dicasDispensadas.has(dicaId)) return;
 
     const novasDispensadas = new Set(dicasDispensadas);
     novasDispensadas.add(dicaId);
 
     const novasExibidas = new Set(dicasExibidas);
     novasExibidas.delete(dicaId);
-    salvarExibidasNoStorage(novasExibidas);
+    salvarExibidosLocal(novasExibidas);
 
     set({
       dicasDispensadas: novasDispensadas,
       dicasExibidas: novasExibidas,
-      dicaAtiva: dicaAtiva === dicaId ? null : dicaAtiva,
-      filaAutoExibicao: filaAutoExibicao.filter((id) => id !== dicaId),
+      dicaAtiva: get().dicaAtiva === dicaId ? null : get().dicaAtiva,
     });
 
     dispensarDicaApi(dicaId).catch(() => {
@@ -73,24 +77,24 @@ export const useDicasStore = create<EstadoDicasStore>((set, get) => ({
   },
 
   marcarComoExibida: (dicaId: string) => {
-    const { dicasExibidas, dicaAtiva, filaAutoExibicao } = get();
+    const { dicasExibidas } = get();
+    if (dicasExibidas.has(dicaId)) return;
 
     const novasExibidas = new Set(dicasExibidas);
     novasExibidas.add(dicaId);
-    salvarExibidasNoStorage(novasExibidas);
+    salvarExibidosLocal(novasExibidas);
 
     set({
       dicasExibidas: novasExibidas,
-      dicaAtiva: dicaAtiva === dicaId ? null : dicaAtiva,
-      filaAutoExibicao: filaAutoExibicao.filter((id) => id !== dicaId),
+      dicaAtiva: get().dicaAtiva === dicaId ? null : get().dicaAtiva,
     });
   },
 
-  abrir: (dicaId: string) => {
+  abrirDica: (dicaId: string) => {
     set({ dicaAtiva: dicaId });
   },
 
-  fechar: () => {
+  fecharDica: () => {
     set({ dicaAtiva: null });
   },
 
@@ -109,15 +113,14 @@ export const useDicasStore = create<EstadoDicasStore>((set, get) => ({
   },
 
   resetarTodas: async () => {
+    await resetarDicasApi();
+    localStorage.removeItem(CHAVE_EXIBIDOS);
     set({
       dicasDispensadas: new Set(),
       dicasExibidas: new Set(),
       dicaAtiva: null,
       filaAutoExibicao: [],
     });
-    salvarExibidasNoStorage(new Set());
-
-    await resetarDicasApi();
   },
 
   obterEstado: (dicaId: string): EstadoDica => {

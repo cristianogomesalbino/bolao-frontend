@@ -12,7 +12,7 @@ export function salvarDicaPendente(dicaId: string): void {
       localStorage.setItem(DICA_STORAGE_KEY, JSON.stringify(pendentes));
     }
   } catch {
-    // localStorage indisponível — ignora
+    // localStorage indisponível
   }
 }
 
@@ -31,7 +31,7 @@ export async function sincronizarDicasPendentes(): Promise<void> {
         await dispensarDica(dicaId);
         sucessos.push(dicaId);
       } catch {
-        // falha individual — deixa pra próxima
+        // falha individual — mantém para próxima tentativa
       }
     }
 
@@ -43,6 +43,6 @@ export async function sincronizarDicasPendentes(): Promise<void> {
       localStorage.setItem(DICA_STORAGE_KEY, JSON.stringify(restantes));
     }
   } catch {
-    // localStorage indisponível — ignora
+    // localStorage indisponível
   }
 }

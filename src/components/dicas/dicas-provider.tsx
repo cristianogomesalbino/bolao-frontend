@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useDicasStore } from '@/stores/dicas.store';
 import { getDicasPorPagina } from '@/lib/dica-registry';
+import { useDicasStore } from '@/stores/dicas.store';
 import { DicaBeacon } from './dica-beacon';
 import { DicaTooltip } from './dica-tooltip';
 import type { ConfiguracaoDica } from '@/types/dica.types';
@@ -12,74 +12,84 @@ const INTERVALO_AUTO_EXIBICAO = 500;
 
 export function DicasProvider() {
   const pathname = usePathname();
-  const obterEstado = useDicasStore((state) => state.obterEstado);
-  const dicaAtiva = useDicasStore((state) => state.dicaAtiva);
-  const dispensar = useDicasStore((state) => state.dispensar);
-  const marcarComoExibida = useDicasStore((state) => state.marcarComoExibida);
-  const abrir = useDicasStore((state) => state.abrir);
-  const fechar = useDicasStore((state) => state.fechar);
-  const enfileirar = useDicasStore((state) => state.enfileirar);
-  const desenfileirar = useDicasStore((state) => state.desenfileirar);
+  const dicasDaPagina = getDicasPorPagina(pathname);
+
+  const dicaAtiva = useDicasStore((s) => s.dicaAtiva);
+  const obterEstado = useDicasStore((s) => s.obterEstado);
+  const dispensarDica = useDicasStore((s) => s.dispensarDica);
+  const marcarComoExibida = useDicasStore((s) => s.marcarComoExibida);
+  const abrirDica = useDicasStore((s) => s.abrirDica);
+  const fecharDica = useDicasStore((s) => s.fecharDica);
+  const enfileirar = useDicasStore((s) => s.enfileirar);
+  const desenfileirar = useDicasStore((s) => s.desenfileirar);
 
   const [elementosVisiveis, setElementosVisiveis] = useState<
     Map<string, HTMLElement>
   >(new Map());
+
   const observerRef = useRef<IntersectionObserver | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const processandoFila = useRef(false);
+  const processandoRef = useRef(false);
 
-  const dicas = getDicasPorPagina(pathname);
-
-  // Processar fila de auto-exibição
+  // Processa a fila de auto-exibição: um por vez com intervalo
   const processarFila = useCallback(() => {
-    if (processandoFila.current) return;
+    if (processandoRef.current) return;
     if (dicaAtiva) return;
 
-    const proximo = desenfileirar();
-    if (!proximo) return;
+    const proximaDica = desenfileirar();
+    if (!proximaDica) return;
 
-    processandoFila.current = true;
-    abrir(proximo);
+    processandoRef.current = true;
+    abrirDica(proximaDica);
 
-    // Resetar flag após exibição para permitir próxima
-    timerRef.current = setTimeout(() => {
-      processandoFila.current = false;
-    }, INTERVALO_AUTO_EXIBICAO);
-  }, [dicaAtiva, desenfileirar, abrir]);
+    // Marca como exibida quando o timeout de auto-exibição expira
+    // (o tooltip fica aberto até o usuário interagir)
+  }, [dicaAtiva, desenfileirar, abrirDica]);
 
-  // Quando dicaAtiva fica null (dispensou ou fechou), processar próximo da fila
+  // Quando dicaAtiva muda para null (fechou), processa próxima após intervalo
   useEffect(() => {
-    if (dicaAtiva) return;
-    const timer = setTimeout(processarFila, INTERVALO_AUTO_EXIBICAO);
-    return () => clearTimeout(timer);
+    if (dicaAtiva === null && processandoRef.current) {
+      processandoRef.current = false;
+      timerRef.current = setTimeout(processarFila, INTERVALO_AUTO_EXIBICAO);
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [dicaAtiva, processarFila]);
 
-  // Observar elementos via IntersectionObserver
+  // Configura IntersectionObserver para detectar elementos com data-dica
   useEffect(() => {
-    if (dicas.length === 0) return;
+    if (dicasDaPagina.length === 0) return;
 
-    const observer = new IntersectionObserver(
+    const mapaAlvos = new Map<string, ConfiguracaoDica>();
+    dicasDaPagina.forEach((d) => mapaAlvos.set(d.target, d));
+
+    observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          const target = entry.target as HTMLElement;
-          const dicaId = obterDicaIdDoElemento(target, dicas);
-          if (!dicaId) return;
+          const elemento = entry.target as HTMLElement;
+          const dicaAttr = elemento.getAttribute('data-dica');
+          if (!dicaAttr) return;
+
+          const seletor = `[data-dica="${dicaAttr}"]`;
+          const config = mapaAlvos.get(seletor);
+          if (!config) return;
 
           if (entry.isIntersecting) {
             setElementosVisiveis((prev) => {
               const novo = new Map(prev);
-              novo.set(dicaId, target);
+              novo.set(config.dicaId, elemento);
               return novo;
             });
 
-            const estado = obterEstado(dicaId);
+            const estado = obterEstado(config.dicaId);
             if (estado === 'inedito') {
-              enfileirar(dicaId);
+              enfileirar(config.dicaId);
             }
           } else {
             setElementosVisiveis((prev) => {
               const novo = new Map(prev);
-              novo.delete(dicaId);
+              novo.delete(config.dicaId);
               return novo;
             });
           }
@@ -88,71 +98,68 @@ export function DicasProvider() {
       { threshold: 0.5 },
     );
 
-    observerRef.current = observer;
+    // Observar elementos existentes e futuros via MutationObserver
+    function observarElementos() {
+      const elementos = document.querySelectorAll('[data-dica]');
+      elementos.forEach((el) => observerRef.current?.observe(el));
+    }
 
-    // Observar elementos existentes
-    dicas.forEach((dica) => {
-      const el = document.querySelector(dica.target);
-      if (el) observer.observe(el);
-    });
+    observarElementos();
 
-    // MutationObserver para elementos que aparecem depois
     const mutationObserver = new MutationObserver(() => {
-      dicas.forEach((dica) => {
-        const el = document.querySelector(dica.target);
-        if (el && !el.dataset.dicaObservado) {
-          el.dataset.dicaObservado = 'true';
-          observer.observe(el);
-        }
-      });
+      observarElementos();
     });
-
-    mutationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-      observer.disconnect();
+      observerRef.current?.disconnect();
       mutationObserver.disconnect();
-      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [pathname, dicas.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pathname, dicasDaPagina, obterEstado, enfileirar]);
+
+  // Dispara processamento da fila quando há itens enfileirados e nenhuma dica ativa
+  useEffect(() => {
+    if (!dicaAtiva && !processandoRef.current) {
+      processarFila();
+    }
+  }, [dicaAtiva, processarFila]);
 
   // Handlers
   function handleDispensar(dicaId: string) {
-    dispensar(dicaId);
-    processandoFila.current = false;
+    dispensarDica(dicaId);
   }
 
   function handleFechar(dicaId: string) {
     marcarComoExibida(dicaId);
-    fechar();
-    processandoFila.current = false;
+    fecharDica();
   }
 
-  // Encontrar dica ativa para renderizar tooltip
-  const dicaAtivaConfig = dicas.find((d) => d.dicaId === dicaAtiva);
-  const elementoAtivo = dicaAtiva
-    ? elementosVisiveis.get(dicaAtiva) ?? null
-    : null;
+  function handleBeaconClick(dicaId: string) {
+    abrirDica(dicaId);
+  }
+
+  // Renderização
+  const dicaAtivaConfig = dicasDaPagina.find((d) => d.dicaId === dicaAtiva);
+  const elementoAtivo = dicaAtiva ? elementosVisiveis.get(dicaAtiva) : null;
 
   return (
     <>
-      {/* Beacons para dicas no estado 'exibido' */}
-      {dicas
-        .filter((dica) => obterEstado(dica.dicaId) === 'exibido')
-        .map((dica) => {
-          const el = elementosVisiveis.get(dica.dicaId);
-          if (!el) return null;
-          return (
-            <DicaBeacon
-              key={dica.dicaId}
-              dicaId={dica.dicaId}
-              elementoAlvo={el}
-            />
-          );
-        })}
+      {/* Beacons para dicas já exibidas mas não dispensadas */}
+      {dicasDaPagina
+        .filter(
+          (d) =>
+            obterEstado(d.dicaId) === 'exibido' &&
+            elementosVisiveis.has(d.dicaId) &&
+            d.dicaId !== dicaAtiva,
+        )
+        .map((d) => (
+          <DicaBeacon
+            key={d.dicaId}
+            dicaId={d.dicaId}
+            elementoAlvo={elementosVisiveis.get(d.dicaId)!}
+            aoClicar={() => handleBeaconClick(d.dicaId)}
+          />
+        ))}
 
       {/* Tooltip ativo */}
       {dicaAtivaConfig && elementoAtivo && (
@@ -160,7 +167,7 @@ export function DicasProvider() {
           dicaId={dicaAtivaConfig.dicaId}
           titulo={dicaAtivaConfig.titulo}
           conteudo={dicaAtivaConfig.conteudo}
-          placement={dicaAtivaConfig.placement}
+          posicao={dicaAtivaConfig.posicao}
           elementoAlvo={elementoAtivo}
           aoDispensar={() => handleDispensar(dicaAtivaConfig.dicaId)}
           aoFechar={() => handleFechar(dicaAtivaConfig.dicaId)}
@@ -168,15 +175,4 @@ export function DicasProvider() {
       )}
     </>
   );
-}
-
-/** Resolve o dicaId de um elemento DOM baseado nos seletores do registry */
-function obterDicaIdDoElemento(
-  elemento: HTMLElement,
-  dicas: ConfiguracaoDica[],
-): string | null {
-  for (const dica of dicas) {
-    if (elemento.matches(dica.target)) return dica.dicaId;
-  }
-  return null;
 }
