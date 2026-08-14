@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { mandarF } from '@/services/stories.service';
-import { STORY_CONFIG } from '@/types/stories.types';
+import { mandarF } from '@/services/destaques.service';
+import { DESTAQUE_CONFIG } from '@/types/destaques.types';
 import type {
-  StoryItem,
+  DestaqueItem,
   DadosAcertouEmCheio,
   DadosUnicoNaMosca,
   DadosSubiuRanking,
@@ -12,15 +12,15 @@ import type {
   DadosSequenciaResultado,
   DadosNaoPalpitou,
   DadosDobrouEAcertou,
-} from '@/types/stories.types';
+} from '@/types/destaques.types';
 
-interface StoryCardProps {
-  readonly story: StoryItem;
+interface DestaqueCardProps {
+  readonly destaque: DestaqueItem;
   readonly grupoId: string;
 }
 
-export function StoryCard({ story, grupoId }: StoryCardProps) {
-  const config = STORY_CONFIG[story.tipo];
+export function DestaqueCard({ destaque, grupoId }: DestaqueCardProps) {
+  const config = DESTAQUE_CONFIG[destaque.tipo];
 
   return (
     <div
@@ -28,38 +28,38 @@ export function StoryCard({ story, grupoId }: StoryCardProps) {
       style={{
         background: `linear-gradient(135deg, ${config.cor}33, ${config.cor}11, #111827)`,
       }}
-      data-testid={`story-card-${story.tipo}`}
+      data-testid={`destaque-card-${destaque.tipo}`}
     >
       {/* Emoji + Título */}
       <div className="text-center mb-4">
         <span className="text-4xl">{config.emoji}</span>
-        <h2 className="text-xl font-bold mt-2">{story.titulo}</h2>
+        <h2 className="text-xl font-bold mt-2">{destaque.titulo}</h2>
       </div>
 
       {/* Conteúdo por tipo */}
       <div className="space-y-3">
-        {renderConteudo(story, grupoId)}
+        {renderConteudo(destaque, grupoId)}
       </div>
     </div>
   );
 }
 
-function renderConteudo(story: StoryItem, grupoId: string) {
-  switch (story.tipo) {
+function renderConteudo(destaque: DestaqueItem, grupoId: string) {
+  switch (destaque.tipo) {
     case 'ACERTOU_EM_CHEIO':
-      return <CardAcertouEmCheio dados={story.dados as unknown as DadosAcertouEmCheio} />;
+      return <CardAcertouEmCheio dados={destaque.dados as unknown as DadosAcertouEmCheio} />;
     case 'UNICO_NA_MOSCA':
-      return <CardUnicoNaMosca dados={story.dados as unknown as DadosUnicoNaMosca} />;
+      return <CardUnicoNaMosca dados={destaque.dados as unknown as DadosUnicoNaMosca} />;
     case 'SUBIU_RANKING':
-      return <CardSubiuRanking dados={story.dados as unknown as DadosSubiuRanking} />;
+      return <CardSubiuRanking dados={destaque.dados as unknown as DadosSubiuRanking} />;
     case 'SEQUENCIA_MOSCA':
-      return <CardSequenciaMosca dados={story.dados as unknown as DadosSequenciaMosca} />;
+      return <CardSequenciaMosca dados={destaque.dados as unknown as DadosSequenciaMosca} />;
     case 'SEQUENCIA_RESULTADO':
-      return <CardSequenciaResultado dados={story.dados as unknown as DadosSequenciaResultado} />;
+      return <CardSequenciaResultado dados={destaque.dados as unknown as DadosSequenciaResultado} />;
     case 'NAO_PALPITOU':
-      return <CardNaoPalpitou story={story} grupoId={grupoId} />;
+      return <CardNaoPalpitou destaque={destaque} grupoId={grupoId} />;
     case 'DOBROU_E_ACERTOU':
-      return <CardDobrouEAcertou dados={story.dados as unknown as DadosDobrouEAcertou} />;
+      return <CardDobrouEAcertou dados={destaque.dados as unknown as DadosDobrouEAcertou} />;
     default:
       return null;
   }
@@ -162,22 +162,22 @@ function CardSequenciaResultado({ dados }: { readonly dados: DadosSequenciaResul
 }
 
 function CardNaoPalpitou({
-  story,
+  destaque,
   grupoId,
 }: {
-  readonly story: StoryItem;
+  readonly destaque: DestaqueItem;
   readonly grupoId: string;
 }) {
-  const dados = story.dados as unknown as DadosNaoPalpitou;
-  const [jaEnviou, setJaEnviou] = useState(story.jaEnviouF);
-  const [contador, setContador] = useState(story.contadorFs);
+  const dados = destaque.dados as unknown as DadosNaoPalpitou;
+  const [jaEnviou, setJaEnviou] = useState(destaque.jaEnviouF);
+  const [contador, setContador] = useState(destaque.contadorFs);
   const [enviando, setEnviando] = useState(false);
 
   async function handleMandarF() {
     if (jaEnviou || enviando) return;
     setEnviando(true);
     try {
-      const res = await mandarF(grupoId, story.id);
+      const res = await mandarF(grupoId, destaque.id);
       setContador(res.contadorFs);
       setJaEnviou(true);
     } catch {
@@ -200,6 +200,7 @@ function CardNaoPalpitou({
         )}
       </div>
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           handleMandarF();
