@@ -7,7 +7,6 @@ import { useAuthStore } from '@/stores/auth.store';
 import { listarGrupos, obterRankingGeral } from '@/services/grupo.service';
 import { CardRanking } from '@/components/home/card-ranking';
 import { ehCampeonatoCopa } from '@/lib/jogo-helpers';
-import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 export default function RankingPage() {
   const usuario = useAuthStore((state) => state.usuario);
@@ -56,13 +55,12 @@ export default function RankingPage() {
 
   return (
     <div className="min-h-screen bg-fundo pb-24">
-      <TourPageWrapper />
 
       {/* Header */}
       <header className="sticky top-0 z-20 bg-fundo/80 backdrop-blur-xl border-b border-white/[0.04]">
         <div className="mx-auto max-w-[480px] px-5 py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5" data-tour="ranking-titulo">
+            <div className="flex items-center gap-2.5" data-dica="ranking-titulo">
               <div className="flex h-10 w-10 items-center justify-center rounded-full border border-primaria/30 bg-primaria/[0.08]">
                 <Trophy size={20} className="text-primaria-claro drop-shadow-[0_0_10px_rgba(34,211,94,0.8)]" />
               </div>
@@ -73,7 +71,6 @@ export default function RankingPage() {
                 </p>
               </div>
             </div>
-            <TourRefazerBotao />
           </div>
         </div>
       </header>

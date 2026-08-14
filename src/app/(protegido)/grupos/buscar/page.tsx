@@ -23,7 +23,6 @@ import type { Grupo } from '@/types/grupo.types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 type AbaAtiva = 'publicos' | 'convite';
 
@@ -119,7 +118,6 @@ export default function BuscarGruposPage() {
 
   return (
     <div className="min-h-screen bg-fundo pb-24">
-      <TourPageWrapper />
       <header className="sticky top-0 z-20 bg-fundo/80 backdrop-blur-xl border-b border-white/[0.04]">
         <div className="mx-auto max-w-[480px] px-4 py-4">
           <div className="flex items-center gap-3 mb-3">
@@ -130,17 +128,16 @@ export default function BuscarGruposPage() {
             >
               <ArrowLeft size={18} />
             </button>
-            <div className="flex-1" data-tour="grupos-publicos-titulo">
+            <div className="flex-1" data-dica="grupos-publicos-titulo">
               <h1 className="text-lg font-bold text-texto">Encontrar Grupos</h1>
               <p className="text-[10px] text-texto/30">
                 Busque grupos públicos ou entre com código de convite
               </p>
             </div>
-            <TourRefazerBotao />
           </div>
           <div
             className="flex gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06]"
-            data-tour="grupos-publicos-abas"
+            data-dica="grupos-publicos-abas"
           >
             <button
               type="button"
@@ -154,7 +151,7 @@ export default function BuscarGruposPage() {
               type="button"
               onClick={() => { setAba('convite'); setErro(null); setSucesso(null); }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[11px] font-semibold transition-all ${aba === 'convite' ? 'bg-primaria/20 text-primaria-claro border border-primaria/30' : 'text-texto/50 hover:text-texto/70'}`}
-              data-tour="grupos-publicos-aba-convite"
+              data-dica="grupos-publicos-aba-convite"
             >
               <Ticket size={13} />
               Código de Convite
@@ -218,7 +215,7 @@ function SecaoGruposPublicos({
 }>) {
   return (
     <>
-      <div className="relative" data-tour="grupos-publicos-busca">
+      <div className="relative" data-dica="grupos-publicos-busca">
         <Search
           size={16}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-texto/30"
@@ -248,7 +245,7 @@ function SecaoGruposPublicos({
         <div
           className="space-y-3"
           data-testid="grupos-publicos-lista"
-          data-tour="grupos-publicos-lista"
+          data-dica="grupos-publicos-lista"
         >
           {grupos.map((grupo: Grupo) => (
             <div
@@ -359,7 +356,7 @@ function SecaoCodigoConvite({
   }
 
   return (
-    <div className="space-y-4" data-tour="grupos-publicos-convite">
+    <div className="space-y-4" data-dica="grupos-publicos-convite">
       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primaria/[0.1] border border-primaria/20 shrink-0">

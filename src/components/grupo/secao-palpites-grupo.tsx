@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Image from 'next/image';
 import { ChevronDown } from 'lucide-react';
 import { listarJogosTemporada } from '@/services/jogo.service';
 import { buscarDetalhamentoJogo, DetalhamentoPalpiteMembro } from '@/services/palpite.service';
@@ -37,9 +38,9 @@ function agruparPorDataRealizacao(jogos: Jogo[]): GrupoRodada[] {
     const rodada = jogo.rodada ?? 0;
     const ehAtrasado = jogo.foiAdiado === true;
 
-    if (grupoAtual && grupoAtual.rodada === rodada && !ehAtrasado) {
+    if (grupoAtual !== null && grupoAtual.rodada === rodada && !ehAtrasado) {
       grupoAtual.jogos.push(jogo);
-    } else if (ehAtrasado && grupoAtual) {
+    } else if (ehAtrasado && grupoAtual !== null) {
       // Jogo atrasado: agrupa como "Atrasado (R4)" dentro do bloco atual
       const labelAtrasado = `Rodada ${rodada} (atrasado)`;
       const grupoAtrasado = grupos.find((g) => g.label === labelAtrasado);
@@ -104,6 +105,7 @@ export function SecaoPalpitesGrupo({ grupoId, temporadaId }: Readonly<PropsSecao
         onClick={() => setExpandido(!expandido)}
         className="w-full flex items-center justify-between p-4 hover:bg-white/[0.03] transition-colors"
         data-testid="grupo-btn-palpites"
+        data-dica="grupo-palpites"
       >
         <span className="text-sm font-semibold text-texto">Palpites do grupo</span>
         <ChevronDown
@@ -114,7 +116,7 @@ export function SecaoPalpitesGrupo({ grupoId, temporadaId }: Readonly<PropsSecao
 
       {/* Conteúdo expandido */}
       {expandido && (
-        <div className="border-t border-white/[0.05] px-4 pb-4 pt-3 animate-[fadeIn_0.2s_ease-out]" data-tour="palpites-grupo-conteudo">
+        <div className="border-t border-white/[0.05] px-4 pb-4 pt-3 animate-[fadeIn_0.2s_ease-out]" data-dica="palpites-grupo-conteudo">
           {isLoading && (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
@@ -215,7 +217,7 @@ function JogoExpandivel({
         <div className="flex items-center gap-1.5 w-[70px] justify-end shrink-0">
           <span className="text-[11px] text-texto font-medium">{casaSigla}</span>
           {escudoCasa ? (
-            <img src={escudoCasa} alt={casaSigla} className="h-5 w-5 object-contain" />
+            <Image src={escudoCasa} alt={casaSigla} width={20} height={20} className="h-5 w-5 object-contain" />
           ) : (
             <div className="h-5 w-5 rounded-full bg-white/[0.08]" />
           )}
@@ -234,7 +236,7 @@ function JogoExpandivel({
         {/* Time fora */}
         <div className="flex items-center gap-1.5 w-[70px] shrink-0">
           {escudoFora ? (
-            <img src={escudoFora} alt={foraSigla} className="h-5 w-5 object-contain" />
+            <Image src={escudoFora} alt={foraSigla} width={20} height={20} className="h-5 w-5 object-contain" />
           ) : (
             <div className="h-5 w-5 rounded-full bg-white/[0.08]" />
           )}
@@ -244,7 +246,7 @@ function JogoExpandivel({
         <ChevronDown
           size={16}
           className={`text-primaria-claro/60 ml-auto transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
-          {...(ehPrimeiro ? { 'data-tour': 'chevron-jogo-grupo' } : {})}
+          {...(ehPrimeiro ? { 'data-dica': 'chevron-jogo-grupo' } : {})}
         />
       </button>
 

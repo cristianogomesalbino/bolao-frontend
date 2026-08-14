@@ -106,53 +106,56 @@ interface PropsCentroCard {
   onSalvar: () => void;
   onProximoCard?: () => void;
   ehUltimoCard?: boolean;
+  ehPrimeiroCard?: boolean;
   inputsRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function ResultadoJogo({ jogo, palpiteAtual }: Readonly<{ jogo: Jogo; palpiteAtual: Palpite | null }>) {
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <span className="text-2xl font-bold text-texto">{jogo.golsCasa ?? 0}</span>
+        <span className="text-[10px] text-texto/20">×</span>
+        <span className="text-2xl font-bold text-texto">{jogo.golsFora ?? 0}</span>
+      </div>
+      {jogo.temPenaltis && jogo.penaltisCasa != null && jogo.penaltisFora != null && (
+        <span className="text-[9px] text-texto/40 mt-0.5">({jogo.penaltisCasa} × {jogo.penaltisFora} pen.)</span>
+      )}
+      {palpiteAtual && (
+        <span className="text-[9px] text-primaria-claro mt-1">Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}</span>
+      )}
+    </>
+  );
 }
 
 function CentroCard({
   jogo, palpitavel, bloqueado, palpiteAtual,
   golsCasa, golsFora, salvando,
-  onSetGolsCasa, onSetGolsFora, onSalvar, onProximoCard, ehUltimoCard, inputsRef,
+  onSetGolsCasa, onSetGolsFora, onSalvar, onProximoCard, ehUltimoCard, ehPrimeiroCard, inputsRef,
 }: Readonly<PropsCentroCard>) {
   const inputForaRef = useRef<HTMLInputElement>(null);
 
   if (jogo.status === 'FINALIZADO' || jogo.status === 'EM_ANDAMENTO') {
-    return (
-      <>
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold text-texto">{jogo.golsCasa ?? 0}</span>
-          <span className="text-[10px] text-texto/20">×</span>
-          <span className="text-2xl font-bold text-texto">{jogo.golsFora ?? 0}</span>
-        </div>
-        {jogo.temPenaltis && jogo.penaltisCasa != null && jogo.penaltisFora != null && (
-          <span className="text-[9px] text-texto/40 mt-0.5">({jogo.penaltisCasa} × {jogo.penaltisFora} pen.)</span>
-        )}
-        {palpiteAtual && (
-          <span className="text-[9px] text-primaria-claro mt-1">Meu palpite: {palpiteAtual.golsCasa} × {palpiteAtual.golsFora}</span>
-        )}
-      </>
-    );
+    return <ResultadoJogo jogo={jogo} palpiteAtual={palpiteAtual} />;
   }
 
   if (bloqueado) {
-    if (palpiteAtual) {
-      return (
-        <div className="flex items-center gap-2">
-          <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
-            <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual.golsCasa}</span>
-          </div>
-          <span className="text-sm font-bold text-texto/40">x</span>
-          <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
-            <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual.golsFora}</span>
-          </div>
+    return palpiteAtual ? (
+      <div className="flex items-center gap-2">
+        <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
+          <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual.golsCasa}</span>
         </div>
-      );
-    }
-    return <span className="text-[11px] text-texto/40">—</span>;
+        <span className="text-sm font-bold text-texto/40">x</span>
+        <div className="w-11 h-12 rounded-lg bg-black/60 border border-primaria/40 flex items-center justify-center">
+          <span className="text-2xl font-bold text-primaria-claro">{palpiteAtual.golsFora}</span>
+        </div>
+      </div>
+    ) : <span className="text-[11px] text-texto/40">—</span>;
   }
 
   // Jogo pendente de confirmação pela API — bloqueia palpites com mensagem informativa
-  if (jogo.fonteResultado === 'API_EXTERNA' && !jogo.externoId && !bloqueado) {
+  const aguardandoConfirmacao = jogo.fonteResultado === 'API_EXTERNA' && !jogo.externoId;
+  if (aguardandoConfirmacao) {
     return (
       <span className="text-[10px] text-amber-400/80 text-center leading-tight">
         Aguardando confirmação
@@ -160,40 +163,38 @@ function CentroCard({
     );
   }
 
-  if (palpitavel) {
-    function handleInputCasa(e: React.ChangeEvent<HTMLInputElement>) {
-      const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
-      if (raw === '') { onSetGolsCasa(''); return; }
-      const val = Number.parseInt(raw, 10);
-      onSetGolsCasa(Math.min(9, val));
-      // Auto-avançar para golsFora
-      setTimeout(() => inputForaRef.current?.focus(), 50);
-    }
+  if (!palpitavel) {
+    return <span className="text-[11px] text-texto/40">—</span>;
+  }
 
-    function handleInputFora(e: React.ChangeEvent<HTMLInputElement>) {
-      const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
-      if (raw === '') { onSetGolsFora(''); return; }
-      const val = Number.parseInt(raw, 10);
-      onSetGolsFora(Math.min(9, val));
-      // Auto-avançar para próximo card após salvar
-      setTimeout(() => {
-        if (onProximoCard && !ehUltimoCard) {
-          // Blur antes de avançar para evitar que salvar() detecte foco interno
-          inputForaRef.current?.blur();
-          // requestAnimationFrame garante que o blur foi processado pelo browser
-          requestAnimationFrame(() => {
-            onSalvar();
-            onProximoCard();
-          });
-        } else {
-          // Último card: blur para disparar salvar
-          inputForaRef.current?.blur();
-        }
-      }, 50);
-    }
+  function handleInputCasa(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
+    if (raw === '') { onSetGolsCasa(''); return; }
+    const val = Number.parseInt(raw, 10);
+    onSetGolsCasa(Math.min(9, val));
+    setTimeout(() => inputForaRef.current?.focus(), 50);
+  }
 
-    return (
-      <div ref={inputsRef} className="flex items-center gap-2">
+  function handleInputFora(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 1);
+    if (raw === '') { onSetGolsFora(''); return; }
+    const val = Number.parseInt(raw, 10);
+    onSetGolsFora(Math.min(9, val));
+    setTimeout(() => {
+      if (onProximoCard && !ehUltimoCard) {
+        inputForaRef.current?.blur();
+        requestAnimationFrame(() => {
+          onSalvar();
+          onProximoCard();
+        });
+      } else {
+        inputForaRef.current?.blur();
+      }
+    }, 50);
+  }
+
+  return (
+      <div ref={inputsRef} className="flex items-center gap-2" {...(ehPrimeiroCard ? { 'data-dica': 'primeiro-card-jogo' } : {})}>
         <input
           type="text"
           inputMode="numeric"
@@ -238,9 +239,6 @@ function CentroCard({
         />
       </div>
     );
-  }
-
-  return <span className="text-[11px] text-texto/40">—</span>;
 }
 
 interface PropsConteudoExpandido {
@@ -416,7 +414,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
   }
 
   return (
-    <div ref={cardRef} className="scroll-mt-[140px]" {...(ehPrimeiroCard ? { 'data-tour': 'primeiro-card-jogo' } : {})}>
+    <div ref={cardRef} className="scroll-mt-[140px]">
       <Card className={`${cardBorda} transition-all duration-300 overflow-hidden`}>
         <CardContent className="p-3">
           {/* Data/hora + status */}
@@ -461,6 +459,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
                 onSalvar={salvar}
                 onProximoCard={onProximoCard}
                 ehUltimoCard={ehUltimoCard}
+                ehPrimeiroCard={ehPrimeiroCard}
                 inputsRef={inputsRef}
               />
             </div>
@@ -487,7 +486,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           )}
 
           {/* Expandir */}
-          <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1" {...(ehPrimeiroCard ? { 'data-tour': 'chevron-palpites' } : {})}>
+          <button type="button" onClick={() => setExpandido(!expandido)} className="w-full flex items-center justify-center mt-2 pt-1" {...(ehPrimeiroCard ? { 'data-dica': 'chevron-palpites' } : {})}>
             <ChevronDown size={20} className={`text-texto/80 transition-transform ${expandido ? 'rotate-180' : ''}`} />
           </button>
 

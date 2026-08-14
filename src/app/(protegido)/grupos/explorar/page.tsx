@@ -7,7 +7,6 @@ import { listarGrupos } from '@/services/grupo.service';
 import { definirGrupoFavorito } from '@/services/usuario.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { Grupo } from '@/types/grupo.types';
-import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
 
 function obterClasseCardGrupo(ehFavorito: boolean, ehCopa: boolean): string {
   if (!ehFavorito) return 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.05]';
@@ -36,7 +35,6 @@ export default function ExplorarGruposPage() {
 
   return (
     <div className="min-h-screen bg-fundo pb-24">
-      <TourPageWrapper />
 
       {/* Header */}
       <header className="sticky top-0 z-20 bg-fundo/80 backdrop-blur-xl border-b border-white/[0.04]">
@@ -51,17 +49,16 @@ export default function ExplorarGruposPage() {
           </button>
           <h1
             className="text-lg font-bold text-texto flex-1"
-            data-tour="meus-grupos-titulo"
+            data-dica="meus-grupos-titulo"
           >
             Meus grupos
           </h1>
-          <TourRefazerBotao />
           <button
             type="button"
             onClick={() => router.push('/grupos/criar')}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-primaria/30 bg-primaria/[0.1] text-primaria-claro hover:bg-primaria/20 transition-colors"
             aria-label="Criar novo grupo"
-            data-tour="meus-grupos-criar"
+            data-dica="meus-grupos-criar"
           >
             <Plus size={18} />
           </button>
@@ -84,7 +81,7 @@ export default function ExplorarGruposPage() {
                   <div
                     key={grupo.id}
                     className="relative"
-                    {...(index === 0 ? { 'data-tour': 'meus-grupos-favorito' } : {})}
+                    {...(index === 0 ? { 'data-dica': 'meus-grupos-favorito' } : {})}
                   >
                     <button
                       type="button"
