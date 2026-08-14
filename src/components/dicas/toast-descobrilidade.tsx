@@ -33,7 +33,11 @@ export function ToastDescobrilidade() {
   if (!visivel) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9990] max-w-[320px] w-[calc(100%-32px)] animate-[fadeIn_0.3s_ease-out]">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9990] max-w-[320px] w-[calc(100%-32px)] animate-[fadeIn_0.3s_ease-out]"
+    >
       <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-primaria/30 bg-[#0f1a2e]/95 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
         <span className="text-lg shrink-0">💡</span>
         <p className="text-xs text-texto/80 leading-relaxed">

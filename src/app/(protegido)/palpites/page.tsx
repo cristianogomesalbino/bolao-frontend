@@ -189,7 +189,7 @@ export default function PalpitesPage() {
             </div>
           </div>
           {/* Seletor de campeonato */}
-          <div className="flex gap-1.5" data-dica="seletor-campeonato">
+          <div className="flex gap-1.5" {...(campeonatosAtivos.length > 1 ? { 'data-dica': 'seletor-campeonato' } : {})}>
             {campeonatosAtivos.includes('brasileirao') && (
               <button
                 type="button"
@@ -229,6 +229,7 @@ export default function PalpitesPage() {
         {/* Abas */}
         <div className="flex items-center gap-0 border-b border-white/[0.06] mb-4">
           <button
+            type="button"
             onClick={() => setAbaAtiva('todos')}
             className={`flex-1 py-2.5 text-[11px] font-semibold text-center border-b-2 transition-colors ${
               abaAtiva === 'todos' ? 'text-texto border-primaria-claro' : 'text-texto/40 border-transparent'
@@ -237,6 +238,7 @@ export default function PalpitesPage() {
             Próximos Jogos
           </button>
           <button
+            type="button"
             onClick={() => setAbaAtiva('meus')}
             data-dica="aba-meus-palpites"
             className={`flex-1 py-2.5 text-[11px] font-semibold text-center border-b-2 transition-colors ${

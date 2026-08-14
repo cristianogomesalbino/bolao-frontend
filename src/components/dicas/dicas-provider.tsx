@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { getDicasPorPagina } from '@/lib/dica-registry';
 import { useDicasStore } from '@/stores/dicas.store';
@@ -8,7 +8,27 @@ import { DicaBeacon } from './dica-beacon';
 import { DicaTooltip } from './dica-tooltip';
 import type { ConfiguracaoDica } from '@/types/dica.types';
 
-const INTERVALO_AUTO_EXIBICAO = 500;
+const DELAY_INICIAL = 1500;
+const DELAY_ENTRE_DICAS = 800;
+
+function buscarElementoDica(config: ConfiguracaoDica): HTMLElement | null {
+  const regex = /\[data-dica="(.+?)"\]/;
+  const match = regex.exec(config.target);
+  if (!match) return null;
+  return document.querySelector<HTMLElement>(`[data-dica="${match[1]}"]`);
+}
+
+function buscarProximaInedita(
+  dicas: ConfiguracaoDica[],
+  jaExibidas: Set<string>,
+  obterEstado: (id: string) => string,
+): ConfiguracaoDica | undefined {
+  return dicas.find((d) => {
+    if (jaExibidas.has(d.dicaId)) return false;
+    if (obterEstado(d.dicaId) !== 'inedito') return false;
+    return buscarElementoDica(d) !== null;
+  });
+}
 
 export function DicasProvider() {
   const pathname = usePathname();
@@ -20,109 +40,59 @@ export function DicasProvider() {
   const marcarComoExibida = useDicasStore((s) => s.marcarComoExibida);
   const abrirDica = useDicasStore((s) => s.abrirDica);
   const fecharDica = useDicasStore((s) => s.fecharDica);
-  const enfileirar = useDicasStore((s) => s.enfileirar);
-  const desenfileirar = useDicasStore((s) => s.desenfileirar);
 
-  const [elementosVisiveis, setElementosVisiveis] = useState<
-    Map<string, HTMLElement>
-  >(new Map());
-
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const [prontoParaExibir, setProntoParaExibir] = useState(false);
+  const [mutacaoContador, setMutacaoContador] = useState(0);
+  const jaAutoExibidasRef = useRef<Set<string>>(new Set());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const processandoRef = useRef(false);
 
-  // Processa a fila de auto-exibição: um por vez com intervalo
-  const processarFila = useCallback(() => {
-    if (processandoRef.current) return;
+  // Delay inicial para esperar a página renderizar
+  useEffect(() => {
+    setProntoParaExibir(false);
+    jaAutoExibidasRef.current = new Set();
+    const timer = setTimeout(() => setProntoParaExibir(true), DELAY_INICIAL);
+    return () => clearTimeout(timer);
+  }, [pathname]);
+
+  // MutationObserver: detecta novos [data-dica] no DOM e notifica
+  useEffect(() => {
+    if (!prontoParaExibir) return;
+
+    const observer = new MutationObserver(() => {
+      setMutacaoContador((c) => c + 1);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [prontoParaExibir]);
+
+  // Tenta exibir próxima dica inédita
+  const tentarExibirProxima = useCallback(() => {
     if (dicaAtiva) return;
 
-    const proximaDica = desenfileirar();
-    if (!proximaDica) return;
+    const proximaInedita = buscarProximaInedita(dicasDaPagina, jaAutoExibidasRef.current, obterEstado);
+    if (!proximaInedita) return;
 
-    processandoRef.current = true;
-    abrirDica(proximaDica);
+    jaAutoExibidasRef.current.add(proximaInedita.dicaId);
+    abrirDica(proximaInedita.dicaId);
+  }, [dicaAtiva, dicasDaPagina, obterEstado, abrirDica]);
 
-    // Marca como exibida quando o timeout de auto-exibição expira
-    // (o tooltip fica aberto até o usuário interagir)
-  }, [dicaAtiva, desenfileirar, abrirDica]);
-
-  // Quando dicaAtiva muda para null (fechou), processa próxima após intervalo
+  // Auto-exibir quando pronto ou quando DOM muda (novos elementos aparecem)
   useEffect(() => {
-    if (dicaAtiva === null && processandoRef.current) {
-      processandoRef.current = false;
-      timerRef.current = setTimeout(processarFila, INTERVALO_AUTO_EXIBICAO);
-    }
+    if (!prontoParaExibir || dicaAtiva) return;
+    tentarExibirProxima();
+  }, [prontoParaExibir, dicaAtiva, mutacaoContador, tentarExibirProxima]);
+
+  // Quando dica fecha, agendar próxima
+  useEffect(() => {
+    if (dicaAtiva !== null || !prontoParaExibir) return;
+
+    timerRef.current = setTimeout(tentarExibirProxima, DELAY_ENTRE_DICAS);
+
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [dicaAtiva, processarFila]);
-
-  // Configura IntersectionObserver para detectar elementos com data-dica
-  useEffect(() => {
-    if (dicasDaPagina.length === 0) return;
-
-    const mapaAlvos = new Map<string, ConfiguracaoDica>();
-    dicasDaPagina.forEach((d) => mapaAlvos.set(d.target, d));
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const elemento = entry.target as HTMLElement;
-          const dicaAttr = elemento.getAttribute('data-dica');
-          if (!dicaAttr) return;
-
-          const seletor = `[data-dica="${dicaAttr}"]`;
-          const config = mapaAlvos.get(seletor);
-          if (!config) return;
-
-          if (entry.isIntersecting) {
-            setElementosVisiveis((prev) => {
-              const novo = new Map(prev);
-              novo.set(config.dicaId, elemento);
-              return novo;
-            });
-
-            const estado = obterEstado(config.dicaId);
-            if (estado === 'inedito') {
-              enfileirar(config.dicaId);
-            }
-          } else {
-            setElementosVisiveis((prev) => {
-              const novo = new Map(prev);
-              novo.delete(config.dicaId);
-              return novo;
-            });
-          }
-        });
-      },
-      { threshold: 0.5 },
-    );
-
-    // Observar elementos existentes e futuros via MutationObserver
-    function observarElementos() {
-      const elementos = document.querySelectorAll('[data-dica]');
-      elementos.forEach((el) => observerRef.current?.observe(el));
-    }
-
-    observarElementos();
-
-    const mutationObserver = new MutationObserver(() => {
-      observarElementos();
-    });
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observerRef.current?.disconnect();
-      mutationObserver.disconnect();
-    };
-  }, [pathname, dicasDaPagina, obterEstado, enfileirar]);
-
-  // Dispara processamento da fila quando há itens enfileirados e nenhuma dica ativa
-  useEffect(() => {
-    if (!dicaAtiva && !processandoRef.current) {
-      processarFila();
-    }
-  }, [dicaAtiva, processarFila]);
+  }, [dicaAtiva, prontoParaExibir, tentarExibirProxima]);
 
   // Handlers
   function handleDispensar(dicaId: string) {
@@ -138,32 +108,32 @@ export function DicasProvider() {
     abrirDica(dicaId);
   }
 
-  // Renderização
+  // Config da dica ativa
   const dicaAtivaConfig = dicasDaPagina.find((d) => d.dicaId === dicaAtiva);
-  const elementoAtivo = dicaAtiva ? elementosVisiveis.get(dicaAtiva) : null;
+  const elementoAtivo = dicaAtivaConfig ? buscarElementoDica(dicaAtivaConfig) : null;
 
   return (
     <>
       {/* Beacons para dicas já exibidas mas não dispensadas */}
       {dicasDaPagina
-        .filter(
-          (d) =>
-            obterEstado(d.dicaId) === 'exibido' &&
-            elementosVisiveis.has(d.dicaId) &&
-            d.dicaId !== dicaAtiva,
-        )
-        .map((d) => (
-          <DicaBeacon
-            key={d.dicaId}
-            dicaId={d.dicaId}
-            elementoAlvo={elementosVisiveis.get(d.dicaId)!}
-            aoClicar={() => handleBeaconClick(d.dicaId)}
-          />
-        ))}
+        .filter((d) => obterEstado(d.dicaId) === 'exibido' && d.dicaId !== dicaAtiva)
+        .map((d) => {
+          const elemento = buscarElementoDica(d);
+          if (!elemento) return null;
+          return (
+            <DicaBeacon
+              key={d.dicaId}
+              dicaId={d.dicaId}
+              elementoAlvo={elemento}
+              aoClicar={() => handleBeaconClick(d.dicaId)}
+            />
+          );
+        })}
 
       {/* Tooltip ativo */}
       {dicaAtivaConfig && elementoAtivo && (
         <DicaTooltip
+          key={dicaAtivaConfig.dicaId}
           dicaId={dicaAtivaConfig.dicaId}
           titulo={dicaAtivaConfig.titulo}
           conteudo={dicaAtivaConfig.conteudo}

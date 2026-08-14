@@ -15,9 +15,9 @@ export const DICAS: ConfiguracaoDica[] = [
   {
     dicaId: 'dica-palpites-alerta-atrasados',
     target: '[data-dica="alerta-jogos-atrasados"]',
-    titulo: 'Jogos atrasados',
+    titulo: 'Jogos adiados',
     conteudo:
-      'Quando houver jogos que você ainda não palpitou e já deveriam ter sido feitos, este alerta aparece. Toque para ver e palpitar.',
+      'Quando houver jogos adiados (sem data definida) na rodada, este alerta aparece. Toque para ver os detalhes.',
     posicao: 'bottom',
     prioridade: 2,
     pagina: '/palpites',
@@ -27,7 +27,7 @@ export const DICAS: ConfiguracaoDica[] = [
     target: '[data-dica="primeiro-card-jogo"]',
     titulo: 'Faça seu palpite',
     conteudo:
-      'Toque no número para digitar o placar. O palpite é salvo automaticamente ao digitar o número.',
+      'Toque na caixa para digitar o placar. O palpite é salvo automaticamente ao digitar o número.',
     posicao: 'bottom',
     prioridade: 1,
     pagina: '/palpites',
@@ -79,7 +79,7 @@ export const DICAS: ConfiguracaoDica[] = [
     target: '[data-dica="grupo-nome"]',
     titulo: 'Seu grupo',
     conteudo:
-      'Esta é a página do seu grupo. Aqui você acompanha jogos, ranking e gerencia os membros.',
+      'Esta é a página do seu grupo. Aqui você acompanha jogos, palpites dos membros e gerencia o grupo se for um administrador.',
     posicao: 'bottom',
     prioridade: 1,
     pagina: '/grupos/',
@@ -127,9 +127,9 @@ export const DICAS: ConfiguracaoDica[] = [
   {
     dicaId: 'dica-grupo-alerta-atrasados',
     target: '[data-dica="alerta-jogos-atrasados"]',
-    titulo: 'Jogos atrasados',
+    titulo: 'Jogos adiados',
     conteudo:
-      'Quando houver jogos com palpites pendentes que já deveriam ter sido feitos, o alerta aparece aqui.',
+      'Quando houver jogos adiados (sem data definida) na temporada, o alerta aparece aqui. Toque para ver os detalhes.',
     posicao: 'bottom',
     prioridade: 2,
     pagina: '/grupos/',

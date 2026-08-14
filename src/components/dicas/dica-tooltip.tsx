@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import type { PosicaoDica } from '@/types/dica.types';
 
 interface PropsDicaTooltip {
@@ -14,47 +14,62 @@ interface PropsDicaTooltip {
   aoFechar: () => void;
 }
 
-interface Coordenadas {
-  top: number;
-  left: number;
-}
+type PosicaoEfetiva = Exclude<PosicaoDica, 'auto'>;
 
-function calcularPosicaoTooltip(
-  elementoAlvo: HTMLElement,
+const ESPACAMENTO = 12;
+const CLASSE_DESTAQUE = 'ring-2 ring-primaria ring-offset-2 ring-offset-fundo rounded-lg transition-all duration-300 relative z-10';
+
+function calcularPosicaoFixa(
+  rect: DOMRect,
   posicao: PosicaoDica,
-  larguraTooltip: number,
-  alturaTooltip: number,
-): Coordenadas {
-  const rect = elementoAlvo.getBoundingClientRect();
-  const espacamento = 12;
+  largura: number,
+  altura: number,
+): { top: number; left: number; posicaoFinal: PosicaoEfetiva } {
+  const posicaoFinal: PosicaoEfetiva = posicao === 'auto' ? 'bottom' : posicao;
 
-  const calculos: Record<Exclude<PosicaoDica, 'auto'>, Coordenadas> = {
-    top: {
-      top: rect.top + window.scrollY - alturaTooltip - espacamento,
-      left: rect.left + window.scrollX + rect.width / 2 - larguraTooltip / 2,
-    },
-    bottom: {
-      top: rect.bottom + window.scrollY + espacamento,
-      left: rect.left + window.scrollX + rect.width / 2 - larguraTooltip / 2,
-    },
-    left: {
-      top: rect.top + window.scrollY + rect.height / 2 - alturaTooltip / 2,
-      left: rect.left + window.scrollX - larguraTooltip - espacamento,
-    },
-    right: {
-      top: rect.top + window.scrollY + rect.height / 2 - alturaTooltip / 2,
-      left: rect.right + window.scrollX + espacamento,
-    },
-  };
+  let top = 0;
+  let left = 0;
 
-  const posicaoEfetiva = posicao === 'auto' ? 'bottom' : posicao;
-  const coords = calculos[posicaoEfetiva];
+  switch (posicaoFinal) {
+    case 'bottom':
+      top = rect.bottom + ESPACAMENTO;
+      left = rect.left + rect.width / 2 - largura / 2;
+      break;
+    case 'top':
+      top = rect.top - altura - ESPACAMENTO;
+      left = rect.left + rect.width / 2 - largura / 2;
+      break;
+    case 'left':
+      top = rect.top + rect.height / 2 - altura / 2;
+      left = rect.left - largura - ESPACAMENTO;
+      break;
+    case 'right':
+      top = rect.top + rect.height / 2 - altura / 2;
+      left = rect.right + ESPACAMENTO;
+      break;
+  }
 
   // Correção de transbordo horizontal
-  const maxLeft = window.innerWidth - larguraTooltip - 16;
-  coords.left = Math.max(16, Math.min(coords.left, maxLeft));
+  const maxLeft = window.innerWidth - largura - 16;
+  left = Math.max(16, Math.min(left, maxLeft));
 
-  return coords;
+  return { top, left, posicaoFinal };
+}
+
+function calcularSetaFixa(
+  rect: DOMRect,
+  posicaoFinal: PosicaoEfetiva,
+): { top: number; left: number; rotacao: string } {
+  switch (posicaoFinal) {
+    case 'bottom':
+      return { top: rect.bottom + 2, left: rect.left + rect.width / 2, rotacao: 'rotate(0deg)' };
+    case 'top':
+      return { top: rect.top - 2, left: rect.left + rect.width / 2, rotacao: 'rotate(180deg)' };
+    case 'left':
+      return { top: rect.top + rect.height / 2, left: rect.left - 2, rotacao: 'rotate(90deg)' };
+    case 'right':
+      return { top: rect.top + rect.height / 2, left: rect.right + 2, rotacao: 'rotate(-90deg)' };
+  }
 }
 
 export function DicaTooltip({
@@ -66,26 +81,46 @@ export function DicaTooltip({
   aoDispensar,
   aoFechar,
 }: Readonly<PropsDicaTooltip>) {
-  const [coords, setCoords] = useState<Coordenadas>({ top: 0, left: 0 });
   const tooltipRef = useRef<HTMLDivElement>(null);
 
+  // Destacar elemento-alvo
   useEffect(() => {
-    function atualizar() {
-      const largura = tooltipRef.current?.offsetWidth ?? 280;
-      const altura = tooltipRef.current?.offsetHeight ?? 120;
-      setCoords(calcularPosicaoTooltip(elementoAlvo, posicao, largura, altura));
-    }
-
-    atualizar();
-    window.addEventListener('resize', atualizar);
-    window.addEventListener('scroll', atualizar, { passive: true });
-
+    elementoAlvo.classList.add(...CLASSE_DESTAQUE.split(' '));
     return () => {
-      window.removeEventListener('resize', atualizar);
-      window.removeEventListener('scroll', atualizar);
+      elementoAlvo.classList.remove(...CLASSE_DESTAQUE.split(' '));
     };
+  }, [elementoAlvo]);
+
+  // Posicionar via useLayoutEffect — scroll instantâneo + calcula posição
+  useLayoutEffect(() => {
+    const tooltip = tooltipRef.current;
+    if (!tooltip) return;
+
+    // Scroll instantâneo para garantir elemento no viewport
+    elementoAlvo.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+    // Calcular posição após scroll (síncrono com instant)
+    requestAnimationFrame(() => {
+      const rect = elementoAlvo.getBoundingClientRect();
+      const largura = tooltip.offsetWidth || 280;
+      const altura = tooltip.offsetHeight || 120;
+
+      const { top, left, posicaoFinal } = calcularPosicaoFixa(rect, posicao, largura, altura);
+      const seta = calcularSetaFixa(rect, posicaoFinal);
+
+      tooltip.style.top = `${top}px`;
+      tooltip.style.left = `${left}px`;
+
+      const setaEl = tooltip.previousElementSibling as HTMLElement | null;
+      if (setaEl) {
+        setaEl.style.top = `${seta.top}px`;
+        setaEl.style.left = `${seta.left}px`;
+        setaEl.style.transform = `translate(-50%, -50%) ${seta.rotacao}`;
+      }
+    });
   }, [elementoAlvo, posicao]);
 
+  // Escape para fechar
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') aoFechar();
@@ -99,26 +134,44 @@ export function DicaTooltip({
   }, [handleKeyDown]);
 
   return createPortal(
-    <div
-      ref={tooltipRef}
-      role="tooltip"
-      className="fixed z-[9999] max-w-[280px] p-4 rounded-2xl border border-white/[0.12] bg-[#0f1a2e]/95 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.5)] animate-[fadeIn_0.2s_ease-out]"
-      style={{ top: coords.top, left: coords.left }}
-      data-testid={`tooltip-${dicaId}`}
-    >
-      <h3 className="text-sm font-semibold text-texto mb-1.5">{titulo}</h3>
-      <p className="text-xs text-texto/70 leading-relaxed mb-4">{conteudo}</p>
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={aoDispensar}
-          className="text-[11px] px-4 py-1.5 rounded-lg bg-primaria text-white font-semibold hover:bg-primaria-claro transition-colors shadow-[0_0_12px_rgba(22,163,74,0.4)]"
-          data-testid={`tooltip-entendi-${dicaId}`}
-        >
-          Entendi
-        </button>
+    <>
+      {/* Seta apontando para o elemento */}
+      <div
+        className="fixed z-[9999] pointer-events-none"
+        style={{ top: 0, left: 0 }}
+      >
+        <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+          <path
+            d="M9 0L17.6603 10H0.339746L9 0Z"
+            fill="#16a34a"
+          />
+        </svg>
       </div>
-    </div>,
+
+      {/* Tooltip */}
+      <div
+        ref={tooltipRef}
+        id={`tooltip-content-${dicaId}`}
+        role="tooltip"
+        aria-live="polite"
+        className="fixed z-[9999] max-w-[280px] p-4 rounded-2xl border border-primaria/40 bg-[#0f1a2e]/95 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_20px_rgba(22,163,74,0.15)] animate-[fadeIn_0.2s_ease-out]"
+        style={{ top: 0, left: 0 }}
+        data-testid={`tooltip-${dicaId}`}
+      >
+        <h3 className="text-sm font-semibold text-texto mb-1.5">{titulo}</h3>
+        <p className="text-xs text-texto/70 leading-relaxed mb-4">{conteudo}</p>
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={aoDispensar}
+            className="text-[11px] px-4 py-1.5 rounded-lg bg-primaria text-white font-semibold hover:bg-primaria-claro transition-colors shadow-[0_0_12px_rgba(22,163,74,0.4)]"
+            data-testid={`tooltip-entendi-${dicaId}`}
+          >
+            Entendi
+          </button>
+        </div>
+      </div>
+    </>,
     document.body,
   );
 }
