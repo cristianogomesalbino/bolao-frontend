@@ -4,7 +4,8 @@ import { DadosLogin } from '@/types/auth.types';
 import apiClient, { configurarTokenHandlers } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 import { sincronizarPushPendente } from '@/lib/push-notifications';
-import { sincronizarToursPendentes } from '@/lib/tour-sync';
+import { sincronizarDicasPendentes } from '@/lib/dica-sync';
+import { useDicasStore } from '@/stores/dicas.store';
 
 // --- Gerenciador de Tokens ---
 let accessToken: string | null = null;
@@ -69,8 +70,9 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
 
       // Sincronizar push subscription pendente (fire-and-forget)
       sincronizarPushPendente().catch(() => {});
-      // Sincronizar tours pendentes (fire-and-forget)
-      sincronizarToursPendentes().catch(() => {});
+      // Inicializar dicas e sincronizar pendentes (fire-and-forget)
+      useDicasStore.getState().inicializar(usuario.dicasDispensadas ?? []);
+      sincronizarDicasPendentes().catch(() => {});
     },
 
     logout: async () => {
@@ -113,8 +115,9 @@ export const useAuthStore = create<EstadoAuthStore>((set, get) => {
 
         // Sincronizar push subscription pendente (fire-and-forget)
         sincronizarPushPendente().catch(() => {});
-        // Sincronizar tours pendentes (fire-and-forget)
-        sincronizarToursPendentes().catch(() => {});
+        // Inicializar dicas e sincronizar pendentes (fire-and-forget)
+        useDicasStore.getState().inicializar(usuario.dicasDispensadas ?? []);
+        sincronizarDicasPendentes().catch(() => {});
       } catch {
         limparTokens();
         set({ usuario: null, estaAutenticado: false, estaCarregando: false });

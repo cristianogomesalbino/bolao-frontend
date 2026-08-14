@@ -113,7 +113,7 @@ function Podio({ top3 }: Readonly<{ top3: EntradaRanking[] }>) {
   ];
 
   return (
-    <div className="flex items-end justify-center gap-3 mb-3 pt-2" data-tour="ranking-podio">
+    <div className="flex items-end justify-center gap-3 mb-3 pt-2" data-dica="ranking-podio">
       {ordem.map((entrada, i) => (
         <div key={`podio-${i}-${entrada.nome}`} className="flex flex-col items-center gap-1">
           {i === 1 && <Crown size={18} className="text-yellow-400 mb-0.5" />}
@@ -201,6 +201,7 @@ function FiltroGrupoDropdown({
         onClick={() => setAberto(!aberto)}
         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] hover:border-primaria/30 transition-all"
         data-testid="home-ranking-filtro-grupo"
+        data-dica="ranking-filtro-grupo"
       >
         <span className="text-[10px] font-semibold text-texto/60 max-w-[80px] truncate">
           {grupoAtivo?.nome ?? 'Grupo'}

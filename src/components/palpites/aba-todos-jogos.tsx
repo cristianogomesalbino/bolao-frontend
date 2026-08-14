@@ -111,7 +111,7 @@ export function AbaTodosJogos({
 
 function SeparadorRodada({ rodada, ehPrimeira }: Readonly<{ rodada: number | null; ehPrimeira?: boolean }>) {
   return (
-    <div className="sticky top-[72px] z-10 flex items-center gap-3 py-3 -mx-4 px-4 bg-fundo/95 backdrop-blur-md" {...(ehPrimeira ? { 'data-tour': 'info-rodadas' } : {})}>
+    <div className="sticky top-[72px] z-10 flex items-center gap-3 py-3 -mx-4 px-4 bg-fundo/95 backdrop-blur-md" {...(ehPrimeira ? { 'data-dica': 'info-rodadas' } : {})}>
       <span className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-primaria/40 to-primaria/60 rounded-full" />
       <span className="text-sm text-texto font-bold uppercase tracking-wider px-5 py-2 rounded-full border border-primaria bg-gradient-to-r from-primaria/15 to-primaria/5 shadow-[0_0_20px_rgba(34,197,94,0.2),inset_0_1px_0_rgba(255,255,255,0.05)]">
         ⚽ Rodada {rodada}

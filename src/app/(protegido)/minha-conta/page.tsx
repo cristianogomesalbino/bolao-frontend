@@ -19,7 +19,7 @@ import { FormularioAlterarSenha } from '@/components/usuario/formulario-alterar-
 import { SecaoExcluirConta } from '@/components/usuario/secao-excluir-conta';
 import { TogglePush } from '@/components/notificacoes/toggle-push';
 import { SinoNotificacoes } from '@/components/layout/sino-notificacoes';
-import { TourPageWrapper, TourRefazerBotao } from '@/components/tour/tour-page-wrapper';
+import { BotaoResetarDicas } from '@/components/dicas/botao-resetar-dicas';
 
 function obterIniciais(nome: string): string {
   return nome
@@ -65,7 +65,6 @@ export default function MinhaContaPage() {
 
   return (
     <div className="min-h-screen bg-fundo pb-24">
-      <TourPageWrapper />
 
       {/* Header */}
       <header className="sticky top-0 z-20 bg-fundo/80 backdrop-blur-xl border-b border-white/[0.04]">
@@ -80,7 +79,6 @@ export default function MinhaContaPage() {
             <h1 className="text-xl font-bold text-texto">Minha Conta</h1>
           </div>
           <div className="flex items-center gap-2">
-            <TourRefazerBotao />
             <SinoNotificacoes />
           </div>
         </div>
@@ -89,7 +87,7 @@ export default function MinhaContaPage() {
       <div className="mx-auto max-w-[480px] px-4 pt-6 space-y-5">
         {/* Card do perfil */}
         <div
-          data-tour="conta-perfil"
+          data-dica="conta-perfil"
           className="rounded-2xl border border-primaria/20 bg-gradient-to-br from-primaria/[0.04] to-transparent p-5"
         >
           <div className="flex items-center gap-4">
@@ -111,7 +109,7 @@ export default function MinhaContaPage() {
         {/* Menu de seções (estilo iOS settings) */}
         <div className="space-y-2">
           {/* Dados pessoais */}
-          <div data-tour="conta-dados-pessoais">
+          <div data-dica="conta-dados-pessoais">
             <SecaoAcordeon
               titulo="Dados pessoais"
               icone={<User size={18} className="text-primaria-claro" />}
@@ -123,7 +121,7 @@ export default function MinhaContaPage() {
           </div>
 
           {/* Alterar senha */}
-          <div data-tour="conta-alterar-senha">
+          <div data-dica="conta-alterar-senha">
             <SecaoAcordeon
               titulo="Alterar senha"
               icone={<Lock size={18} className="text-destaque" />}
@@ -135,7 +133,7 @@ export default function MinhaContaPage() {
           </div>
 
           {/* Notificações */}
-          <div data-tour="conta-notificacoes">
+          <div data-dica="conta-notificacoes">
             <SecaoAcordeon
               titulo="Notificações push"
               icone={<Bell size={18} className="text-blue-400" />}
@@ -180,13 +178,17 @@ export default function MinhaContaPage() {
           onClick={aoSair}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-erro/20 bg-erro/[0.03] text-erro/70 hover:text-erro hover:bg-erro/[0.06] hover:border-erro/30 transition-all"
           data-testid="btn-logout"
+          data-dica="conta-logout"
         >
           <LogOut size={18} />
           <span className="text-sm font-semibold">Sair da conta</span>
         </button>
 
+        {/* Resetar dicas */}
+        <BotaoResetarDicas />
+
         {/* Zona de perigo — colapsável */}
-        <div data-tour="conta-zona-perigo" className="rounded-2xl border border-erro/20 bg-erro/[0.02] overflow-hidden">
+        <div data-dica="conta-zona-perigo" className="rounded-2xl border border-erro/20 bg-erro/[0.02] overflow-hidden">
           <button
             type="button"
             onClick={() => alternarSecao('perigo')}
