@@ -1,25 +1,25 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { marcarVisualizados } from '@/services/stories.service';
-import { STORY_CONFIG } from '@/types/stories.types';
-import type { StoryItem } from '@/types/stories.types';
-import { StoryCard } from './story-card';
-import { StoryProgressBar } from './story-progress-bar';
+import { marcarVisualizados } from '@/services/destaques.service';
+import { DESTAQUE_CONFIG } from '@/types/destaques.types';
+import type { DestaqueItem } from '@/types/destaques.types';
+import { DestaqueCard } from './destaque-card';
+import { DestaqueProgressBar } from './destaque-progress-bar';
 
-interface StoryViewerProps {
-  readonly stories: StoryItem[];
+interface DestaqueViewerProps {
+  readonly destaques: DestaqueItem[];
   readonly grupoId: string;
   readonly indiceInicial: number;
   readonly onClose: () => void;
 }
 
-export function StoryViewer({
-  stories,
+export function DestaqueViewer({
+  destaques,
   grupoId,
   indiceInicial,
   onClose,
-}: StoryViewerProps) {
+}: DestaqueViewerProps) {
   const [indiceAtual, setIndiceAtual] = useState(indiceInicial);
   const [pausado, setPausado] = useState(false);
   const [progresso, setProgresso] = useState(0);
@@ -27,20 +27,20 @@ export function StoryViewer({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const visualizadosRef = useRef<Set<string>>(new Set());
 
-  const storyAtual = stories[indiceAtual];
-  const timerDuracao = storyAtual
-    ? STORY_CONFIG[storyAtual.tipo].timerSegundos * 1000
+  const destaqueAtual = destaques[indiceAtual];
+  const timerDuracao = destaqueAtual
+    ? DESTAQUE_CONFIG[destaqueAtual.tipo].timerSegundos * 1000
     : 5000;
 
-  const ehUltimo = indiceAtual >= stories.length - 1;
+  const ehUltimo = indiceAtual >= destaques.length - 1;
   const ehPrimeiro = indiceAtual <= 0;
 
   // Registrar visualização
   useEffect(() => {
-    if (storyAtual && !visualizadosRef.current.has(storyAtual.id)) {
-      visualizadosRef.current.add(storyAtual.id);
+    if (destaqueAtual && !visualizadosRef.current.has(destaqueAtual.id)) {
+      visualizadosRef.current.add(destaqueAtual.id);
     }
-  }, [storyAtual]);
+  }, [destaqueAtual]);
 
   // Auto-advance timer
   useEffect(() => {
@@ -78,9 +78,9 @@ export function StoryViewer({
 
   const fechar = useCallback(() => {
     // Batch de visualizações
-    const ids = Array.from(visualizadosRef.current);
-    if (ids.length > 0) {
-      marcarVisualizados(grupoId, ids).catch(() => {});
+    const destaqueIds = Array.from(visualizadosRef.current);
+    if (destaqueIds.length > 0) {
+      marcarVisualizados(grupoId, destaqueIds).catch(() => {});
     }
     onClose();
   }, [grupoId, onClose]);
@@ -136,14 +136,14 @@ export function StoryViewer({
     setPausado(false);
   }
 
-  if (!storyAtual) return null;
+  if (!destaqueAtual) return null;
 
   return (
     <dialog
       open
       className="fixed inset-0 z-50 bg-black w-full h-full m-0 p-0 border-0"
-      data-testid="story-viewer"
-      aria-label="Visualizador de stories"
+      data-testid="destaque-viewer"
+      aria-label="Visualizador de destaques"
       onKeyDown={(e) => {
         if (e.key === 'Escape') fechar();
         if (e.key === 'ArrowRight') avancar();
@@ -152,7 +152,7 @@ export function StoryViewer({
     >
       <div
         role="toolbar"
-        aria-label="Navegação de stories"
+        aria-label="Navegação de destaques"
         tabIndex={-1}
         className="flex flex-col w-full h-full"
         onKeyDown={(e) => {
@@ -166,8 +166,8 @@ export function StoryViewer({
         onPointerUp={handlePointerUp}
       >
       {/* Barra de progresso */}
-      <StoryProgressBar
-        total={stories.length}
+      <DestaqueProgressBar
+        total={destaques.length}
         atual={indiceAtual}
         progresso={progresso}
       />
@@ -176,31 +176,32 @@ export function StoryViewer({
       <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white">
-            {storyAtual.autor.nome.charAt(0).toUpperCase()}
+            {destaqueAtual.autor.nome.charAt(0).toUpperCase()}
           </div>
           <span className="text-white text-sm font-medium">
-            {storyAtual.autor.nome.split(' ')[0]}
+            {destaqueAtual.autor.nome.split(' ')[0]}
           </span>
           <span className="text-gray-400 text-xs">
-            {formatarTempoRelativo(storyAtual.criadoEm)}
+            {formatarTempoRelativo(destaqueAtual.criadoEm)}
           </span>
         </div>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             fechar();
           }}
           className="text-white text-2xl p-1"
           data-interactive
-          aria-label="Fechar stories"
+          aria-label="Fechar destaques"
         >
           ✕
         </button>
       </div>
 
-      {/* Conteúdo do Story */}
+      {/* Conteúdo do Destaque */}
       <div className="flex-1 flex items-center justify-center px-4">
-        <StoryCard story={storyAtual} grupoId={grupoId} />
+        <DestaqueCard destaque={destaqueAtual} grupoId={grupoId} />
       </div>
 
       {/* Indicador de fim */}
