@@ -1,4 +1,4 @@
-interface StoryProgressBarProps {
+interface DestaqueProgressBarProps {
   readonly total: number;
   readonly atual: number;
   readonly progresso: number; // 0-1
@@ -10,13 +10,13 @@ function calcularLargura(indice: number, indiceAtual: number, pct: number): stri
   return '0%';
 }
 
-export function StoryProgressBar({
+export function DestaqueProgressBar({
   total,
   atual,
   progresso,
-}: StoryProgressBarProps) {
+}: DestaqueProgressBarProps) {
   return (
-    <div className="flex gap-1 px-3 pt-3" data-testid="story-progress-bar">
+    <div className="flex gap-1 px-3 pt-3" data-testid="destaque-progress-bar">
       {Array.from({ length: total }, (_, i) => {
         const largura = calcularLargura(i, atual, progresso);
         return (

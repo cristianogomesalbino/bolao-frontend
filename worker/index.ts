@@ -8,9 +8,9 @@ interface PushData {
   body?: string;
   type?: string;
   url?: string;
-  // Campos extras para stories NAO_PALPITOU
+  // Campos extras para destaques NAO_PALPITOU
   tipo?: string;
-  storyId?: string;
+  destaqueId?: string;
   grupoId?: string;
 }
 
@@ -55,25 +55,28 @@ sw.addEventListener('push', (event: PushEvent) => {
   const title = data.title ?? 'Bolão';
   const body = data.body ?? 'Nova notificação';
 
+  const ehDestaqueNaoPalpitou =
+    data.tipo === 'NAO_PALPITOU' && !!data.destaqueId;
+
   const options: NotificationOptions = {
     body,
     icon: '/logo-bolao.png',
     badge: '/logo-bolao.png',
-    tag: ehStoryNaoPalpitou
-      ? `story-${data.storyId}`
+    tag: ehDestaqueNaoPalpitou
+      ? `destaque-${data.destaqueId}`
       : `${data.type ?? 'default'}-${Date.now()}`,
     data: {
-      url: ehStoryNaoPalpitou
+      url: ehDestaqueNaoPalpitou
         ? `/grupos/${data.grupoId}`
         : data.url ?? '/',
-      storyId: data.storyId,
+      destaqueId: data.destaqueId,
       grupoId: data.grupoId,
       tipo: data.tipo,
     },
-    ...(ehStoryNaoPalpitou && {
+    ...(ehDestaqueNaoPalpitou && {
       actions: [
         { action: 'mandar-f', title: '🪦 Mandar F' },
-        { action: 'abrir', title: 'Ver Story' },
+        { action: 'abrir', title: 'Ver Destaque' },
       ],
     }),
   };
@@ -87,20 +90,27 @@ sw.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   const notifData = event.notification.data as {
     url?: string;
-    storyId?: string;
+    destaqueId?: string;
     grupoId?: string;
     tipo?: string;
   };
 
   // Notification Action: "Mandar F" — dispara fetch direto do SW
-  if (event.action === 'mandar-f' && notifData.storyId && notifData.grupoId) {
+  if (
+    event.action === 'mandar-f' &&
+    notifData.destaqueId &&
+    notifData.grupoId
+  ) {
     event.waitUntil(
-      fetch(`/api/grupos/${notifData.grupoId}/stories/${notifData.storyId}/mandar-f`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      }).catch(() => {
-        // Fallback: abrir app no story se fetch falhar
+      fetch(
+        `/api/grupos/${notifData.grupoId}/destaques/${notifData.destaqueId}/mandar-f`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        },
+      ).catch(() => {
+        // Fallback: abrir app no destaque se fetch falhar
         return sw.clients.openWindow(notifData.url ?? '/');
       }),
     );
@@ -119,7 +129,9 @@ sw.addEventListener('notificationclick', (event: NotificationEvent) => {
         for (const client of clientList) {
           if (client.url.startsWith(sw.location.origin) && 'focus' in client) {
             // Navega para a URL da notificação e depois foca
-            return client.navigate(fullUrl).then((c: WindowClient | null) => c?.focus());
+            return client
+              .navigate(fullUrl)
+              .then((c: WindowClient | null) => c?.focus());
           }
         }
         // Nenhuma janela aberta — abre nova

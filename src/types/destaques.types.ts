@@ -1,4 +1,4 @@
-export type TipoStory =
+export type TipoDestaque =
   | 'ACERTOU_EM_CHEIO'
   | 'UNICO_NA_MOSCA'
   | 'SUBIU_RANKING'
@@ -7,15 +7,15 @@ export type TipoStory =
   | 'NAO_PALPITOU'
   | 'DOBROU_E_ACERTOU';
 
-export interface StoryAutor {
+export interface DestaqueAutor {
   usuarioId: string;
   nome: string;
   avatar: string | null;
 }
 
-export interface StoryItem {
+export interface DestaqueItem {
   id: string;
-  tipo: TipoStory;
+  tipo: TipoDestaque;
   titulo: string;
   dados: Record<string, unknown>;
   jogoId: string;
@@ -24,11 +24,11 @@ export interface StoryItem {
   contadorFs: number;
   jaEnviouF: boolean;
   visualizado: boolean;
-  autor: StoryAutor;
+  autor: DestaqueAutor;
 }
 
-export interface StoryListagemResponse {
-  stories: StoryItem[];
+export interface DestaqueListagemResponse {
+  destaques: DestaqueItem[];
 }
 
 export interface MandarFResponse {
@@ -120,8 +120,8 @@ export interface DadosDobrouEAcertou {
 }
 
 // Mapeamento de emojis e cores por tipo
-export const STORY_CONFIG: Record<
-  TipoStory,
+export const DESTAQUE_CONFIG: Record<
+  TipoDestaque,
   { emoji: string; cor: string; timerSegundos: number }
 > = {
   ACERTOU_EM_CHEIO: { emoji: '🎯', cor: '#22C55E', timerSegundos: 5 },

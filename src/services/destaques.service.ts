@@ -1,8 +1,8 @@
 import type {
-  StoryListagemResponse,
+  DestaqueListagemResponse,
   MandarFResponse,
   VisualizarResponse,
-} from '@/types/stories.types';
+} from '@/types/destaques.types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
@@ -29,33 +29,33 @@ async function fetchAutenticado<T>(
   return response.json() as Promise<T>;
 }
 
-export async function buscarStoriesGrupo(
+export async function buscarDestaquesGrupo(
   grupoId: string,
-): Promise<StoryListagemResponse> {
-  return fetchAutenticado<StoryListagemResponse>(
-    `/grupos/${grupoId}/stories`,
+): Promise<DestaqueListagemResponse> {
+  return fetchAutenticado<DestaqueListagemResponse>(
+    `/grupos/${grupoId}/destaques`,
   );
 }
 
 export async function mandarF(
   grupoId: string,
-  storyId: string,
+  destaqueId: string,
 ): Promise<MandarFResponse> {
   return fetchAutenticado<MandarFResponse>(
-    `/grupos/${grupoId}/stories/${storyId}/mandar-f`,
+    `/grupos/${grupoId}/destaques/${destaqueId}/mandar-f`,
     { method: 'POST' },
   );
 }
 
 export async function marcarVisualizados(
   grupoId: string,
-  storyIds: string[],
+  destaqueIds: string[],
 ): Promise<VisualizarResponse> {
   return fetchAutenticado<VisualizarResponse>(
-    `/grupos/${grupoId}/stories/visualizar`,
+    `/grupos/${grupoId}/destaques/visualizar`,
     {
       method: 'POST',
-      body: JSON.stringify({ storyIds }),
+      body: JSON.stringify({ destaqueIds }),
     },
   );
 }
