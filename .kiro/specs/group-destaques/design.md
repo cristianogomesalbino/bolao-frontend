@@ -2,10 +2,10 @@
 
 ## Overview
 
-O módulo de Stories adiciona uma camada social ao bolão, gerando automaticamente destaques (stories) quando jogos são finalizados. A arquitetura segue o padrão existente do projeto: módulo NestJS com Repository Pattern, Domain Errors, Presenters e integração fire-and-forget com o fluxo de finalização de jogos.
+O módulo de Destaques adiciona uma camada social ao bolão, gerando automaticamente destaques (destaques) quando jogos são finalizados. A arquitetura segue o padrão existente do projeto: módulo NestJS com Repository Pattern, Domain Errors, Presenters e integração fire-and-forget com o fluxo de finalização de jogos.
 
 A feature se divide em:
-- **Backend**: novo módulo `stories` com geração automática, listagem, interação "Mandar um F", notificações e limpeza
+- **Backend**: novo módulo `destaques` com geração automática, listagem, interação "Mandar um F", notificações e limpeza
 - **Frontend**: carrossel de avatares na tela do grupo + visualizador fullscreen com swipe
 
 ## Architecture
@@ -15,59 +15,59 @@ A feature se divide em:
 ```
 JogoService.finalizar()
   → dispararNotificacoesJogoFinalizado()  (existente)
-  → dispararStoriesJogoFinalizado()       (novo, mesmo padrão fire-and-forget)
-      → StoryEventService.processarJogoFinalizado(jogoId)
-          → StoryGeneratorService.gerarStoriesParaGrupo(jogo, grupo, membros)
+  → dispararDestaquesJogoFinalizado()       (novo, mesmo padrão fire-and-forget)
+      → DestaqueEventService.processarJogoFinalizado(jogoId)
+          → DestaqueGeneratorService.gerarDestaquesParaGrupo(jogo, grupo, membros)
               → gera ACERTOU_EM_CHEIO
               → gera ACERTOU_SOZINHO
               → gera SUBIU_RANKING
               → gera SEQUENCIA
               → gera NAO_PALPITOU
               → gera DOBROU_E_ACERTOU
-          → StoryNotificacaoService.notificarNovosStories(grupo, jogo)
+          → DestaqueNotificacaoService.notificarNovosDestaques(grupo, jogo)
 ```
 
 ### Estrutura do Módulo Backend
 
 ```
-src/modules/stories/
-├── stories.constants.ts
-├── stories.module.ts
+src/modules/destaques/
+├── destaques.constants.ts
+├── destaques.module.ts
 ├── controllers/
-│   └── story.controller.ts
+│   └── destaque.controller.ts
 ├── dto/
 │   └── mandar-f.dto.ts
 ├── repositories/
-│   ├── story.repository.interface.ts
-│   ├── prisma-story.repository.ts
-│   └── in-memory-story.repository.ts
+│   ├── destaque.repository.interface.ts
+│   ├── prisma-destaque.repository.ts
+│   └── in-memory-destaque.repository.ts
 ├── services/
-│   ├── story-event.service.ts         # Orquestrador (entry point)
-│   ├── story-generator.service.ts     # Geração dos 6 tipos
-│   ├── story-sequencia.service.ts     # Cálculo de sequência
-│   ├── story-notificacao.service.ts   # Push de novos stories
-│   └── story-reaction.service.ts      # Lógica do "Mandar um F"
+│   ├── destaque-event.service.ts         # Orquestrador (entry point)
+│   ├── destaque-generator.service.ts     # Geração dos 6 tipos
+│   ├── destaque-sequencia.service.ts     # Cálculo de sequência
+│   ├── destaque-notificacao.service.ts   # Push de novos destaques
+│   └── destaque-reaction.service.ts      # Lógica do "Mandar um F"
 └── types/
-    └── story.types.ts
+    └── destaque.types.ts
 ```
 
 ### Estrutura do Frontend
 
 ```
-src/components/stories/
-├── story-carousel.tsx          # Faixa de avatares horizontal
-├── story-viewer.tsx            # Overlay fullscreen
-├── story-card.tsx              # Layout genérico de 1 story
-├── story-card-acertou.tsx      # Layout ACERTOU_EM_CHEIO
-├── story-card-sozinho.tsx      # Layout ACERTOU_SOZINHO
-├── story-card-ranking.tsx      # Layout SUBIU_RANKING
-├── story-card-sequencia.tsx    # Layout SEQUENCIA
-├── story-card-nao-palpitou.tsx # Layout NAO_PALPITOU + botão F
-├── story-card-dobrou.tsx       # Layout DOBROU_E_ACERTOU
-└── story-progress-bar.tsx      # Barra de progresso segmentada
+src/components/destaques/
+├── destaque-carousel.tsx          # Faixa de avatares horizontal
+├── destaque-viewer.tsx            # Overlay fullscreen
+├── destaque-card.tsx              # Layout genérico de 1 destaque
+├── destaque-card-acertou.tsx      # Layout ACERTOU_EM_CHEIO
+├── destaque-card-sozinho.tsx      # Layout ACERTOU_SOZINHO
+├── destaque-card-ranking.tsx      # Layout SUBIU_RANKING
+├── destaque-card-sequencia.tsx    # Layout SEQUENCIA
+├── destaque-card-nao-palpitou.tsx # Layout NAO_PALPITOU + botão F
+├── destaque-card-dobrou.tsx       # Layout DOBROU_E_ACERTOU
+└── destaque-progress-bar.tsx      # Barra de progresso segmentada
 
-src/services/stories.service.ts   # Chamadas API
-src/types/stories.types.ts        # Tipos compartilhados
+src/services/destaques.service.ts   # Chamadas API
+src/types/destaques.types.ts        # Tipos compartilhados
 ```
 
 ## Data Model
@@ -75,7 +75,7 @@ src/types/stories.types.ts        # Tipos compartilhados
 ### Novas Tabelas Prisma
 
 ```prisma
-enum TipoStory {
+enum TipoDestaque {
   ACERTOU_EM_CHEIO
   ACERTOU_SOZINHO
   SUBIU_RANKING
@@ -85,13 +85,13 @@ enum TipoStory {
   DOBROU_E_ACERTOU
 }
 
-model Story {
+model Destaque {
   id          String    @id @default(uuid())
   grupoId     String
   usuarioId   String
   jogoId      String
   rodada      Int?
-  tipo        TipoStory
+  tipo        TipoDestaque
   dados       Json
   contadorFs  Int       @default(0)
   criadoEm    DateTime  @default(now())
@@ -99,26 +99,26 @@ model Story {
   grupo       Grupo     @relation(fields: [grupoId], references: [id], onDelete: Cascade)
   usuario     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   jogo        Jogo      @relation(fields: [jogoId], references: [id], onDelete: Cascade)
-  reacoes     StoryReacao[]
+  reacoes     DestaqueReacao[]
 
   @@unique([grupoId, usuarioId, jogoId, tipo])
   @@index([grupoId, criadoEm])
   @@index([grupoId, usuarioId])
 }
 
-model StoryReacao {
+model DestaqueReacao {
   id              String   @id @default(uuid())
-  storyId         String
+  destaqueId         String
   remetenteId     String
   destinatarioId  String
   jogoId          String
   grupoId         String
   criadoEm        DateTime @default(now())
 
-  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  destaque       Destaque    @relation(fields: [destaqueId], references: [id], onDelete: Cascade)
 
   @@unique([remetenteId, destinatarioId, jogoId, grupoId])
-  @@index([storyId])
+  @@index([destaqueId])
 }
 
 enum CategoriaRecorde {
@@ -160,16 +160,16 @@ model RecordeDetentor {
 
 ```prisma
 // Em Usuario: adicionar
-stories        Story[]
-storyReacoes   StoryReacao[]
+destaques        Destaque[]
+destaqueReacoes   DestaqueReacao[]
 
 // Em Grupo: adicionar
-stories        Story[]
+destaques        Destaque[]
 recordesSequencia RecordeSequencia[]
 rankingSnapshots  RankingSnapshot[]
 
 // Em Jogo: adicionar
-stories        Story[]
+destaques        Destaque[]
 
 // Em Temporada: adicionar
 recordesSequencia RecordeSequencia[]
@@ -195,14 +195,14 @@ model RankingSnapshot {
 }
 ```
 
-O snapshot é gravado logo após o cálculo de ranking de cada jogo finalizado (no `StoryEventService`). Quando o próximo jogo for finalizado, o StoryGeneratorService lê o snapshot anterior com 1 SELECT e compara com a posição recém-calculada.
+O snapshot é gravado logo após o cálculo de ranking de cada jogo finalizado (no `DestaqueEventService`). Quando o próximo jogo for finalizado, o DestaqueGeneratorService lê o snapshot anterior com 1 SELECT e compara com a posição recém-calculada.
 
 ### Enum de Notificação (estender)
 
 ```prisma
 enum TipoNotificacao {
   // ... existentes ...
-  STORIES_GRUPO
+  DESTAQUES_GRUPO
   RECEBEU_F
 }
 ```
@@ -212,7 +212,7 @@ enum TipoNotificacao {
 ```prisma
 model PreferenciaNotificacao {
   // ... existentes ...
-  storiesGrupo    Boolean @default(true)
+  destaquesGrupo    Boolean @default(true)
   recebeuF        Boolean @default(true)
 }
 ```
@@ -301,46 +301,46 @@ interface DadosDobrouEAcertou {
 
 ## Endpoints (API)
 
-### Listagem de Stories do Grupo
+### Listagem de Destaques do Grupo
 
 ```
-GET /grupos/:grupoId/stories
+GET /grupos/:grupoId/destaques
 Guard: GroupRoleGuard (ADMIN, MEMBER)
-Response: StoryListagemResponse
+Response: DestaqueListagemResponse
 ```
 
-### Listagem de Stories da Home (agregado)
+### Listagem de Destaques da Home (agregado)
 
 ```
-GET /stories
+GET /destaques
 Guard: JwtAuthGuard (global — usuário autenticado)
-Response: StoryHomeResponse
+Response: DestaqueHomeResponse
 ```
 
-Retorna stories de todos os grupos do usuário (rodada atual + anterior), agrupados por grupo e por membro.
+Retorna destaques de todos os grupos do usuário (rodada atual + anterior), agrupados por grupo e por membro.
 
 Response shape:
 ```typescript
-interface StoryHomeResponse {
+interface DestaqueHomeResponse {
   grupos: Array<{
     grupoId: string;
     grupoNome: string;
     grupoIcone: string | null;
-    membros: StoryMembroListagem[];
+    membros: DestaqueMembroListagem[];
   }>;
 }
 
-interface StoryMembroListagem {
+interface DestaqueMembroListagem {
   usuarioId: string;
   nome: string;
   avatar: string | null;
-  storyMaisRecente: TipoStory;
-  stories: StoryItemListagem[];
+  destaqueMaisRecente: TipoDestaque;
+  destaques: DestaqueItemListagem[];
 }
 
-interface StoryItemListagem {
+interface DestaqueItemListagem {
   id: string;
-  tipo: TipoStory;
+  tipo: TipoDestaque;
   dados: Record<string, unknown>;
   jogoId: string;
   rodada: number | null;
@@ -353,15 +353,15 @@ interface StoryItemListagem {
 ### Listagem do Grupo (mesma shape de `membros`)
 
 ```typescript
-interface StoryListagemResponse {
-  membros: StoryMembroListagem[];
+interface DestaqueListagemResponse {
+  membros: DestaqueMembroListagem[];
 }
 ```
 
 ### Mandar um F
 
 ```
-POST /grupos/:grupoId/stories/:storyId/mandar-f
+POST /grupos/:grupoId/destaques/:destaqueId/mandar-f
 Guard: GroupRoleGuard (ADMIN, MEMBER)
 Response: { contadorFs: number }
 ```
@@ -370,32 +370,32 @@ Constraint de deduplicação: `@@unique([remetenteId, destinatarioId, jogoId, gr
 
 ## Services (Backend)
 
-### StoryEventService (Orquestrador)
+### DestaqueEventService (Orquestrador)
 
-Responsabilidade: receber o evento de jogo finalizado e coordenar a geração de stories para todos os grupos afetados.
+Responsabilidade: receber o evento de jogo finalizado e coordenar a geração de destaques para todos os grupos afetados.
 
 ```typescript
 async processarJogoFinalizado(jogoId: string): Promise<void> {
   // 1. Buscar jogo com times
   // 2. Buscar fase → temporada → grupos
-  // 3. Para cada grupo: gerar stories
+  // 3. Para cada grupo: gerar destaques
   // 4. Para cada grupo: enviar notificação consolidada
 }
 ```
 
-### StoryGeneratorService
+### DestaqueGeneratorService
 
-Responsabilidade: gerar stories para um grupo específico dado um jogo finalizado.
+Responsabilidade: gerar destaques para um grupo específico dado um jogo finalizado.
 
 ```typescript
-async gerarStoriesParaGrupo(
+async gerarDestaquesParaGrupo(
   jogo: JogoComTimes,
   grupo: GrupoBasico,
   membros: MembroComUsuario[],
 ): Promise<void> {
   // Busca palpites do jogo para todos os membros
   // Calcula ranking ANTES e DEPOIS do jogo
-  // Para cada membro, avalia cada tipo de story
+  // Para cada membro, avalia cada tipo de destaque
   // Persiste em batch via criarVarios()
 }
 ```
@@ -403,13 +403,13 @@ async gerarStoriesParaGrupo(
 Detalhes por tipo:
 
 - **ACERTOU_EM_CHEIO**: `PontuacaoService.calcular()` retorna `categoriaAcerto === 'ACERTO_EM_CHEIO'`
-- **ACERTOU_SOZINHO**: conta membros com `categoriaAcerto === 'ACERTO_DE_RESULTADO' || categoriaAcerto === 'ACERTO_EM_CHEIO'`; se apenas 1 membro acertou o resultado, gera o story
+- **ACERTOU_SOZINHO**: conta membros com `categoriaAcerto === 'ACERTO_DE_RESULTADO' || categoriaAcerto === 'ACERTO_EM_CHEIO'`; se apenas 1 membro acertou o resultado, gera o destaque
 - **SUBIU_RANKING**: compara posição atual (calculada) com posição anterior (lida do RankingSnapshot — 1 SELECT simples)
-- **SEQUENCIA**: delega para StorySequenciaService
+- **SEQUENCIA**: delega para DestaqueSequenciaService
 - **NAO_PALPITOU**: membro sem palpite para o jogo
 - **DOBROU_E_ACERTOU**: membro tem PalpiteDobrado para o jogo E `categoriaAcerto !== null && categoriaAcerto !== 'ERRO_TOTAL'`
 
-### StorySequenciaService
+### DestaqueSequenciaService
 
 Responsabilidade: calcular sequências nas 2 categorias e gerenciar recordes.
 
@@ -452,31 +452,31 @@ async atualizarRecorde(
 }
 ```
 
-### StoryReactionService
+### DestaqueReactionService
 
 Responsabilidade: registrar "F" e validar regras de negócio.
 
 ```typescript
-async mandarF(storyId: string, usuarioId: string, grupoId: string): Promise<number> {
-  // Valida: story existe e não expirou (< 7 dias)
-  // Valida: story.tipo === NAO_PALPITOU
-  // Valida: story.usuarioId !== usuarioId (não pode F em si mesmo)
-  // Valida: não existe StoryReacao para (storyId, usuarioId)
-  // Cria StoryReacao
-  // Incrementa story.contadorFs
+async mandarF(destaqueId: string, usuarioId: string, grupoId: string): Promise<number> {
+  // Valida: destaque existe e não expirou (< 7 dias)
+  // Valida: destaque.tipo === NAO_PALPITOU
+  // Valida: destaque.usuarioId !== usuarioId (não pode F em si mesmo)
+  // Valida: não existe DestaqueReacao para (destaqueId, usuarioId)
+  // Cria DestaqueReacao
+  // Incrementa destaque.contadorFs
   // Dispara notificação push (fire-and-forget)
   // Retorna novo contadorFs
 }
 ```
 
-### StoryNotificacaoService
+### DestaqueNotificacaoService
 
-Responsabilidade: enviar push consolidado quando stories são gerados.
+Responsabilidade: enviar push consolidado quando destaques são gerados.
 
 ```typescript
-async notificarNovosStories(grupo: GrupoBasico, jogoId: string, quantidade: number): Promise<void> {
-  // Deduplicação: existeNotificacao(tipo: STORIES_GRUPO, grupoId, jogoId)
-  // Busca membros com inscrição push + preferência storiesGrupo habilitada
+async notificarNovosDestaques(grupo: GrupoBasico, jogoId: string, quantidade: number): Promise<void> {
+  // Deduplicação: existeNotificacao(tipo: DESTAQUES_GRUPO, grupoId, jogoId)
+  // Busca membros com inscrição push + preferência destaquesGrupo habilitada
   // Cria notificação consolidada
   // Envia push para todos os membros elegíveis
 }
@@ -489,15 +489,15 @@ Seguindo o padrão existente de `dispararNotificacoesJogoFinalizado`:
 ```typescript
 // Em JogoService - adicionar:
 @Optional()
-@Inject(STORIES.EVENT_SERVICE_TOKEN)
-private readonly storyEventService?: StoryEventService;
+@Inject(DESTAQUES.EVENT_SERVICE_TOKEN)
+private readonly destaqueEventService?: DestaqueEventService;
 
-private dispararStoriesJogoFinalizado(jogoId: string): void {
-  if (!this.storyEventService) return;
-  this.storyEventService
+private dispararDestaquesJogoFinalizado(jogoId: string): void {
+  if (!this.destaqueEventService) return;
+  this.destaqueEventService
     .processarJogoFinalizado(jogoId)
     .catch((err) =>
-      this.logger.error(`Erro stories pós-finalização: ${err.message}`, err.stack),
+      this.logger.error(`Erro destaques pós-finalização: ${err.message}`, err.stack),
     );
 }
 
@@ -507,32 +507,32 @@ private dispararStoriesJogoFinalizado(jogoId: string): void {
 ## Cron Job (Limpeza)
 
 ```typescript
-// Em StoryCronService
+// Em DestaqueCronService
 @Cron('0 5 * * *') // 02:00 BRT
-async limparStoriesAntigos(): Promise<void> {
-  // Deleta stories com criadoEm < 30 dias
-  // Cascade remove StoryReacao automaticamente via onDelete: Cascade
+async limparDestaquesAntigos(): Promise<void> {
+  // Deleta destaques com criadoEm < 30 dias
+  // Cascade remove DestaqueReacao automaticamente via onDelete: Cascade
 }
 ```
 
 ## Frontend (Design Resumido)
 
-### Story Carousel
+### Destaque Carousel
 
 - Componente client (`'use client'`) posicionado na page do grupo
-- Fetch via `GET /grupos/:grupoId/stories` com SWR/TanStack Query
+- Fetch via `GET /grupos/:grupoId/destaques` com SWR/TanStack Query
 - Renderiza lista horizontal de avatares com `overflow-x: auto`
-- Cada avatar mostra ícone do tipo do story mais recente
+- Cada avatar mostra ícone do tipo do destaque mais recente
 - Oculto enquanto loading ou se lista vazia (height 0, sem skeleton)
 
-### Story Viewer
+### Destaque Viewer
 
 - Modal/overlay fullscreen ativado ao clicar em um avatar
-- Estado local: `currentIndex` para navegar entre stories do usuário selecionado
+- Estado local: `currentIndex` para navegar entre destaques do usuário selecionado
 - Navegação: touch events (swipe) + tap zones (metade esquerda/direita)
 - Barra de progresso com `N` segmentos (CSS flex com transition)
 - Botão X no canto superior direito para fechar
-- Auto-fecha ao passar do último story
+- Auto-fecha ao passar do último destaque
 
 ### Formatação de Tempo
 
@@ -551,9 +551,9 @@ function formatarTempoRelativo(criadoEm: string): string {
 ## Domain Errors
 
 ```typescript
-// src/common/errors/domain-errors/stories.errors.ts
-export class StoryNaoEncontradoError extends DomainError { ... }
-export class StoryExpiradoError extends DomainError { ... }
+// src/common/errors/domain-errors/destaques.errors.ts
+export class DestaqueNaoEncontradoError extends DomainError { ... }
+export class DestaqueExpiradoError extends DomainError { ... }
 export class ReacaoApenasNaoPalpitouError extends DomainError { ... }
 export class NaoPodeEnviarFParaSiMesmoError extends DomainError { ... }
 export class UsuarioJaEnviouFError extends DomainError { ... }
@@ -562,10 +562,10 @@ export class UsuarioJaEnviouFError extends DomainError { ... }
 ## Constants
 
 ```typescript
-export const STORIES = {
-  TAG: 'Stories',
-  STORY_REPOSITORY_TOKEN: 'STORY_REPOSITORY',
-  EVENT_SERVICE_TOKEN: 'STORY_EVENT_SERVICE',
+export const DESTAQUES = {
+  TAG: 'Destaques',
+  DESTAQUE_REPOSITORY_TOKEN: 'DESTAQUE_REPOSITORY',
+  EVENT_SERVICE_TOKEN: 'DESTAQUE_EVENT_SERVICE',
 
   LIMITES: {
     EXPIRACAO_DIAS: 7,
@@ -573,8 +573,8 @@ export const STORIES = {
     SEQUENCIA_MOSCA_MINIMA: 2,
     SEQUENCIA_RESULTADO_RODADAS_ATRAS: 3,
     ULTIMOS_JOGOS_SEQUENCIA: 5,
-    MAX_STORIES_LISTAGEM: 20,
-    MIN_STORIES_VIEWER: 5,
+    MAX_DESTAQUES_LISTAGEM: 20,
+    MIN_DESTAQUES_VIEWER: 5,
     SUBIU_RANKING_MINIMO: 2,
     SUBIU_RANKING_TOP: 5,
   },
@@ -604,16 +604,16 @@ export const STORIES = {
   },
 
   MENSAGENS: {
-    STORY_NAO_ENCONTRADO: 'Story não encontrado',
-    STORY_EXPIRADO: 'Story expirado',
-    REACAO_APENAS_NAO_PALPITOU: 'Reações do tipo F são permitidas apenas em stories de tipo NAO_PALPITOU',
+    DESTAQUE_NAO_ENCONTRADO: 'Destaque não encontrado',
+    DESTAQUE_EXPIRADO: 'Destaque expirado',
+    REACAO_APENAS_NAO_PALPITOU: 'Reações do tipo F são permitidas apenas em destaques de tipo NAO_PALPITOU',
     NAO_PODE_F_PARA_SI_MESMO: 'Não é permitido enviar F para si mesmo',
-    USUARIO_JA_ENVIOU_F: 'Você já enviou um F para este story',
+    USUARIO_JA_ENVIOU_F: 'Você já enviou um F para este destaque',
     F_ENVIADO_SUCESSO: 'F enviado com sucesso',
   },
 
   TEMPLATES: {
-    NOVOS_STORIES: {
+    NOVOS_DESTAQUES: {
       titulo: 'Novos destaques!',
       mensagem: (grupoNome: string, quantidade: number) =>
         `${quantidade} novos destaques no grupo ${grupoNome}. Veja o que aconteceu!`,
@@ -627,12 +627,12 @@ export const STORIES = {
 } as const;
 ```
 
-## Catálogo de Títulos (StoryTitle)
+## Catálogo de Títulos (DestaqueTitle)
 
 Estrutura preparada pra evolução (rarity, A/B, temas sazonais):
 
 ```typescript
-interface StoryTitle {
+interface DestaqueTitle {
   id: string;                              // Identificador único (ex: 'cheio-01')
   title: string;                           // Texto exibido (ex: 'Cravou!')
   emoji: string;                           // Emoji do tipo (ex: '🎯')
@@ -640,7 +640,7 @@ interface StoryTitle {
 }
 
 // Catálogo em constants
-export const STORY_TITULOS: Record<TipoStory, StoryTitle[]> = {
+export const DESTAQUE_TITULOS: Record<TipoDestaque, DestaqueTitle[]> = {
   ACERTOU_EM_CHEIO: [
     { id: 'cheio-01', title: 'Cravou!', emoji: '🎯' },
     { id: 'cheio-02', title: 'Na mosca!', emoji: '🎯' },
@@ -665,8 +665,8 @@ export const STORY_TITULOS: Record<TipoStory, StoryTitle[]> = {
 ### pickRandomTitle (sem repetição imediata)
 
 ```typescript
-function pickRandomTitle(tipo: TipoStory, ultimoIdUsado?: string): StoryTitle {
-  const titulos = STORY_TITULOS[tipo];
+function pickRandomTitle(tipo: TipoDestaque, ultimoIdUsado?: string): DestaqueTitle {
+  const titulos = DESTAQUE_TITULOS[tipo];
   const disponiveis = ultimoIdUsado
     ? titulos.filter(t => t.id !== ultimoIdUsado)
     : titulos;
@@ -674,11 +674,11 @@ function pickRandomTitle(tipo: TipoStory, ultimoIdUsado?: string): StoryTitle {
 }
 ```
 
-No Story persistido: apenas `titulo` (texto final) e opcionalmente `tituloId` no campo JSONB `dados` para analytics futuro. O emoji é derivável do tipo (não precisa persistir).
+No Destaque persistido: apenas `titulo` (texto final) e opcionalmente `tituloId` no campo JSONB `dados` para analytics futuro. O emoji é derivável do tipo (não precisa persistir).
 
 ## Notification Actions (Progressive Enhancement)
 
-Nos dispositivos que suportam (Android Chrome, Desktop Chrome/Edge/Firefox), a notificação de "Não palpitou" inclui um botão de ação "Mandar F" diretamente na notificação push. Onde não é suportado (iOS/Safari), a notificação apenas abre o app no story.
+Nos dispositivos que suportam (Android Chrome, Desktop Chrome/Edge/Firefox), a notificação de "Não palpitou" inclui um botão de ação "Mandar F" diretamente na notificação push. Onde não é suportado (iOS/Safari), a notificação apenas abre o app no destaque.
 
 ### Service Worker — Push Handler
 
@@ -686,21 +686,21 @@ Nos dispositivos que suportam (Android Chrome, Desktop Chrome/Edge/Firefox), a n
 // worker/index.ts — dentro do evento 'push'
 const data = event.data?.json();
 
-if (data?.tipo === 'NAO_PALPITOU' && data?.storyId) {
+if (data?.tipo === 'NAO_PALPITOU' && data?.destaqueId) {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/icons/icon-192x192.svg',
-      tag: `story-${data.storyId}`,
+      tag: `destaque-${data.destaqueId}`,
       data: {
-        url: `/grupos/${data.grupoId}/stories`,
-        storyId: data.storyId,
+        url: `/grupos/${data.grupoId}/destaques`,
+        destaqueId: data.destaqueId,
         grupoId: data.grupoId,
         tipo: 'NAO_PALPITOU',
       },
       actions: [
         { action: 'mandar-f', title: '🪦 Mandar F' },
-        { action: 'abrir', title: 'Ver Story' },
+        { action: 'abrir', title: 'Ver Destaque' },
       ],
     })
   );
@@ -710,8 +710,8 @@ if (data?.tipo === 'NAO_PALPITOU' && data?.storyId) {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/icons/icon-192x192.svg',
-      tag: `story-grupo-${data.grupoId}`,
-      data: { url: `/grupos/${data.grupoId}/stories` },
+      tag: `destaque-grupo-${data.grupoId}`,
+      data: { url: `/grupos/${data.grupoId}/destaques` },
     })
   );
 }
@@ -724,20 +724,20 @@ if (data?.tipo === 'NAO_PALPITOU' && data?.storyId) {
 const notifData = event.notification.data;
 event.notification.close();
 
-if (event.action === 'mandar-f' && notifData.storyId && notifData.grupoId) {
+if (event.action === 'mandar-f' && notifData.destaqueId && notifData.grupoId) {
   // Dispara fetch direto do Service Worker
   event.waitUntil(
-    fetch(`/api/grupos/${notifData.grupoId}/stories/${notifData.storyId}/mandar-f`, {
+    fetch(`/api/grupos/${notifData.grupoId}/destaques/${notifData.destaqueId}/mandar-f`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include', // cookies httpOnly
     }).catch(() => {
-      // Fallback: abre o app no story se fetch falhar
+      // Fallback: abre o app no destaque se fetch falhar
       return clients.openWindow(notifData.url);
     })
   );
 } else {
-  // Ação padrão: abrir/focar janela no URL do story
+  // Ação padrão: abrir/focar janela no URL do destaque
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then((windowClients) => {
       const existing = windowClients.find((c) => c.url.includes(notifData.url));
@@ -750,16 +750,16 @@ if (event.action === 'mandar-f' && notifData.storyId && notifData.grupoId) {
 
 ### Backend — Payload diferenciado para push NAO_PALPITOU
 
-Quando o `StoryNotificacaoService` envia push para o tipo NAO_PALPITOU individual (quando alguém manda um F ou story é gerado), inclui campos extras no payload:
+Quando o `DestaqueNotificacaoService` envia push para o tipo NAO_PALPITOU individual (quando alguém manda um F ou destaque é gerado), inclui campos extras no payload:
 
 ```typescript
-// Em StoryNotificacaoService
+// Em DestaqueNotificacaoService
 const pushPayload = {
   title: 'João não palpitou!',
   body: 'Mande um F',
   tipo: 'NAO_PALPITOU',
-  storyId: story.id,
-  grupoId: story.grupoId,
+  destaqueId: destaque.id,
+  grupoId: destaque.grupoId,
 };
 ```
 
@@ -769,22 +769,22 @@ const pushPayload = {
 |-----------|---------------------|---------------|
 | Android Chrome | ✅ Suportado | Botão "Mandar F" dispara fetch direto |
 | Desktop Chrome/Edge/Firefox | ✅ Suportado | Botão "Mandar F" dispara fetch direto |
-| iOS Safari (PWA) | ❌ Não suportado | Notificação simples → abre app no story |
+| iOS Safari (PWA) | ❌ Não suportado | Notificação simples → abre app no destaque |
 | iOS Safari (browser) | ❌ Push não suportado | N/A |
 
 ### Fallback
 
-- Se o `fetch` do Service Worker falhar (token expirado, rede indisponível), abre o app no story como fallback
+- Se o `fetch` do Service Worker falhar (token expirado, rede indisponível), abre o app no destaque como fallback
 - Se o dispositivo não suporta `actions`, o campo é silenciosamente ignorado pela API de Notification — a notificação aparece sem botões
 - Não requer detecção de feature no frontend: o SW sempre envia `actions`, dispositivos que não suportam simplesmente não exibem
 
 ## Considerações de Performance
 
-1. **Geração em batch**: `criarVarios()` para persistir todos os stories de uma vez por grupo
+1. **Geração em batch**: `criarVarios()` para persistir todos os destaques de uma vez por grupo
 2. **Ranking comparativo**: para SUBIU_RANKING, calcular ranking com e sem o jogo atual é custoso. Alternativa: guardar posição do último jogo finalizado no cache e comparar com a nova posição
 3. **Listagem por rodada**: filtro `WHERE rodada IN (rodadaAtual, rodadaAtual - 1)` no índice composto `(grupoId, rodada)` garante scan eficiente
 4. **Deduplicação**: unique constraint `(grupoId, usuarioId, jogoId, tipo)` previne duplicatas a nível de banco
-5. **Cascade delete**: `onDelete: Cascade` em StoryReacao garante limpeza sem queries extras
+5. **Cascade delete**: `onDelete: Cascade` em DestaqueReacao garante limpeza sem queries extras
 
 ## Decisões de Design
 
@@ -792,14 +792,14 @@ const pushPayload = {
 |---------|----------------|---------------|
 | Persistência vs on-the-fly | Persistido em banco | Evita recalcular a cada visualização; permite "Mandar um F" com contador |
 | Campo `dados` como JSONB | Sim | Flexibilidade por tipo sem criar 6 tabelas de detalhes |
-| `contadorFs` denormalizado no Story | Sim | Evita COUNT(*) em cada listagem |
+| `contadorFs` denormalizado no Destaque | Sim | Evita COUNT(*) em cada listagem |
 | Módulo separado vs dentro de notificações | Módulo separado | Responsabilidade distinta; evita inchar o módulo de notificações |
-| Expiração rodada atual+anterior / 30d hard delete | Filtro por rodada na query + cron 30d | Não precisa de campo de status; stories de rodadas antigas ficam no banco pro histórico futuro até limpeza |
+| Expiração rodada atual+anterior / 30d hard delete | Filtro por rodada na query + cron 30d | Não precisa de campo de status; destaques de rodadas antigas ficam no banco pro histórico futuro até limpeza |
 | Cálculo de SUBIU_RANKING | Snapshot de posição anterior (RankingSnapshot) | 1 SELECT no índice em vez de recalcular ranking inteiro 2x. Escala melhor conforme temporada acumula jogos |
 
 ## Design Visual (Referência)
 
-### Anatomia do Card de Story
+### Anatomia do Card de Destaque
 
 ```
 ┌────────────────────────────────────┐
@@ -809,7 +809,7 @@ const pushPayload = {
 │       [emoji tipo] Nome            │
 │                                    │
 │     ╔══════════════════════╗       │
-│     ║   TÍTULO DINÂMICO   ║       │ ← Título grande (randomizado, StoryTitle)
+│     ║   TÍTULO DINÂMICO   ║       │ ← Título grande (randomizado, DestaqueTitle)
 │     ║   Subtítulo descrit. ║       │ ← Descrição contextual
 │     ╚══════════════════════╝       │
 │                                    │
