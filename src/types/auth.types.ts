@@ -1,6 +1,7 @@
 export interface DadosLogin {
   email: string;
   senha: string;
+  continuarLogado?: boolean;
 }
 
 export interface DadosCriarUsuario {

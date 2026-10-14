@@ -18,6 +18,29 @@ interface PropsFormularioLogin {
   linkCadastro?: string;
 }
 
+function ehErroApi(
+  error: unknown,
+): error is { statusCode?: number; mensagem?: string } {
+  return typeof error === 'object' && error !== null;
+}
+
+function mensagemErroLogin(
+  statusCode: number | undefined,
+  mensagem: string | undefined,
+  statusServidor: string,
+): string | null {
+  if (statusCode === 0 && statusServidor === 'offline') {
+    return null;
+  }
+  if (statusCode === 0) {
+    return 'Servidor indisponível. Tente novamente em instantes.';
+  }
+  if (statusCode === 401) {
+    return 'Email ou senha inválidos';
+  }
+  return mensagem || 'Ocorreu um erro. Tente novamente.';
+}
+
 export function FormularioLogin({ onSubmit, linkCadastro = '/cadastro' }: Readonly<PropsFormularioLogin>) {
   const [erroServidor, setErroServidor] = useState<string | null>(null);
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -31,22 +54,22 @@ export function FormularioLogin({ onSubmit, linkCadastro = '/cadastro' }: Readon
   } = useForm<DadosLoginForm>({
     resolver: zodResolver(schemaLogin),
     mode: 'onChange',
+    defaultValues: { continuarLogado: false },
   });
 
   async function aoEnviar(dados: DadosLoginForm) {
     setErroServidor(null);
     try {
       await onSubmit(dados);
-    } catch (error: any) {
-      if (error?.statusCode === 0) {
-        // Não duplicar mensagem se o warm-up já mostra offline
-        if (statusServidor !== 'offline') {
-          setErroServidor('Servidor indisponível. Tente novamente em instantes.');
-        }
-      } else if (error?.statusCode === 401) {
-        setErroServidor('Email ou senha inválidos');
-      } else {
-        setErroServidor(error?.mensagem || 'Ocorreu um erro. Tente novamente.');
+    } catch (error: unknown) {
+      const erro = ehErroApi(error) ? error : {};
+      const mensagem = mensagemErroLogin(
+        erro.statusCode,
+        erro.mensagem,
+        statusServidor,
+      );
+      if (mensagem) {
+        setErroServidor(mensagem);
       }
       setShake(true);
       setTimeout(() => setShake(false), 500);
@@ -139,6 +162,8 @@ export function FormularioLogin({ onSubmit, linkCadastro = '/cadastro' }: Readon
                 type="checkbox"
                 id="continuar-logado"
                 className="peer h-4 w-4 appearance-none rounded border border-white/20 bg-white/5 checked:bg-primaria checked:border-primaria transition-all cursor-pointer"
+                data-testid="login-checkbox-continuar"
+                {...register('continuarLogado')}
               />
               <svg
                 className="absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"
