@@ -18,6 +18,7 @@ export const schemaNome = z
 export const schemaLogin = z.object({
   email: schemaEmail,
   senha: z.string({ message: 'Senha é obrigatória' }).min(1, 'Senha é obrigatória'),
+  continuarLogado: z.boolean(),
 });
 
 export type DadosLoginForm = z.infer<typeof schemaLogin>;
