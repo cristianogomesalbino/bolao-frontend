@@ -6,6 +6,7 @@ import { Trophy } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { listarGrupos, obterRankingGeral } from '@/services/grupo.service';
 import { CardRanking } from '@/components/home/card-ranking';
+import { SinoNotificacoes } from '@/components/layout/sino-notificacoes';
 import { ehCampeonatoCopa } from '@/lib/jogo-helpers';
 
 export default function RankingPage() {
@@ -71,6 +72,7 @@ export default function RankingPage() {
                 </p>
               </div>
             </div>
+            <SinoNotificacoes />
           </div>
         </div>
       </header>
