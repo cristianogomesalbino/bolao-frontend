@@ -1,6 +1,6 @@
 import { GuardAutenticacao } from '@/components/auth/guard-autenticacao';
 import { BottomNav } from '@/components/layout/bottom-nav';
-import { BannerPush } from '@/components/notificacoes/banner-push';
+import { AtivadorPush } from '@/components/notificacoes/ativador-push';
 import { SwUpdater } from '@/components/notificacoes/sw-updater';
 import { DicasProvider } from '@/components/dicas/dicas-provider';
 import { ToastDescobrilidade } from '@/components/dicas/toast-descobrilidade';
@@ -13,7 +13,7 @@ export default function ProtegidoLayout({ children }: { readonly children: React
       </div>
       <DicasProvider />
       <ToastDescobrilidade />
-      <BannerPush />
+      <AtivadorPush />
       <SwUpdater />
       <BottomNav />
     </GuardAutenticacao>
