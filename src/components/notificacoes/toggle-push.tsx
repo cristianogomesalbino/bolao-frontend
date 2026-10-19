@@ -47,7 +47,6 @@ export function TogglePush() {
       const sucesso = await cancelarNotificacoesPush();
       if (!sucesso) { setCarregando(false); return; }
       setInscrito(false);
-      localStorage.removeItem('push-banner-dispensado');
       setCarregando(false);
       return;
     }

@@ -8,6 +8,7 @@ import { AbaTodosJogos } from '@/components/palpites/aba-todos-jogos';
 import { AbaMeusPalpites } from '@/components/palpites/aba-meus-palpites';
 import { AbaJogosCopa } from '@/components/palpites/aba-jogos-copa';
 import { IconPalpite } from '@/components/icons/icon-palpite';
+import { SinoNotificacoes } from '@/components/layout/sino-notificacoes';
 import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
 import { type CampeonatoSlug } from '@/types/jogo.types';
 import { listarTemporadas, buscarDadosTemporada } from '@/services/jogo.service';
@@ -186,6 +187,7 @@ export default function PalpitesPage() {
             <IconPalpite size={22} className="text-primaria-claro" />
             <h1 className="text-lg font-bold text-texto">Palpites</h1>
             <div className="ml-auto">
+              <SinoNotificacoes />
             </div>
           </div>
           {/* Seletor de campeonato */}
