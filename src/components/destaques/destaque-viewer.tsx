@@ -10,21 +10,20 @@ import { DestaqueProgressBar } from './destaque-progress-bar';
 interface DestaqueViewerProps {
   readonly destaques: DestaqueItem[];
   readonly grupoId: string;
-  readonly indiceInicial: number;
-  readonly onClose: () => void;
 }
 
-export function DestaqueViewer({
-  destaques,
-  grupoId,
-  indiceInicial,
-  onClose,
-}: DestaqueViewerProps) {
-  const [indiceAtual, setIndiceAtual] = useState(indiceInicial);
+export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
+  const [indiceAtual, setIndiceAtual] = useState(0);
   const [pausado, setPausado] = useState(false);
   const [progresso, setProgresso] = useState(0);
+  const [largura, setLargura] = useState(0);
+  const [acabou, setAcabou] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const inicioRef = useRef(0);
+  const acumuladoRef = useRef(0);
+  const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const segurouRef = useRef(false);
   const visualizadosRef = useRef<Set<string>>(new Set());
 
   const destaqueAtual = destaques[indiceAtual];
@@ -32,195 +31,156 @@ export function DestaqueViewer({
     ? DESTAQUE_CONFIG[destaqueAtual.tipo].timerSegundos * 1000
     : 5000;
 
-  const ehUltimo = indiceAtual >= destaques.length - 1;
-  const ehPrimeiro = indiceAtual <= 0;
+  const avancar = useCallback(() => {
+    setIndiceAtual((atual) => {
+      if (atual >= destaques.length - 1) {
+        setAcabou(true);
+        setProgresso(100);
+        return atual;
+      }
+      return atual + 1;
+    });
+  }, [destaques.length]);
 
-  // Registrar visualização
+  const voltar = useCallback(() => {
+    setAcabou(false);
+    setIndiceAtual((atual) => Math.max(0, atual - 1));
+  }, []);
+
   useEffect(() => {
-    if (destaqueAtual && !visualizadosRef.current.has(destaqueAtual.id)) {
-      visualizadosRef.current.add(destaqueAtual.id);
-    }
+    const el = frameRef.current;
+    if (!el) return;
+    const medir = () => setLargura(el.clientWidth);
+    medir();
+    const obs = new ResizeObserver(medir);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!destaqueAtual || visualizadosRef.current.has(destaqueAtual.id)) return;
+    const ids = destaqueAtual.idsAgrupados?.length
+      ? destaqueAtual.idsAgrupados
+      : [destaqueAtual.id];
+    for (const id of ids) visualizadosRef.current.add(id);
   }, [destaqueAtual]);
 
-  // Auto-advance timer
   useEffect(() => {
-    if (pausado || ehUltimo) return;
+    return () => {
+      const ids = Array.from(visualizadosRef.current);
+      if (ids.length > 0) {
+        void marcarVisualizados(grupoId, ids).catch(() => undefined);
+      }
+    };
+  }, [grupoId]);
 
+  useEffect(() => {
     setProgresso(0);
-    const inicio = Date.now();
-    timerRef.current = setInterval(() => {
-      const elapsed = Date.now() - inicio;
-      const pct = Math.min(elapsed / timerDuracao, 1);
-      setProgresso(pct);
+    setAcabou(false);
+    acumuladoRef.current = 0;
+    inicioRef.current = Date.now();
+  }, [indiceAtual]);
 
-      if (pct >= 1) {
+  useEffect(() => {
+    if (pausado || acabou || !destaqueAtual) return;
+    inicioRef.current = Date.now();
+    timerRef.current = setInterval(() => {
+      const decorrido = acumuladoRef.current + (Date.now() - inicioRef.current);
+      const pct = Math.min(100, (decorrido / timerDuracao) * 100);
+      setProgresso(pct);
+      if (decorrido >= timerDuracao) {
+        if (timerRef.current) clearInterval(timerRef.current);
         avancar();
       }
     }, 50);
-
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [indiceAtual, pausado, ehUltimo, timerDuracao]);
+  }, [pausado, acabou, destaqueAtual, timerDuracao, avancar, indiceAtual]);
 
-  const avancar = useCallback(() => {
-    if (ehUltimo) return;
-    setIndiceAtual((prev) => prev + 1);
-    setProgresso(0);
-  }, [ehUltimo]);
-
-  const voltar = useCallback(() => {
-    if (ehPrimeiro) return;
-    setIndiceAtual((prev) => prev - 1);
-    setProgresso(0);
-  }, [ehPrimeiro]);
-
-  const fechar = useCallback(() => {
-    // Batch de visualizações
-    const destaqueIds = Array.from(visualizadosRef.current);
-    if (destaqueIds.length > 0) {
-      marcarVisualizados(grupoId, destaqueIds).catch(() => {});
-    }
-    onClose();
-  }, [grupoId, onClose]);
-
-  // Touch handlers
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-  }
-
-  function handleTouchEnd(e: React.TouchEvent) {
-    if (!touchStartRef.current) return;
-    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-
-    // Swipe-down para fechar
-    if (deltaY > 100 && Math.abs(deltaX) < 50) {
-      fechar();
-      return;
-    }
-
-    // Swipe horizontal
-    if (Math.abs(deltaX) > 50) {
-      if (deltaX < 0) avancar();
-      else voltar();
-    }
-
-    touchStartRef.current = null;
-  }
-
-  // Tap navigation (metade esquerda/direita)
-  function handleTap(e: React.MouseEvent) {
-    const target = e.target as HTMLElement;
-    // Não ativar navegação em botões interativos
-    if (target.closest('[data-interactive]')) return;
-
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const metade = rect.width / 2;
-
-    if (x > metade) avancar();
-    else voltar();
-  }
-
-  // Long press para pausar
-  function handlePointerDown() {
+  function pausar() {
+    acumuladoRef.current += Date.now() - inicioRef.current;
     setPausado(true);
   }
 
-  function handlePointerUp() {
+  function retomar() {
+    inicioRef.current = Date.now();
     setPausado(false);
   }
 
-  if (!destaqueAtual) return null;
+  function aoPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const alvo = e.target as HTMLElement;
+    if (alvo.closest('[data-interactive]')) return;
+    touchStartRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+    segurouRef.current = false;
+    window.setTimeout(() => {
+      if (touchStartRef.current && Date.now() - touchStartRef.current.t >= 180) {
+        segurouRef.current = true;
+        pausar();
+      }
+    }, 180);
+  }
+
+  function aoPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    const inicio = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!inicio) return;
+    if (segurouRef.current) {
+      retomar();
+      return;
+    }
+    const dx = e.clientX - inicio.x;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) avancar();
+      else voltar();
+      return;
+    }
+    const metade = (frameRef.current?.clientWidth ?? 0) / 2;
+    const local = e.clientX - (frameRef.current?.getBoundingClientRect().left ?? 0);
+    if (local < metade) voltar();
+    else avancar();
+  }
+
+  if (destaques.length === 0) return null;
 
   return (
-    <dialog
-      open
-      className="fixed inset-0 z-50 bg-black w-full h-full m-0 p-0 border-0"
-      data-testid="destaque-viewer"
-      aria-label="Visualizador de destaques"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') fechar();
-        if (e.key === 'ArrowRight') avancar();
-        if (e.key === 'ArrowLeft') voltar();
-      }}
-    >
+    <div className="mx-auto w-[90%]" data-testid="destaque-viewer">
       <div
-        role="toolbar"
-        aria-label="Navegação de destaques"
-        tabIndex={-1}
-        className="flex flex-col w-full h-full"
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowRight') avancar();
-          if (e.key === 'ArrowLeft') voltar();
+        ref={frameRef}
+        className="relative mx-auto h-[46vh] max-h-[440px] min-h-[300px] w-full overflow-hidden rounded-2xl bg-black"
+        onPointerDown={aoPointerDown}
+        onPointerUp={aoPointerUp}
+        onPointerLeave={() => {
+          if (pausado) retomar();
+          touchStartRef.current = null;
         }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onClick={handleTap}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
       >
-      {/* Barra de progresso */}
-      <DestaqueProgressBar
-        total={destaques.length}
-        atual={indiceAtual}
-        progresso={progresso}
-      />
-
-      {/* Header: avatar + nome + tempo + fechar */}
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white">
-            {destaqueAtual.autor.nome.charAt(0).toUpperCase()}
-          </div>
-          <span className="text-white text-sm font-medium">
-            {destaqueAtual.autor.nome.split(' ')[0]}
-          </span>
-          <span className="text-gray-400 text-xs">
-            {formatarTempoRelativo(destaqueAtual.criadoEm)}
-          </span>
+        <div className="absolute inset-x-0 top-0 z-10 px-2 pt-1">
+          <DestaqueProgressBar
+            total={destaques.length}
+            atual={indiceAtual}
+            progresso={acabou ? 1 : progresso / 100}
+          />
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            fechar();
+        <div
+          className="flex h-full transition-transform duration-300 ease-out"
+          style={{
+            width: largura > 0 ? largura * destaques.length : '100%',
+            transform: largura > 0 ? `translate3d(${-indiceAtual * largura}px, 0, 0)` : undefined,
           }}
-          className="text-white text-2xl p-1"
-          data-interactive
-          aria-label="Fechar destaques"
         >
-          ✕
-        </button>
-      </div>
-
-      {/* Conteúdo do Destaque */}
-      <div className="flex-1 flex items-center justify-center px-4">
-        <DestaqueCard destaque={destaqueAtual} grupoId={grupoId} />
-      </div>
-
-      {/* Indicador de fim */}
-      {ehUltimo && progresso >= 1 && (
-        <div className="absolute bottom-8 left-0 right-0 text-center">
-          <p className="text-gray-400 text-sm">Fim dos destaques</p>
+          {destaques.map((item) => (
+            <div key={item.id} className="h-full shrink-0" style={{ width: largura || '100%' }}>
+              <DestaqueCard destaque={item} grupoId={grupoId} preencher />
+            </div>
+          ))}
         </div>
-      )}
+        {acabou && (
+          <div className="absolute inset-0 flex items-end justify-center bg-black/40 pb-8">
+            <p className="text-sm font-medium text-white">Fim dos destaques</p>
+          </div>
+        )}
       </div>
-    </dialog>
+    </div>
   );
-}
-
-function formatarTempoRelativo(criadoEm: string): string {
-  const diffMs = Date.now() - new Date(criadoEm).getTime();
-  const minutos = Math.floor(diffMs / 60000);
-  if (minutos < 60) return `há ${minutos}min`;
-  const horas = Math.floor(minutos / 60);
-  if (horas < 48) return `há ${horas}h`;
-  const dias = Math.floor(horas / 24);
-  return `há ${dias}d`;
 }

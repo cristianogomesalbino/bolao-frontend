@@ -1,61 +1,38 @@
+import apiClient from '@/lib/api-client';
 import type {
   DestaqueListagemResponse,
   MandarFResponse,
   VisualizarResponse,
 } from '@/types/destaques.types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
-
-async function fetchAutenticado<T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const response = await fetch(`${API_URL}${url}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const erro = await response.json().catch(() => ({}));
-    throw new Error(
-      (erro as { message?: string }).message ?? `Erro ${response.status}`,
-    );
-  }
-
-  return response.json() as Promise<T>;
-}
-
 export async function buscarDestaquesGrupo(
   grupoId: string,
+  rodada?: number,
 ): Promise<DestaqueListagemResponse> {
-  return fetchAutenticado<DestaqueListagemResponse>(
+  const response = await apiClient.get<DestaqueListagemResponse>(
     `/grupos/${grupoId}/destaques`,
+    { params: rodada ? { rodada } : undefined },
   );
+  return response.data;
 }
 
 export async function mandarF(
   grupoId: string,
   destaqueId: string,
 ): Promise<MandarFResponse> {
-  return fetchAutenticado<MandarFResponse>(
+  const response = await apiClient.post<MandarFResponse>(
     `/grupos/${grupoId}/destaques/${destaqueId}/mandar-f`,
-    { method: 'POST' },
   );
+  return response.data;
 }
 
 export async function marcarVisualizados(
   grupoId: string,
   destaqueIds: string[],
 ): Promise<VisualizarResponse> {
-  return fetchAutenticado<VisualizarResponse>(
+  const response = await apiClient.post<VisualizarResponse>(
     `/grupos/${grupoId}/destaques/visualizar`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ destaqueIds }),
-    },
+    { destaqueIds },
   );
+  return response.data;
 }

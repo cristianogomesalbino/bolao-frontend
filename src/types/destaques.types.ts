@@ -2,7 +2,6 @@ export type TipoDestaque =
   | 'ACERTOU_EM_CHEIO'
   | 'UNICO_NA_MOSCA'
   | 'SUBIU_RANKING'
-  | 'SEQUENCIA_MOSCA'
   | 'SEQUENCIA_RESULTADO'
   | 'NAO_PALPITOU'
   | 'DOBROU_E_ACERTOU';
@@ -25,10 +24,13 @@ export interface DestaqueItem {
   jaEnviouF: boolean;
   visualizado: boolean;
   autor: DestaqueAutor;
+  /** Preenchido na tela quando vários acertos da mesma pessoa viram um card. */
+  idsAgrupados?: string[];
 }
 
 export interface DestaqueListagemResponse {
   destaques: DestaqueItem[];
+  rodadasDisponiveis?: number[];
 }
 
 export interface MandarFResponse {
@@ -47,11 +49,16 @@ export interface TimeInfo {
   escudo: string | null;
 }
 
-export interface DadosAcertouEmCheio {
+export interface JogoPlacar {
+  jogoId?: string;
   golsCasa: number;
   golsFora: number;
   timeCasa: TimeInfo;
   timeFora: TimeInfo;
+}
+
+export interface DadosAcertouEmCheio extends JogoPlacar {
+  jogos?: JogoPlacar[];
 }
 
 export interface DadosUnicoNaMosca {
@@ -83,14 +90,9 @@ export interface JogoSequencia {
   acertou: boolean;
 }
 
-export interface DadosSequenciaMosca {
-  quantidadeAcertos: number;
-  ultimosJogos: Array<JogoSequencia & { acertouEmCheio: boolean }>;
-  recorde: RecordeInfo;
-}
-
 export interface DadosSequenciaResultado {
   quantidadeAcertos: number;
+  pontos?: number;
   rodadaInicio: number | null;
   rodadaFim: number | null;
   ultimosJogos: JogoSequencia[];
@@ -127,7 +129,6 @@ export const DESTAQUE_CONFIG: Record<
   ACERTOU_EM_CHEIO: { emoji: '🎯', cor: '#22C55E', timerSegundos: 5 },
   UNICO_NA_MOSCA: { emoji: '🦄', cor: '#8B5CF6', timerSegundos: 6 },
   SUBIU_RANKING: { emoji: '📈', cor: '#3B82F6', timerSegundos: 8 },
-  SEQUENCIA_MOSCA: { emoji: '🔥', cor: '#F97316', timerSegundos: 7 },
   SEQUENCIA_RESULTADO: { emoji: '🔥', cor: '#F97316', timerSegundos: 7 },
   NAO_PALPITOU: { emoji: '😴', cor: '#6B7280', timerSegundos: 5 },
   DOBROU_E_ACERTOU: { emoji: '💎', cor: '#F59E0B', timerSegundos: 6 },

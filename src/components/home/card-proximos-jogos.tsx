@@ -151,7 +151,6 @@ export function CardProximosJogos({
           <EscudoTime time={jogoDestaque.jogo.timeFora} label="Fora" />
         </div>
 
-        {/* Footer */}
         <FooterCard
           grupoId={grupoId}
           temaCopa={temaCopa}
@@ -159,7 +158,6 @@ export function CardProximosJogos({
           onTogglePalpites={() => setPalpitesExpandido(!palpitesExpandido)}
         />
 
-        {/* Palpites do grupo expandidos */}
         {palpitesExpandido && (
           <div className="mt-2 pt-2 border-t border-white/[0.05]">
             <PalpitesGrupoExpandido

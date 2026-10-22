@@ -16,7 +16,7 @@ export function DestaqueProgressBar({
   progresso,
 }: DestaqueProgressBarProps) {
   return (
-    <div className="flex gap-1 px-3 pt-3" data-testid="destaque-progress-bar">
+    <div className="flex gap-1 px-2" data-testid="destaque-progress-bar">
       {Array.from({ length: total }, (_, i) => {
         const largura = calcularLargura(i, atual, progresso);
         return (

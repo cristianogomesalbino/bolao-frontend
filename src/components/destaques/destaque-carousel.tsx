@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { buscarDestaquesGrupo } from '@/services/destaques.service';
-import { DESTAQUE_CONFIG } from '@/types/destaques.types';
-import type { DestaqueItem } from '@/types/destaques.types';
+import type { DestaqueItem, DadosNaoPalpitou, JogoEsquecido, JogoPlacar } from '@/types/destaques.types';
 import { DestaqueViewer } from './destaque-viewer';
 
 interface DestaqueCarouselProps {
@@ -12,125 +11,155 @@ interface DestaqueCarouselProps {
   readonly mostrarAvisoGrupoFavorito?: boolean;
 }
 
-interface MembroComDestaques {
-  usuarioId: string;
-  nome: string;
-  avatar: string | null;
-  destaqueMaisRecente: DestaqueItem;
-  temNaoVisualizado: boolean;
-}
-
 export function DestaqueCarousel({
   grupoId,
   grupoNome,
   mostrarAvisoGrupoFavorito = false,
 }: DestaqueCarouselProps) {
   const [destaques, setDestaques] = useState<DestaqueItem[]>([]);
-  const [membros, setMembros] = useState<MembroComDestaques[]>([]);
+  const [rodadas, setRodadas] = useState<number[]>([]);
+  const [rodadaSelecionada, setRodadaSelecionada] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [viewerAberto, setViewerAberto] = useState(false);
-  const [destaqueInicial, setDestaqueInicial] = useState(0);
 
   useEffect(() => {
-    buscarDestaquesGrupo(grupoId)
+    setCarregando(true);
+    buscarDestaquesGrupo(grupoId, rodadaSelecionada ?? undefined)
       .then((res) => {
-        setDestaques(res.destaques);
-        setMembros(extrairMembros(res.destaques));
+        setDestaques(agruparEsquecidos(agruparAcertosEmCheio(res.destaques)));
+        setRodadas(res.rodadasDisponiveis ?? []);
       })
       .catch(() => setDestaques([]))
       .finally(() => setCarregando(false));
-  }, [grupoId]);
+  }, [grupoId, rodadaSelecionada]);
 
-  if (carregando || destaques.length === 0) return null;
-
-  function abrirViewer(usuarioId: string) {
-    const indice = destaques.findIndex(
-      (s) => s.autor.usuarioId === usuarioId && !s.visualizado,
-    );
-    setDestaqueInicial(Math.max(indice, 0));
-    setViewerAberto(true);
-  }
+  if (!carregando && destaques.length === 0 && rodadas.length === 0) return null;
 
   return (
-    <>
-      <div data-testid="destaque-carousel" className="px-4 py-2">
-        {mostrarAvisoGrupoFavorito && grupoNome && (
-          <p className="text-xs text-gray-400 mb-1">
-            Grupo favorito: {grupoNome}. Para ver outros, acesse o grupo
-            desejado.
-          </p>
-        )}
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
-          {membros.map((membro) => (
-            <button
-              type="button"
-              key={membro.usuarioId}
-              onClick={() => abrirViewer(membro.usuarioId)}
-              className="flex flex-col items-center gap-1 shrink-0"
-              data-testid={`destaque-avatar-${membro.usuarioId}`}
-            >
-              <div
-                className={`relative w-14 h-14 rounded-full ${
-                  membro.temNaoVisualizado
-                    ? 'ring-2 ring-offset-2 ring-offset-gray-900'
-                    : 'ring-2 ring-gray-600 opacity-60'
-                }`}
-                style={
-                  membro.temNaoVisualizado
-                    ? { '--tw-ring-color': DESTAQUE_CONFIG[membro.destaqueMaisRecente.tipo].cor } as React.CSSProperties
-                    : undefined
-                }
-              >
-                <div className="w-full h-full rounded-full bg-gray-700 flex items-center justify-center text-lg font-bold text-white">
-                  {membro.nome.charAt(0).toUpperCase()}
-                </div>
-                <span className="absolute -bottom-1 -right-1 text-sm">
-                  {DESTAQUE_CONFIG[membro.destaqueMaisRecente.tipo].emoji}
-                </span>
-              </div>
-              <span className="text-[10px] text-gray-300 max-w-[56px] truncate">
-                {membro.nome.split(' ')[0]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {viewerAberto && (
-        <DestaqueViewer
-          destaques={destaques}
-          grupoId={grupoId}
-          indiceInicial={destaqueInicial}
-          onClose={() => setViewerAberto(false)}
-        />
+    <div data-testid="destaque-carousel" className="px-4 py-2">
+      {mostrarAvisoGrupoFavorito && grupoNome && (
+        <p className="mb-1 text-xs text-gray-400">
+          Grupo favorito: {grupoNome}. Para ver outros, acesse o grupo desejado.
+        </p>
       )}
-    </>
+      {rodadas.length > 0 && (
+        <label className="mb-2 flex items-center gap-2 text-xs text-texto/60">
+          Rodada temporária
+          <select
+            className="rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-texto"
+            value={rodadaSelecionada ?? ''}
+            onChange={(e) => {
+              const valor = e.target.value;
+              setRodadaSelecionada(valor ? Number(valor) : null);
+            }}
+          >
+            <option value="">Atual</option>
+            {rodadas.map((rodada) => (
+              <option key={rodada} value={rodada}>
+                Rodada {rodada}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {carregando ? (
+        <div className="mx-auto h-[46vh] max-h-[440px] min-h-[300px] w-[90%] animate-pulse rounded-2xl bg-white/5" />
+      ) : (
+        destaques.length > 0 && (
+          <DestaqueViewer
+            key={rodadaSelecionada ?? 'atual'}
+            destaques={destaques}
+            grupoId={grupoId}
+          />
+        )
+      )}
+    </div>
   );
 }
 
-function extrairMembros(destaques: DestaqueItem[]): MembroComDestaques[] {
-  const membroMap = new Map<string, MembroComDestaques>();
+function chavePessoaRodada(item: DestaqueItem): string {
+  return `${item.autor.usuarioId}:${item.rodada ?? 'sem-rodada'}`;
+}
 
-  for (const destaque of destaques) {
-    const existente = membroMap.get(destaque.autor.usuarioId);
-    if (!existente) {
-      membroMap.set(destaque.autor.usuarioId, {
-        usuarioId: destaque.autor.usuarioId,
-        nome: destaque.autor.nome,
-        avatar: destaque.autor.avatar,
-        destaqueMaisRecente: destaque,
-        temNaoVisualizado: !destaque.visualizado,
-      });
-    } else if (!destaque.visualizado) {
-      existente.temNaoVisualizado = true;
+function agruparAcertosEmCheio(destaques: DestaqueItem[]): DestaqueItem[] {
+  const jaAgrupados = new Set<string>();
+  const resultado: DestaqueItem[] = [];
+
+  for (const item of destaques) {
+    const chave = chavePessoaRodada(item);
+    if (item.tipo !== 'ACERTOU_EM_CHEIO') {
+      resultado.push(item);
+      continue;
     }
+    if (jaAgrupados.has(chave)) continue;
+    jaAgrupados.add(chave);
+
+    const acertos = destaques.filter(
+      (outro) => outro.tipo === 'ACERTOU_EM_CHEIO' && chavePessoaRodada(outro) === chave,
+    );
+    const jogos: JogoPlacar[] = acertos.map((acerto) => {
+      const dados = acerto.dados as unknown as JogoPlacar;
+      return {
+        jogoId: acerto.jogoId,
+        golsCasa: dados.golsCasa,
+        golsFora: dados.golsFora,
+        timeCasa: dados.timeCasa,
+        timeFora: dados.timeFora,
+      };
+    });
+
+    resultado.push({
+      ...item,
+      idsAgrupados: acertos.map((outro) => outro.id),
+      dados: {
+        ...(item.dados as unknown as JogoPlacar),
+        ...(jogos.length > 1 ? { jogos } : {}),
+      },
+    });
   }
 
-  // Ordenar: não-vistos primeiro, depois por data
-  return Array.from(membroMap.values()).sort((a, b) => {
-    if (a.temNaoVisualizado !== b.temNaoVisualizado) {
-      return a.temNaoVisualizado ? -1 : 1;
+  return resultado;
+}
+
+function agruparEsquecidos(destaques: DestaqueItem[]): DestaqueItem[] {
+  const jaAgrupados = new Set<string>();
+  const resultado: DestaqueItem[] = [];
+
+  for (const item of destaques) {
+    if (item.tipo !== 'NAO_PALPITOU') {
+      resultado.push(item);
+      continue;
     }
-    return 0;
-  });
+    const chave = chavePessoaRodada(item);
+    if (jaAgrupados.has(chave)) continue;
+    jaAgrupados.add(chave);
+
+    const esquecidos = destaques.filter(
+      (outro) => outro.tipo === 'NAO_PALPITOU' && chavePessoaRodada(outro) === chave,
+    );
+    const vistos = new Set<string>();
+    const jogosEsquecidos: JogoEsquecido[] = [];
+    for (const outro of esquecidos) {
+      const dados = outro.dados as unknown as DadosNaoPalpitou;
+      for (const jogo of dados.jogosEsquecidos ?? []) {
+        if (vistos.has(jogo.jogoId)) continue;
+        vistos.add(jogo.jogoId);
+        jogosEsquecidos.push(jogo);
+      }
+    }
+
+    const base = item.dados as unknown as DadosNaoPalpitou;
+    resultado.push({
+      ...item,
+      idsAgrupados: esquecidos.map((outro) => outro.id),
+      jaEnviouF: esquecidos.some((outro) => outro.jaEnviouF),
+      contadorFs: Math.max(...esquecidos.map((outro) => outro.contadorFs)),
+      dados: {
+        ...base,
+        jogosEsquecidos,
+        totalJogosRodada: Math.max(base.totalJogosRodada ?? 0, jogosEsquecidos.length),
+      },
+    });
+  }
+
+  return resultado;
 }
