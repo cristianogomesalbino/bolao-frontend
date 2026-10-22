@@ -1,0 +1,12 @@
+---
+description: data-testid para Playwright E2E
+globs: src/**/*.tsx
+alwaysApply: false
+---
+
+# Testabilidade (E2E)
+
+- Todo elemento interativo / info relevante: `data-testid`.
+- Formato: `[contexto]-[elemento]-[variante?]` em kebab-case.
+- Exemplos: `login-form`, `login-input-email`, `home-card-proximo-jogo`, `nav-btn-home`, `grupo-item-${id}`, `alert-erro`.
+- Nunca localizar por classe CSS ou id no Playwright.

@@ -1,0 +1,12 @@
+---
+description: Checklist rápido antes de declarar pronto no frontend
+alwaysApply: true
+---
+
+# Qualidade da entrega (frontend)
+
+1. Tipagem sem `any` novo; lints/Prettier ok nos arquivos tocados.
+2. Services usam `apiClient`; forms com Zod; erros em PT-BR.
+3. `data-testid` em UI nova interativa.
+4. Rodar testes afetados (`npm test` / Vitest).
+5. Atualizar visão geral/README se mudou fluxo ou pasta relevante.

@@ -8,16 +8,14 @@ import {
   Lock, Globe
 } from 'lucide-react';
 import { buscarGrupo, sairDoGrupo } from '@/services/grupo.service';
-import { buscarDadosTemporada } from '@/services/jogo.service';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { ModalConfirmacao } from '@/components/ui/modal-confirmacao';
 import { AbaDashboardCopa } from '@/components/copa-do-mundo/aba-dashboard-copa';
-import { CardProximosJogos } from '@/components/home/card-proximos-jogos';
 import { AbaClassificacaoCopa } from '@/components/copa-do-mundo/aba-classificacao-copa';
 import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpites-copa';
 import { SecaoPalpitesGrupo } from '@/components/grupo/secao-palpites-grupo';
 import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
+import { DestaqueCarousel } from '@/components/destaques/destaque-carousel';
 
 type AbaCopa = 'dashboard' | 'classificacao' | 'palpites';
 
@@ -39,16 +37,6 @@ export default function DetalhesGrupoPage() {
   });
 
   const ehCopa = grupo?.temporada?.campeonato?.nome?.toLowerCase().includes('copa');
-
-  const { data: dadosTemporada, isLoading: carregandoTemporada } = useQuery({
-    queryKey: ['grupo', grupoId, 'dados-temporada'],
-    queryFn: () => buscarDadosTemporada(grupo!.temporadaId),
-    enabled: !!grupo?.temporadaId && !ehCopa,
-    staleTime: 1000 * 30,
-    refetchOnWindowFocus: true,
-  });
-
-  const proximoJogo = dadosTemporada?.proximoJogo ?? undefined;
 
   async function aoSair() {
     setProcessando(true);
@@ -163,6 +151,8 @@ export default function DetalhesGrupoPage() {
             Meus grupos
           </button>
         </div>
+        {/* Destaques (carrossel tipo stories) */}
+        <DestaqueCarousel grupoId={grupoId} grupoNome={grupo.nome} />
         {/* ═══════════════════════════════════════════════════════ */}
         {/* MODO COPA DO MUNDO — 3 Abas                           */}
         {/* ═══════════════════════════════════════════════════════ */}
@@ -226,26 +216,6 @@ export default function DetalhesGrupoPage() {
             {/* Alerta de jogos atrasados */}
             <AlertaJogosAtrasados temporadaId={grupo.temporadaId} grupoId={grupoId} />
 
-            {/* Próximo Jogo */}
-            {proximoJogo && (
-              <CardProximosJogos
-                jogos={dadosTemporada?.proximosJogos && dadosTemporada.proximosJogos.length > 0
-                  ? dadosTemporada.proximosJogos
-                  : [proximoJogo]}
-                grupoId={grupoId}
-                temaCopa={false}
-              />
-            )}
-
-            {!proximoJogo && !carregandoGrupo && !carregandoTemporada && (
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <p className="text-[11px] text-texto/30">Nenhum jogo agendado no momento</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Palpites do grupo — expandível */}
             <SecaoPalpitesGrupo grupoId={grupoId} temporadaId={grupo.temporadaId} />
 
           </>
