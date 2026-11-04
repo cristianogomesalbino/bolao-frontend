@@ -7,7 +7,87 @@ interface PushData {
   title?: string;
   body?: string;
   type?: string;
+  dedupeId?: string;
   url?: string;
+}
+
+const DB_NAME = 'bolao-push';
+const DB_VERSION = 1;
+const DISMISSED_STORE = 'dismissed';
+const DISMISSED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
+function abrirBancoDismissed(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(DISMISSED_STORE, { keyPath: 'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () =>
+      reject(new Error('A abertura do banco de notificações foi bloqueada'));
+  });
+}
+
+async function notificacaoFoiDispensada(id: string): Promise<boolean> {
+  const db = await abrirBancoDismissed();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(DISMISSED_STORE, 'readonly');
+    const request = transaction.objectStore(DISMISSED_STORE).get(id);
+    let dispensada = false;
+
+    request.onsuccess = () => {
+      const registro = request.result as { expiresAt: number } | undefined;
+      dispensada = registro !== undefined && registro.expiresAt > Date.now();
+    };
+    transaction.oncomplete = () => {
+      db.close();
+      resolve(dispensada);
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error);
+    };
+  });
+}
+
+async function registrarNotificacaoDispensada(id: string): Promise<void> {
+  const db = await abrirBancoDismissed();
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(DISMISSED_STORE, 'readwrite');
+    const store = transaction.objectStore(DISMISSED_STORE);
+    const agora = Date.now();
+
+    store.put({ id, expiresAt: agora + DISMISSED_RETENTION_MS });
+    const cursorRequest = store.openCursor();
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor) return;
+      if ((cursor.value as { expiresAt: number }).expiresAt <= agora) {
+        cursor.delete();
+      }
+      cursor.continue();
+    };
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error);
+    };
+  });
 }
 
 // Ativa o SW novo imediatamente (sem esperar fechar o app)
@@ -51,15 +131,38 @@ sw.addEventListener('push', (event: PushEvent) => {
   const title = data.title ?? 'Bolão';
   const body = data.body ?? 'Nova notificação';
 
+  const tag = data.dedupeId ? `push-${data.dedupeId}` : `${data.type ?? 'default'}-${Date.now()}`;
   const options: NotificationOptions = {
     body,
     icon: '/logo-bolao.png',
     badge: '/logo-bolao.png',
-    tag: `${data.type ?? 'default'}-${Date.now()}`,
-    data: { url: data.url ?? '/' },
+    tag,
+    data: { url: data.url ?? '/', dedupeId: data.dedupeId },
   };
 
-  event.waitUntil(sw.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      if (data.dedupeId) {
+        try {
+          if (await notificacaoFoiDispensada(tag)) return;
+        } catch (error) {
+          console.error('[Push] Não foi possível consultar notificações dispensadas:', error);
+        }
+      }
+
+      await sw.registration.showNotification(title, options);
+    })(),
+  );
+});
+
+sw.addEventListener('notificationclose', (event: NotificationEvent) => {
+  if (!event.notification.tag.startsWith('push-')) return;
+
+  event.waitUntil(
+    registrarNotificacaoDispensada(event.notification.tag).catch((error: unknown) => {
+      console.error('[Push] Não foi possível salvar a notificação dispensada:', error);
+    }),
+  );
 });
 
 // Click handler — opens the app at the relevant URL (cross-browser safe)
