@@ -16,6 +16,15 @@ const DB_VERSION = 1;
 const DISMISSED_STORE = 'dismissed';
 const DISMISSED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
+/** Instância visível atual por tag — evita gravar dispensa no close por substituição. */
+const instanciaAtual = new Map<string, string>();
+
+function marcarInstanciaExibida(tag: string): string {
+  const instanciaId = crypto.randomUUID();
+  instanciaAtual.set(tag, instanciaId);
+  return instanciaId;
+}
+
 function abrirBancoDismissed(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -131,14 +140,9 @@ sw.addEventListener('push', (event: PushEvent) => {
   const title = data.title ?? 'Bolão';
   const body = data.body ?? 'Nova notificação';
 
-  const tag = data.dedupeId ? `push-${data.dedupeId}` : `${data.type ?? 'default'}-${Date.now()}`;
-  const options: NotificationOptions = {
-    body,
-    icon: '/logo-bolao.png',
-    badge: '/logo-bolao.png',
-    tag,
-    data: { url: data.url ?? '/', dedupeId: data.dedupeId },
-  };
+  const tag = data.dedupeId
+    ? `push-${data.dedupeId}`
+    : `${data.type ?? 'default'}-${Date.now()}`;
 
   event.waitUntil(
     (async () => {
@@ -146,9 +150,21 @@ sw.addEventListener('push', (event: PushEvent) => {
         try {
           if (await notificacaoFoiDispensada(tag)) return;
         } catch (error) {
-          console.error('[Push] Não foi possível consultar notificações dispensadas:', error);
+          console.error(
+            '[Push] Não foi possível consultar notificações dispensadas:',
+            error,
+          );
         }
       }
+
+      const instanciaId = marcarInstanciaExibida(tag);
+      const options: NotificationOptions = {
+        body,
+        icon: '/logo-bolao.png',
+        badge: '/logo-bolao.png',
+        tag,
+        data: { url: data.url ?? '/', dedupeId: data.dedupeId, instanciaId },
+      };
 
       await sw.registration.showNotification(title, options);
     })(),
@@ -156,11 +172,18 @@ sw.addEventListener('push', (event: PushEvent) => {
 });
 
 sw.addEventListener('notificationclose', (event: NotificationEvent) => {
-  if (!event.notification.tag.startsWith('push-')) return;
+  const tag = event.notification.tag;
+  if (!tag.startsWith('push-')) return;
+
+  const dados = event.notification.data as { instanciaId?: string } | undefined;
+  if (instanciaAtual.get(tag) !== dados?.instanciaId) return;
 
   event.waitUntil(
-    registrarNotificacaoDispensada(event.notification.tag).catch((error: unknown) => {
-      console.error('[Push] Não foi possível salvar a notificação dispensada:', error);
+    registrarNotificacaoDispensada(tag).catch((error: unknown) => {
+      console.error(
+        '[Push] Não foi possível salvar a notificação dispensada:',
+        error,
+      );
     }),
   );
 });
@@ -180,7 +203,9 @@ sw.addEventListener('notificationclick', (event: NotificationEvent) => {
         for (const client of clientList) {
           if (client.url.startsWith(sw.location.origin) && 'focus' in client) {
             // Navega para a URL da notificação e depois foca
-            return client.navigate(fullUrl).then((c: WindowClient | null) => c?.focus());
+            return client
+              .navigate(fullUrl)
+              .then((c: WindowClient | null) => c?.focus());
           }
         }
         // Nenhuma janela aberta — abre nova

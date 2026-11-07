@@ -1,4 +1,24 @@
-import { CAMPEONATOS } from '@/types/jogo.types';
+import { CAMPEONATOS, StatusJogo } from '@/types/jogo.types';
+
+export function jogoEstaAoVivo(
+  status: StatusJogo | string,
+  dataHora: string | null,
+): boolean {
+  if (status !== 'EM_ANDAMENTO' || !dataHora) return false;
+
+  const inicio = new Date(dataHora).getTime();
+  return Number.isFinite(inicio) && inicio <= Date.now();
+}
+
+export function obterStatusAtualJogo(
+  status: StatusJogo,
+  dataHora: string | null,
+): StatusJogo {
+  if (status !== 'EM_ANDAMENTO' || !dataHora) return status;
+  const inicio = new Date(dataHora).getTime();
+  if (!Number.isFinite(inicio)) return status;
+  return inicio <= Date.now() ? status : 'AGENDADO';
+}
 
 /**
  * Calcula countdown até o fechamento de palpites (1 minuto antes do jogo).

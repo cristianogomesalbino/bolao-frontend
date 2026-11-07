@@ -41,6 +41,7 @@ function iconeNotificacao(tipo: string): string {
     DESCEU_POSICAO: '📉',
     PALPITES_PENDENTES: '📝',
     JOGO_LIBERADO: '🆕',
+    VENCEDOR_BOLAO: '🏆',
   };
   return icones[tipo] ?? '🔔';
 }
@@ -51,7 +52,7 @@ export default function NotificacoesPage() {
   const [offset, setOffset] = useState(0);
   const [filtro, setFiltro] = useState<StatusNotificacao | undefined>(undefined);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['notificacoes', 'lista', offset, filtro],
     queryFn: () => listarNotificacoes(LIMITE, offset, filtro),
     staleTime: 10 * 1000,
@@ -145,14 +146,32 @@ export default function NotificacoesPage() {
           </div>
         )}
 
-        {!isLoading && notificacoes.length === 0 && (
+        {!isLoading && isError && (
+          <div className="flex flex-col items-center justify-center py-16 text-texto/40 gap-3">
+            <Bell size={48} strokeWidth={1} />
+            <p className="text-sm text-center px-4">
+              {(error as { mensagem?: string })?.mensagem
+                ?? 'Não foi possível carregar as notificações.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="px-4 py-2 rounded-lg bg-primaria/20 text-primaria text-sm"
+              data-testid="btn-retry-notificacoes"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !isError && notificacoes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-texto/40">
             <Bell size={48} strokeWidth={1} />
             <p className="mt-3 text-sm">Nenhuma notificação</p>
           </div>
         )}
 
-        {!isLoading && notificacoes.length > 0 && (
+        {!isLoading && !isError && notificacoes.length > 0 && (
           <div className="space-y-2">
             {notificacoes.map((n) => (
               <NotificacaoCard
