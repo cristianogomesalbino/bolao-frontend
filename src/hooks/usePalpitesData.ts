@@ -5,9 +5,9 @@ import { buscarMeusPalpitesPorJogos, listarMeusPalpites } from '@/services/palpi
 import { useAuthStore } from '@/stores/auth.store';
 import { Jogo } from '@/types/jogo.types';
 import { Palpite, PalpiteComJogo } from '@/types/palpite.types';
-import { ehCampeonatoCopa } from '@/lib/jogo-helpers';
+import { ehCampeonatoCopa, obterStatusAtualJogo } from '@/lib/jogo-helpers';
 
-/** Verifica se o jogo aceita palpites (status correto e hora não passou) */
+/** Verifica se o jogo aceita palpites (status persistido e hora não passou) */
 export function podePalpitar(jogo: Jogo): boolean {
   if (jogo.status !== 'AGENDADO' && jogo.status !== 'ADIADO') return false;
   if (jogo.dataHora && new Date(jogo.dataHora).getTime() <= Date.now()) return false;
@@ -129,7 +129,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     staleTime: 5 * 60_000,
     refetchInterval: (query) => {
       const jogos = query.state.data?.jogos ?? [];
-      const temAoVivo = jogos.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
+      const temAoVivo = jogos.some((j: Jogo) => obterStatusAtualJogo(j.status, j.dataHora) === 'EM_ANDAMENTO');
       return temAoVivo ? 60_000 : false;
     },
   });
@@ -153,7 +153,7 @@ export function usePalpitesData(abaAtiva: 'todos' | 'meus', campeonatoSelecionad
     staleTime: 5 * 60_000,
     refetchInterval: (query) => {
       const jogos = query.state.data?.jogos ?? [];
-      const temAoVivo = jogos.some((j: Jogo) => j.status === 'EM_ANDAMENTO');
+      const temAoVivo = jogos.some((j: Jogo) => obterStatusAtualJogo(j.status, j.dataHora) === 'EM_ANDAMENTO');
       return temAoVivo ? 60_000 : false;
     },
   });
