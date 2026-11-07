@@ -7,7 +7,7 @@ on:
 
 jobs:
   tag:
-    name: Create version tag
+    name: Create version tag from merge
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -16,24 +16,44 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get version from package.json
-        id: pkg
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Check if tag already exists
-        id: check
+      - name: Create incremental version tag
         run: |
-          if git rev-parse "v${{ steps.pkg.outputs.version }}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          subject="$(git log -1 --format=%s)"
+          case "$subject" in
+            "Merge pull request "*)
+              ;;
+            *)
+              echo "Este push não é o merge de um pull request. Nenhuma tag criada."
+              exit 0
+              ;;
+          esac
+
+          if git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+            echo "Este commit já tem tag."
+            exit 0
           fi
 
-      - name: Create tag
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ steps.pkg.outputs.version }}" -m "Release v${{ steps.pkg.outputs.version }}"
-          git push origin "v${{ steps.pkg.outputs.version }}"
+          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+          latest="${latest#v}"
+          if [ -z "$latest" ]; then
+            latest="$(node -p "require('./package.json').version")"
+          fi
+
+          major="${latest%%.*}"
+          rest="${latest#*.}"
+          minor="${rest%%.*}"
+          patch="${rest#*.}"
+          tag="v${major}.${minor}.$((patch + 1))"
+
+          if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+            echo "Tag ${tag} já existe"
+            exit 0
+          fi
+
+          git tag "$tag"
+          git push origin "$tag"
+          echo "Tag ${tag} criada."
