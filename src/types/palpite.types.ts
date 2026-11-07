@@ -1,3 +1,5 @@
+import type { StatusJogo } from '@/types/jogo.types';
+
 export interface Palpite {
   id: string;
   golsCasa: number;
@@ -23,7 +25,7 @@ export interface PalpiteComJogo extends Palpite {
     id: string;
     faseId?: string;
     rodada: number | null;
-    status: string;
+    status: StatusJogo;
     dataHora: string | null;
     golsCasa: number | null;
     golsFora: number | null;

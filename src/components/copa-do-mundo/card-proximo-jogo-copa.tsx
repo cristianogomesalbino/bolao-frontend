@@ -11,6 +11,7 @@ import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membr
 import { Jogo, Fase } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
 import { usePalpiteCard } from '@/hooks/usePalpiteCard';
+import { obterStatusAtualJogo } from '@/lib/jogo-helpers';
 
 interface PropsCardProximoJogoCopa {
   jogo: Jogo;
@@ -62,7 +63,8 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
     staleTime: 1000 * 30,
   });
 
-  const jogoIniciouOuFinalizou = jogo.status === 'EM_ANDAMENTO' || jogo.status === 'FINALIZADO';
+  const statusJogo = obterStatusAtualJogo(jogo.status, jogo.dataHora);
+  const jogoIniciouOuFinalizou = statusJogo === 'EM_ANDAMENTO' || statusJogo === 'FINALIZADO';
   const { data: detalhamento, isLoading: carregandoDetalhamento } = useQuery({
     queryKey: ['detalhamento-jogo', grupoId, jogo.id],
     queryFn: () => buscarDetalhamentoJogo(grupoId ?? '', jogo.id),
@@ -215,7 +217,7 @@ export function CardProximoJogoCopa({ jogo, fase, palpiteInicial, grupoId }: Rea
           <div className="mt-2 pt-2 border-t border-[#009c3b]/20">
             <ListaPalpitesMembros
               detalhamento={detalhamento}
-              statusJogo={jogo.status}
+              statusJogo={statusJogo}
               temaCopa
             />
           </div>

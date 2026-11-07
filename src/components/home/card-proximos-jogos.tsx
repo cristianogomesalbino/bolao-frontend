@@ -10,7 +10,7 @@ import { Fase, Jogo } from '@/types/jogo.types';
 import { buscarDetalhamentoJogo, buscarMeusPalpitesPorJogos } from '@/services/palpite.service';
 import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
 import { usePalpiteCard } from '@/hooks/usePalpiteCard';
-import { calcularCountdown, calcularTempoJogo } from '@/lib/jogo-helpers';
+import { calcularCountdown, calcularTempoJogo, jogoEstaAoVivo, obterStatusAtualJogo } from '@/lib/jogo-helpers';
 import { podePalpitar } from '@/hooks/usePalpitesData';
 
 interface PropsCardProximosJogos {
@@ -58,7 +58,10 @@ export function CardProximosJogos({
   const jogoDestaque = jogos[0];
   const jogosSimultaneos = jogos.slice(1);
   const dataHora = jogoDestaque.jogo.dataHora;
-  const aoVivo = jogoDestaque.jogo.status === 'EM_ANDAMENTO';
+  const aoVivo = jogoEstaAoVivo(jogoDestaque.jogo.status, dataHora);
+  const statusJogoDestaque = obterStatusAtualJogo(jogoDestaque.jogo.status, dataHora);
+  const detalhamentoHabilitado =
+    statusJogoDestaque === 'EM_ANDAMENTO' || statusJogoDestaque === 'FINALIZADO';
 
   const [countdown, setCountdown] = useState(calcularCountdown(dataHora));
   const [tempoJogo, setTempoJogo] = useState(aoVivo ? calcularTempoJogo(dataHora) : '');
@@ -94,11 +97,11 @@ export function CardProximosJogos({
     return () => clearInterval(id);
   }, [dataHora, aoVivo]);
 
-  // Palpites do grupo (lazy)
+  // Palpites do grupo (lazy) — só busca quando o status efetivo já revela placar
   const { data: detalhamento, isLoading: carregandoDetalhamento } = useQuery({
     queryKey: ['detalhamento-home', grupoId, jogoDestaque.jogo.id],
     queryFn: () => buscarDetalhamentoJogo(grupoId ?? '', jogoDestaque.jogo.id),
-    enabled: !!grupoId && palpitesExpandido,
+    enabled: !!grupoId && palpitesExpandido && detalhamentoHabilitado,
     staleTime: 60_000,
   });
 
@@ -165,7 +168,7 @@ export function CardProximosJogos({
             <PalpitesGrupoExpandido
               carregando={carregandoDetalhamento}
               detalhamento={detalhamento}
-              statusJogo={jogoDestaque.jogo.status}
+              statusJogo={statusJogoDestaque}
               temaCopa={temaCopa}
             />
           </div>
@@ -429,13 +432,16 @@ interface PropsJogoSimultaneo {
 
 function JogoSimultaneo({ jogo, grupoId, temaCopa, corCountdown, meuPalpite }: Readonly<PropsJogoSimultaneo>) {
   const [expandido, setExpandido] = useState(false);
-  const aoVivo = jogo.status === 'EM_ANDAMENTO';
+  const aoVivo = jogoEstaAoVivo(jogo.status, jogo.dataHora);
+  const statusJogo = obterStatusAtualJogo(jogo.status, jogo.dataHora);
+  const detalhamentoHabilitado =
+    statusJogo === 'EM_ANDAMENTO' || statusJogo === 'FINALIZADO';
   const corTexto = temaCopa ? 'text-[#ffdf00]/80' : 'text-texto/70';
 
   const { data: detalhamento, isLoading: carregando } = useQuery({
     queryKey: ['detalhamento-home', grupoId, jogo.id],
     queryFn: () => buscarDetalhamentoJogo(grupoId ?? '', jogo.id),
-    enabled: !!grupoId && expandido,
+    enabled: !!grupoId && expandido && detalhamentoHabilitado,
     staleTime: 60_000,
   });
 
@@ -486,7 +492,7 @@ function JogoSimultaneo({ jogo, grupoId, temaCopa, corCountdown, meuPalpite }: R
           <PalpitesGrupoExpandido
             carregando={carregando}
             detalhamento={detalhamento}
-            statusJogo={jogo.status}
+            statusJogo={statusJogo}
             temaCopa={temaCopa}
           />
         </div>

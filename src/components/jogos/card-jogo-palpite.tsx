@@ -8,7 +8,7 @@ import { buscarEstatisticasPalpite, buscarDetalhamentoJogo, EstatisticasPalpite 
 import { calcularPontos } from '@/lib/pontuacao';
 import { formatarPontuacao } from '@/lib/pontuacao-formatada';
 import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
-import { calcularTempoJogo } from '@/lib/jogo-helpers';
+import { calcularTempoJogo, jogoEstaAoVivo, obterStatusAtualJogo } from '@/lib/jogo-helpers';
 import { Card, CardContent } from '@/components/ui/card';
 import { Jogo } from '@/types/jogo.types';
 import { Palpite } from '@/types/palpite.types';
@@ -135,7 +135,7 @@ function CentroCard({
 }: Readonly<PropsCentroCard>) {
   const inputForaRef = useRef<HTMLInputElement>(null);
 
-  if (jogo.status === 'FINALIZADO' || jogo.status === 'EM_ANDAMENTO') {
+  if (jogo.status === 'FINALIZADO' || jogoEstaAoVivo(jogo.status, jogo.dataHora)) {
     return <ResultadoJogo jogo={jogo} palpiteAtual={palpiteAtual} />;
   }
 
@@ -363,6 +363,7 @@ function ConteudoExpandido({ carregando, estatisticas, statusJogo, grupoId, jogo
 export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, grupoId, ativo, onFoco, onProximoCard, ehUltimoCard, temaCopa, ehPrimeiroCard }: Readonly<PropsCardJogoPalpite>) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [expandido, setExpandido] = useState(false);
+  const statusJogo = obterStatusAtualJogo(jogo.status, jogo.dataHora);
 
   const {
     golsCasa, golsFora, palpiteAtual, jaPalpitou,
@@ -431,7 +432,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
             ) : (
               <span className="text-[9px] text-destaque font-semibold uppercase tracking-wide">Jogo adiado - Data a definir</span>
             )}
-            {jogo.status === 'EM_ANDAMENTO' && (
+            {jogoEstaAoVivo(jogo.status, jogo.dataHora) && (
               <span className="flex items-center gap-1 text-[8px] text-erro font-bold">
                 <span className="h-1.5 w-1.5 rounded-full bg-erro animate-pulse" />{' '}
                 AO VIVO • {jogo.dataHora ? calcularTempoJogo(jogo.dataHora) : ''}
@@ -494,7 +495,7 @@ export function CardJogoPalpite({ jogo, palpiteInicial, palpitavel, bloqueado, g
           {expandido && (
             <div className="mt-2 pt-2 border-t border-white/[0.05]">
               {grupoId ? (
-                <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} statusJogo={jogo.status} grupoId={grupoId} jogoId={jogo.id} temaCopa={temaCopa} />
+                <ConteudoExpandido carregando={carregandoEstatisticas} estatisticas={estatisticas} statusJogo={statusJogo} grupoId={grupoId} jogoId={jogo.id} temaCopa={temaCopa} />
               ) : (
                 <div className="flex flex-col items-center gap-2 py-2 text-center">
                   <p className="text-[11px] text-texto/50 leading-relaxed">

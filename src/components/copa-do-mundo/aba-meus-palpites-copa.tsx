@@ -10,6 +10,7 @@ import { formatarPontuacao } from '@/lib/pontuacao-formatada';
 import { ListaPalpitesMembros } from '@/components/palpites/lista-palpites-membros';
 import { PalpiteComJogo } from '@/types/palpite.types';
 import { Jogo } from '@/types/jogo.types';
+import { obterStatusAtualJogo } from '@/lib/jogo-helpers';
 
 interface PropsAbaMeusPalpitesCopa {
   grupoId: string;
@@ -28,7 +29,8 @@ function agruparPalpites(palpites: PalpiteComJogo[]): PalpiteComJogo[] {
     .filter((p) => {
       const jogo = p.jogo;
       if (!jogo) return false;
-      return jogo.status === 'EM_ANDAMENTO' || jogo.status === 'FINALIZADO';
+      const status = obterStatusAtualJogo(jogo.status, jogo.dataHora);
+      return status === 'EM_ANDAMENTO' || status === 'FINALIZADO';
     })
     .sort((a, b) => {
       const dataA = a.jogo?.dataHora ? new Date(a.jogo.dataHora).getTime() : 0;
@@ -71,7 +73,10 @@ export function AbaMeusPalpitesCopa({ grupoId, temporadaId }: Readonly<PropsAbaM
   // Mesclar palpites com jogos finalizados sem palpite
   const palpitesMesclados = (() => {
     const meusPalpites = palpites ?? [];
-    const jogosFinalizados = (todosJogos ?? []).filter((j: Jogo) => j.status === 'FINALIZADO' || j.status === 'EM_ANDAMENTO');
+    const jogosFinalizados = (todosJogos ?? []).filter((j: Jogo) => {
+      const status = obterStatusAtualJogo(j.status, j.dataHora);
+      return status === 'FINALIZADO' || status === 'EM_ANDAMENTO';
+    });
     const jogoIdsComPalpite = new Set(meusPalpites.map((p) => p.jogoId));
 
     const semPalpite: PalpiteComJogo[] = jogosFinalizados
@@ -162,8 +167,9 @@ interface PropsCardPalpiteCopa {
 
 function CardPalpiteCopa({ palpite, grupoId, expandido, onToggle, nomeFase }: Readonly<PropsCardPalpiteCopa>) {
   const jogo = palpite.jogo;
-  const jogoFinalizado = jogo?.status === 'FINALIZADO';
-  const jogoEmAndamento = jogo?.status === 'EM_ANDAMENTO';
+  const statusJogo = jogo ? obterStatusAtualJogo(jogo.status, jogo.dataHora) : null;
+  const jogoFinalizado = statusJogo === 'FINALIZADO';
+  const jogoEmAndamento = statusJogo === 'EM_ANDAMENTO';
   const jogoIniciouOuFinalizou = jogoFinalizado || jogoEmAndamento;
 
   const { data: palpitesMembros, isLoading: carregandoMembros } = useQuery({
@@ -280,7 +286,7 @@ function CardPalpiteCopa({ palpite, grupoId, expandido, onToggle, nomeFase }: Re
           {palpitesMembros && palpitesMembros.length > 0 ? (
             <ListaPalpitesMembros
               detalhamento={palpitesMembros}
-              statusJogo={jogo.status}
+              statusJogo={statusJogo ?? jogo.status}
               temaCopa
             />
           ) : (
@@ -295,4 +301,3 @@ function CardPalpiteCopa({ palpite, grupoId, expandido, onToggle, nomeFase }: Re
     </div>
   );
 }
-
