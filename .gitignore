@@ -30,6 +30,11 @@ yarn-error.log*
 *.swp
 *.swo
 
+# Cursor — versionar só as rules do projeto
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
 # OS
 .DS_Store
 Thumbs.db
