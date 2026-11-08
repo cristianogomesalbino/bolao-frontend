@@ -1,7 +1,9 @@
+/// <reference lib="webworker" />
 // Service Worker for Push Notifications
 // Compiled separately by @ducanh2912/next-pwa via customWorkerSrc
+// Tipagem: worker/tsconfig.json (lib webworker) — excluído do tsconfig do Next.
 
-const sw = globalThis as unknown as ServiceWorkerGlobalScope;
+const sw = self as unknown as ServiceWorkerGlobalScope;
 
 interface PushData {
   title?: string;
@@ -147,11 +149,9 @@ sw.addEventListener('push', (event: PushEvent) => {
   const ehDestaqueNaoPalpitou =
     data.tipo === 'NAO_PALPITOU' && !!data.destaqueId;
 
-  const tag = data.dedupeId
-    ? `push-${data.dedupeId}`
-    : ehDestaqueNaoPalpitou
-      ? `destaque-${data.destaqueId}`
-      : `${data.type ?? 'default'}-${Date.now()}`;
+  let tag = `${data.type ?? 'default'}-${Date.now()}`;
+  if (data.dedupeId) tag = `push-${data.dedupeId}`;
+  else if (ehDestaqueNaoPalpitou) tag = `destaque-${data.destaqueId}`;
 
   event.waitUntil(
     (async () => {
@@ -223,47 +223,32 @@ sw.addEventListener('notificationclick', (event: NotificationEvent) => {
     tipo?: string;
   };
 
-  // Notification Action: "Mandar F" — dispara fetch direto do SW
+  // Mandar F: SW não tem JWT do auth store — abre o app no grupo (UI autenticada).
   if (
     event.action === 'mandar-f' &&
-    notifData.destaqueId &&
     notifData.grupoId
   ) {
-    event.waitUntil(
-      fetch(
-        `/api/grupos/${notifData.grupoId}/destaques/${notifData.destaqueId}/mandar-f`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        },
-      ).catch(() => {
-        // Fallback: abrir app no destaque se fetch falhar
-        return sw.clients.openWindow(notifData.url ?? '/');
-      }),
-    );
+    const urlGrupo = `/grupos/${notifData.grupoId}`;
+    event.waitUntil(abrirOuFocarJanela(urlGrupo));
     return;
   }
 
   // Ação padrão: abrir/focar janela
-  const url = notifData.url ?? '/';
-  const fullUrl = new URL(url, sw.location.origin).href;
-
-  event.waitUntil(
-    sw.clients
-      .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList: readonly WindowClient[]) => {
-        // Tenta encontrar uma janela existente e navegar para a URL
-        for (const client of clientList) {
-          if (client.url.startsWith(sw.location.origin) && 'focus' in client) {
-            // Navega para a URL da notificação e depois foca
-            return client
-              .navigate(fullUrl)
-              .then((c: WindowClient | null) => c?.focus());
-          }
-        }
-        // Nenhuma janela aberta — abre nova
-        return sw.clients.openWindow(fullUrl);
-      }),
-  );
+  event.waitUntil(abrirOuFocarJanela(notifData.url ?? '/'));
 });
+
+function abrirOuFocarJanela(url: string): Promise<WindowClient | null | void> {
+  const fullUrl = new URL(url, sw.location.origin).href;
+  return sw.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clientList: readonly WindowClient[]) => {
+      for (const client of clientList) {
+        if (client.url.startsWith(sw.location.origin) && 'focus' in client) {
+          return client
+            .navigate(fullUrl)
+            .then((c: WindowClient | null) => c?.focus());
+        }
+      }
+      return sw.clients.openWindow(fullUrl);
+    });
+}

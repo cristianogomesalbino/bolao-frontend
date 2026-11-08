@@ -3,21 +3,15 @@
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Settings, Link2, Check,
-  Lock, Globe
-} from 'lucide-react';
+import { Settings, Lock, Globe } from 'lucide-react';
 import { buscarGrupo, sairDoGrupo } from '@/services/grupo.service';
+import { buscarDadosTemporada } from '@/services/jogo.service';
 import { Button } from '@/components/ui/button';
 import { ModalConfirmacao } from '@/components/ui/modal-confirmacao';
-import { AbaDashboardCopa } from '@/components/copa-do-mundo/aba-dashboard-copa';
-import { AbaClassificacaoCopa } from '@/components/copa-do-mundo/aba-classificacao-copa';
-import { AbaMeusPalpitesCopa } from '@/components/copa-do-mundo/aba-meus-palpites-copa';
-import { SecaoPalpitesGrupo } from '@/components/grupo/secao-palpites-grupo';
-import { AlertaJogosAtrasados } from '@/components/palpites/alerta-jogos-atrasados';
+import { AbasCopaGrupo, type AbaCopa } from '@/components/grupo/abas-copa-grupo';
+import { BotaoConviteGrupo } from '@/components/grupo/botao-convite-grupo';
+import { SecaoBrasileiraoGrupo } from '@/components/grupo/secao-brasileirao-grupo';
 import { DestaqueCarousel } from '@/components/destaques/destaque-carousel';
-
-type AbaCopa = 'dashboard' | 'classificacao' | 'palpites';
 
 export default function DetalhesGrupoPage() {
   const router = useRouter();
@@ -27,7 +21,6 @@ export default function DetalhesGrupoPage() {
 
   const [modalSair, setModalSair] = useState(false);
   const [processando, setProcessando] = useState(false);
-  const [copiado, setCopiado] = useState(false);
   const [abaCopa, setAbaCopa] = useState<AbaCopa>('dashboard');
 
   const { data: grupo, isLoading: carregandoGrupo } = useQuery({
@@ -37,6 +30,15 @@ export default function DetalhesGrupoPage() {
   });
 
   const ehCopa = grupo?.temporada?.campeonato?.nome?.toLowerCase().includes('copa');
+
+  const { data: dadosTemporada, isLoading: carregandoTemporada } = useQuery({
+    queryKey: ['grupo', grupoId, 'dados-temporada'],
+    queryFn: () => buscarDadosTemporada(grupo!.temporadaId),
+    enabled: !!grupo?.temporadaId && !ehCopa,
+    staleTime: 1000 * 30,
+  });
+
+  const proximoJogo = dadosTemporada?.proximoJogo ?? undefined;
 
   async function aoSair() {
     setProcessando(true);
@@ -93,29 +95,7 @@ export default function DetalhesGrupoPage() {
             </p>
           </div>
         </div>
-        {grupo.codigoConvite && (
-          <button
-            type="button"
-            onClick={() => {
-              const url = `${window.location.origin}/convite/${grupo.codigoConvite}`;
-              navigator.clipboard.writeText(url);
-              setCopiado(true);
-              setTimeout(() => setCopiado(false), 2000);
-            }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95 ${
-              copiado
-                ? 'bg-sucesso/15 border border-sucesso/30'
-                : 'bg-primaria/10 border border-primaria/30 hover:bg-primaria/20'
-            }`}
-            aria-label="Copiar link de convite"
-            data-dica="grupo-convite"
-          >
-            {copiado ? <Check size={14} className="text-sucesso" /> : <Link2 size={14} className="text-primaria-claro" />}
-            <span className={`text-[11px] font-semibold ${copiado ? 'text-sucesso' : 'text-primaria-claro'}`}>
-              {copiado ? 'Copiado!' : 'Convidar'}
-            </span>
-          </button>
-        )}
+        {grupo.codigoConvite && <BotaoConviteGrupo codigo={grupo.codigoConvite} />}
         <Button
           variant="ghost"
           size="icon"
@@ -152,73 +132,34 @@ export default function DetalhesGrupoPage() {
           </button>
         </div>
         {/* Destaques do grupo */}
-        <DestaqueCarousel grupoId={grupoId} grupoNome={grupo.nome} />
+        <DestaqueCarousel
+          key={grupoId}
+          grupoId={grupoId}
+          grupoNome={grupo.nome}
+        />
         {/* ═══════════════════════════════════════════════════════ */}
         {/* MODO COPA DO MUNDO — 3 Abas                           */}
         {/* ═══════════════════════════════════════════════════════ */}
         {ehCopa && (
-          <>
-            {/* Tabs Copa */}
-            <div className="flex gap-1 p-1 rounded-xl bg-[#009c3b]/10 border border-[#009c3b]/20">
-              <button
-                type="button"
-                onClick={() => setAbaCopa('dashboard')}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-[11px] font-semibold transition-all text-center ${
-                  abaCopa === 'dashboard'
-                    ? 'bg-[#009c3b]/30 text-[#ffdf00] border border-[#009c3b]/40 shadow-[0_0_10px_rgba(0,156,59,0.2)]'
-                    : 'text-white/60 hover:text-white/80'
-                }`}
-              >
-                Dashboard
-              </button>
-              <button
-                type="button"
-                onClick={() => setAbaCopa('classificacao')}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-[11px] font-semibold transition-all text-center ${
-                  abaCopa === 'classificacao'
-                    ? 'bg-[#009c3b]/30 text-[#ffdf00] border border-[#009c3b]/40 shadow-[0_0_10px_rgba(0,156,59,0.2)]'
-                    : 'text-white/60 hover:text-white/80'
-                }`}
-              >
-                Classificação
-              </button>
-              <button
-                type="button"
-                onClick={() => setAbaCopa('palpites')}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-[11px] font-semibold transition-all text-center ${
-                  abaCopa === 'palpites'
-                    ? 'bg-[#009c3b]/30 text-[#ffdf00] border border-[#009c3b]/40 shadow-[0_0_10px_rgba(0,156,59,0.2)]'
-                    : 'text-white/60 hover:text-white/80'
-                }`}
-              >
-                Meus Palpites
-              </button>
-            </div>
-
-            {/* Conteúdo da aba ativa */}
-            {abaCopa === 'dashboard' && (
-              <AbaDashboardCopa grupoId={grupoId} temporadaId={grupo.temporadaId} />
-            )}
-            {abaCopa === 'classificacao' && (
-              <AbaClassificacaoCopa temporadaId={grupo.temporadaId} />
-            )}
-            {abaCopa === 'palpites' && (
-              <AbaMeusPalpitesCopa grupoId={grupoId} temporadaId={grupo.temporadaId} />
-            )}
-          </>
+          <AbasCopaGrupo
+            aba={abaCopa}
+            onMudar={setAbaCopa}
+            grupoId={grupoId}
+            temporadaId={grupo.temporadaId}
+          />
         )}
 
         {/* ═══════════════════════════════════════════════════════ */}
         {/* MODO NORMAL (Brasileirão, etc.)                        */}
         {/* ═══════════════════════════════════════════════════════ */}
         {!ehCopa && (
-          <>
-            {/* Alerta de jogos atrasados */}
-            <AlertaJogosAtrasados temporadaId={grupo.temporadaId} grupoId={grupoId} />
-
-            <SecaoPalpitesGrupo grupoId={grupoId} temporadaId={grupo.temporadaId} />
-
-          </>
+          <SecaoBrasileiraoGrupo
+            grupoId={grupoId}
+            temporadaId={grupo.temporadaId}
+            proximoJogo={proximoJogo}
+            proximosJogos={dadosTemporada?.proximosJogos}
+            carregandoTemporada={carregandoTemporada}
+          />
         )}
       </div>
 

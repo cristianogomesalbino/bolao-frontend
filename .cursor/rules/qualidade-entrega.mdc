@@ -5,8 +5,10 @@ alwaysApply: true
 
 # Qualidade da entrega (frontend)
 
-1. Tipagem sem `any` novo; lints/Prettier ok nos arquivos tocados.
+1. Tipagem sem `any` novo; lints/Prettier ok nos arquivos tocados.  
+   `npm run lint:sonar` escopa `src` + `worker` e **ignora `.next/`** (sem ignore, o validator do Next explode em dezenas de falsos positivos).
 2. Services usam `apiClient`; forms com Zod; erros em PT-BR.
 3. `data-testid` em UI nova interativa.
 4. Rodar testes afetados (`npm test` / Vitest).
 5. Atualizar visão geral/README se mudou fluxo ou pasta relevante.
+6. Feature nova/expansão: self-check de `feature-preflight` (Query, sem regressão de UI, sem reagrupar domínio do BE, SW com auth real) **antes** de declarar pronto.

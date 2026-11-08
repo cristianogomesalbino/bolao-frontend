@@ -24,6 +24,8 @@ export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
   const acumuladoRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const segurouRef = useRef(false);
+  const pausadoRef = useRef(false);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visualizadosRef = useRef<Set<string>>(new Set());
 
   const destaqueAtual = destaques[indiceAtual];
@@ -98,14 +100,29 @@ export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
     };
   }, [pausado, acabou, destaqueAtual, timerDuracao, avancar, indiceAtual]);
 
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    };
+  }, []);
+
   function pausar() {
     acumuladoRef.current += Date.now() - inicioRef.current;
+    pausadoRef.current = true;
     setPausado(true);
   }
 
   function retomar() {
     inicioRef.current = Date.now();
+    pausadoRef.current = false;
     setPausado(false);
+  }
+
+  function limparHoldTimer() {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
   }
 
   function aoPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -113,7 +130,8 @@ export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
     if (alvo.closest('[data-interactive]')) return;
     touchStartRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
     segurouRef.current = false;
-    window.setTimeout(() => {
+    limparHoldTimer();
+    holdTimerRef.current = setTimeout(() => {
       if (touchStartRef.current && Date.now() - touchStartRef.current.t >= 180) {
         segurouRef.current = true;
         pausar();
@@ -122,6 +140,7 @@ export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
   }
 
   function aoPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    limparHoldTimer();
     const inicio = touchStartRef.current;
     touchStartRef.current = null;
     if (!inicio) return;
@@ -141,7 +160,22 @@ export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
     else avancar();
   }
 
+  function aoPointerCancel() {
+    limparHoldTimer();
+    touchStartRef.current = null;
+    if (segurouRef.current || pausadoRef.current) {
+      segurouRef.current = false;
+      retomar();
+    }
+  }
+
   if (destaques.length === 0) return null;
+
+  const indicesVisiveis = [
+    Math.max(0, indiceAtual - 1),
+    indiceAtual,
+    Math.min(destaques.length - 1, indiceAtual + 1),
+  ].filter((v, i, arr) => arr.indexOf(v) === i);
 
   return (
     <div className="mx-auto w-[90%]" data-testid="destaque-viewer">
@@ -150,9 +184,14 @@ export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
         className="relative mx-auto h-[46vh] max-h-[440px] min-h-[300px] w-full overflow-hidden rounded-2xl bg-black"
         onPointerDown={aoPointerDown}
         onPointerUp={aoPointerUp}
+        onPointerCancel={aoPointerCancel}
         onPointerLeave={() => {
-          if (pausado) retomar();
+          limparHoldTimer();
           touchStartRef.current = null;
+          if (segurouRef.current || pausadoRef.current) {
+            segurouRef.current = false;
+            retomar();
+          }
         }}
       >
         <div className="absolute inset-x-0 top-0 z-10 px-2 pt-1">
@@ -169,9 +208,13 @@ export function DestaqueViewer({ destaques, grupoId }: DestaqueViewerProps) {
             transform: largura > 0 ? `translate3d(${-indiceAtual * largura}px, 0, 0)` : undefined,
           }}
         >
-          {destaques.map((item) => (
+          {destaques.map((item, indice) => (
             <div key={item.id} className="h-full shrink-0" style={{ width: largura || '100%' }}>
-              <DestaqueCard destaque={item} grupoId={grupoId} preencher />
+              {indicesVisiveis.includes(indice) ? (
+                <DestaqueCard destaque={item} grupoId={grupoId} preencher />
+              ) : (
+                <div className="h-full w-full bg-black" aria-hidden />
+              )}
             </div>
           ))}
         </div>

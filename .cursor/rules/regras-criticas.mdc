@@ -8,6 +8,7 @@ alwaysApply: true
 - **Nunca commit/push na `main`** — tudo pela `develop` (ver `fluxo-git`).
 - **Sem `any`** — tipar com interfaces/`unknown` + narrowing.
 - **Arquivo ≤ 250 linhas** (componentes ~200, hooks ~150); ao editar legado grande, extrair ao menos 1 responsabilidade.
+- **Feature nova em componente/página antiga/gorda = extrair** — não inchá-la; novo fluxo em componente/hook próprio; a página só orquestra.
 - **Sem API nos componentes** — só via `src/services/` + `apiClient` (`src/lib/api-client.ts`).
 - **Tokens só no auth store** — nunca `localStorage` direto no componente.
 - **Formulários com Zod** + React Hook Form — sem validação manual solta.

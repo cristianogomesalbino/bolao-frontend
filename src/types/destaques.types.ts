@@ -16,7 +16,7 @@ export interface DestaqueItem {
   id: string;
   tipo: TipoDestaque;
   titulo: string;
-  dados: Record<string, unknown>;
+  dados: DestaqueDados;
   jogoId: string;
   rodada: number | null;
   criadoEm: string;
@@ -122,6 +122,15 @@ export interface DadosDobrouEAcertou {
   timeFora: TimeInfo;
   pontosObtidos: number;
 }
+
+export type DestaqueDados =
+  | DadosAcertouEmCheio
+  | DadosUnicoNaMosca
+  | DadosSubiuRanking
+  | DadosSequenciaResultado
+  | DadosNaoPalpitou
+  | DadosDobrouEAcertou
+  | Record<string, unknown>;
 
 // Mapeamento de emojis e cores por tipo
 export const DESTAQUE_CONFIG: Record<
