@@ -1,12 +1,27 @@
 # Design Document
 
+## Estado atual (regra em vigor)
+
+Documento histórico abaixo descreve a Wave 1. O comportamento entregue diverge nos pontos:
+
+| Tema | Regra em vigor |
+|------|----------------|
+| Tipos gerados | `ACERTOU_EM_CHEIO`, `UNICO_NA_MOSCA`, `SUBIU_RANKING`, `SEQUENCIA_RESULTADO`, `NAO_PALPITOU`, `DOBROU_E_ACERTOU`. **`SEQUENCIA_MOSCA` não é gerada.** |
+| Rodada Atual | Maior rodada com jogo finalizado (`buscarMaiorRodadaFinalizada`). Listagem default = só essa rodada; `?rodada=` + `rodadasDisponiveis` para o filtro. |
+| Sequência | Lookback 1 rodada; mín. 3 jogos e 4 pontos; mesmo apito = slot; 1 card/pessoa/rodada (melhor). |
+| Panelinha | 3+ `ACERTOU_EM_CHEIO` no mesmo jogo → 1 card coletivo na listagem (`participantes`, títulos `panelinha-*`). |
+| Listagem | Sync `NAO_PALPITOU`, dedupe `SUBIU`/`NAO`, seleção diversa (round-robin por `PRIORIDADE_POR_TIPO`), máx. 20. |
+| Títulos | `pickRandomTitle` evita repetição; `titleFeminino` + `inferirGeneroPorNome`; SUBIU emoji 🚀. |
+| FE | Viewer **inline** no grupo + botões de rodada (até 2). Panelinha centralizada sem avatar. Ranking top 5 em 2 colunas. |
+| Helpers BE | `destaque-selecao.ts`, `sequencia-listagem.ts`, `sequencia-resultado.calculo.ts`, `destaques.titulos.ts`. |
+
 ## Overview
 
-O módulo de Destaques adiciona uma camada social ao bolão, gerando automaticamente destaques (destaques) quando jogos são finalizados. A arquitetura segue o padrão existente do projeto: módulo NestJS com Repository Pattern, Domain Errors, Presenters e integração fire-and-forget com o fluxo de finalização de jogos.
+O módulo de Destaques adiciona uma camada social ao bolão, gerando automaticamente destaques quando jogos são finalizados. A arquitetura segue o padrão do projeto: módulo NestJS com Repository Pattern, Domain Errors e integração fire-and-forget com a finalização de jogos.
 
 A feature se divide em:
-- **Backend**: novo módulo `destaques` com geração automática, listagem, interação "Mandar um F", notificações e limpeza
-- **Frontend**: carrossel de avatares na tela do grupo + visualizador fullscreen com swipe
+- **Backend**: módulo `destaques` com geração, listagem (seleção/dedupe), "Mandar um F", notificações e limpeza
+- **Frontend**: feed inline na tela do grupo (filtro de rodada + viewer com swipe)
 
 ## Architecture
 
@@ -55,19 +70,14 @@ src/modules/destaques/
 
 ```
 src/components/destaques/
-├── destaque-carousel.tsx          # Faixa de avatares horizontal
-├── destaque-viewer.tsx            # Overlay fullscreen
-├── destaque-card.tsx              # Layout genérico de 1 destaque
-├── destaque-card-acertou.tsx      # Layout ACERTOU_EM_CHEIO
-├── destaque-card-sozinho.tsx      # Layout ACERTOU_SOZINHO
-├── destaque-card-ranking.tsx      # Layout SUBIU_RANKING
-├── destaque-card-sequencia.tsx    # Layout SEQUENCIA
-├── destaque-card-nao-palpitou.tsx # Layout NAO_PALPITOU + botão F
-├── destaque-card-dobrou.tsx       # Layout DOBROU_E_ACERTOU
+├── destaque-carousel.tsx          # Feed: filtro de rodada + viewer
+├── destaque-viewer.tsx            # Viewer inline (swipe / auto-advance)
+├── destaque-card.tsx              # Layouts por tipo (inclui panelinha / ranking)
+├── destaque-card-nao-palpitou.tsx # NAO_PALPITOU + botão F
 └── destaque-progress-bar.tsx      # Barra de progresso segmentada
 
 src/services/destaques.service.ts   # Chamadas API
-src/types/destaques.types.ts        # Tipos compartilhados
+src/types/destaques.types.ts        # Tipos + DESTAQUE_CONFIG (emoji/timer/cor)
 ```
 
 ## Data Model
@@ -220,12 +230,14 @@ model PreferenciaNotificacao {
 ### Estrutura do campo `dados` (JSONB) por tipo
 
 ```typescript
-// ACERTOU_EM_CHEIO
+// ACERTOU_EM_CHEIO (+ panelinha na listagem quando 3+)
 interface DadosAcertouEmCheio {
   golsCasa: number;
   golsFora: number;
   timeCasa: { nome: string; sigla: string; escudo: string | null };
   timeFora: { nome: string; sigla: string; escudo: string | null };
+  jogos?: Array<{ /* placares agrupados no FE */ }>;
+  participantes?: Array<{ usuarioId: string; nome: string }>; // panelinha
 }
 
 // ACERTOU_SOZINHO
@@ -634,8 +646,9 @@ Estrutura preparada pra evolução (rarity, A/B, temas sazonais):
 ```typescript
 interface DestaqueTitle {
   id: string;                              // Identificador único (ex: 'cheio-01')
-  title: string;                           // Texto exibido (ex: 'Cravou!')
-  emoji: string;                           // Emoji do tipo (ex: '🎯')
+  title: string;                           // Forma padrão / masculina
+  titleFeminino?: string;                  // Forma feminina (heurística pelo nome)
+  emoji: string;                           // Emoji do tipo (ex: '🎯' / '🚀')
   rarity?: 'common' | 'rare' | 'epic';    // Futuro: títulos raros aparecem menos
 }
 
@@ -830,7 +843,7 @@ const pushPayload = {
 |------|-----------------|-----|--------|
 | ACERTOU_EM_CHEIO | Verde | #22C55E | Celebração, sucesso |
 | UNICO_NA_MOSCA | Roxo | #8B5CF6 | Exclusividade, raridade |
-| SUBIU_RANKING | Azul | #3B82F6 | Progresso, movimento |
+| SUBIU_RANKING | Azul + 🚀 | #3B82F6 | Progresso, movimento |
 | SEQUENCIA_MOSCA | Laranja | #F97316 | Energia, fogo |
 | SEQUENCIA_RESULTADO | Laranja | #F97316 | Energia, fogo |
 | NAO_PALPITOU | Cinza | #6B7280 | Ausência, sono |

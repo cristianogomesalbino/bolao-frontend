@@ -151,7 +151,7 @@ export default function DetalhesGrupoPage() {
             Meus grupos
           </button>
         </div>
-        {/* Destaques (carrossel tipo stories) */}
+        {/* Destaques do grupo */}
         <DestaqueCarousel grupoId={grupoId} grupoNome={grupo.nome} />
         {/* ═══════════════════════════════════════════════════════ */}
         {/* MODO COPA DO MUNDO — 3 Abas                           */}

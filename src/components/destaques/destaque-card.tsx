@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { mandarF } from '@/services/destaques.service';
 import { DESTAQUE_CONFIG } from '@/types/destaques.types';
 import type {
   DestaqueItem,
@@ -10,9 +8,9 @@ import type {
   DadosUnicoNaMosca,
   DadosSubiuRanking,
   DadosSequenciaResultado,
-  DadosNaoPalpitou,
   DadosDobrouEAcertou,
 } from '@/types/destaques.types';
+import { CardNaoPalpitou } from './destaque-card-nao-palpitou';
 
 const PASTA_FUNDOS = '/destaques/fundos';
 
@@ -42,6 +40,21 @@ const LEGENDA: Record<string, string> = {
   DOBROU_E_ACERTOU: 'Dobrou e acertou',
 };
 
+function ehPanelinha(destaque: DestaqueItem): boolean {
+  if (destaque.tipo !== 'ACERTOU_EM_CHEIO') return false;
+  const dados = destaque.dados as unknown as DadosAcertouEmCheio;
+  return (dados.participantes?.length ?? 0) >= 3;
+}
+
+function precisaLayoutCompacto(destaque: DestaqueItem): boolean {
+  return ehPanelinha(destaque) || destaque.tipo === 'SUBIU_RANKING';
+}
+
+function legendaDoCard(destaque: DestaqueItem): string {
+  if (ehPanelinha(destaque)) return 'Panelinha na mosca';
+  return LEGENDA[destaque.tipo] ?? destaque.tipo;
+}
+
 interface DestaqueCardProps {
   readonly destaque: DestaqueItem;
   readonly grupoId: string;
@@ -52,6 +65,7 @@ export function DestaqueCard({ destaque, grupoId, preencher = false }: DestaqueC
   const config = DESTAQUE_CONFIG[destaque.tipo];
   const fundo = escolherFundo(destaque.tipo, destaque.id);
   const inicial = destaque.autor.nome.charAt(0).toUpperCase();
+  const panelinha = ehPanelinha(destaque);
 
   return (
     <div
@@ -68,52 +82,98 @@ export function DestaqueCard({ destaque, grupoId, preencher = false }: DestaqueC
       }}
       data-testid={`destaque-card-${destaque.tipo}`}
     >
-      <div className={`flex h-full flex-col ${preencher ? 'px-5 pb-3 pt-3' : 'px-6 pb-5 pt-8'}`}>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold ring-2 ring-white/80"
-            style={{ backgroundColor: config.cor }}
-          >
-            {inicial}
+      <div
+        className={`flex h-full min-h-0 flex-col ${preencher ? 'px-5 pb-4 pt-6' : 'px-6 pb-5 pt-8'}`}
+      >
+        {!panelinha && (
+          <div className="flex shrink-0 items-center gap-2.5">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold ring-2 ring-white/80"
+              style={{ backgroundColor: config.cor }}
+            >
+              {inicial}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-tight">{destaque.autor.nome}</p>
+              <p className="truncate text-[11px] text-white/70">{legendaDoCard(destaque)}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight">{destaque.autor.nome}</p>
-            <p className="truncate text-[11px] text-white/70">{LEGENDA[destaque.tipo]}</p>
-          </div>
-        </div>
+        )}
 
         {destaque.tipo === 'NAO_PALPITOU' ? (
-          <CardNaoPalpitou destaque={destaque} grupoId={grupoId} emoji={config.emoji} />
+          <CardNaoPalpitou
+            destaque={destaque}
+            grupoId={grupoId}
+            emoji={config.emoji}
+            compacto={preencher}
+          />
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-1 text-center">
-            <p className="mb-1 text-3xl" aria-hidden>
+          <div
+            className={`flex min-h-0 flex-1 flex-col items-center overflow-hidden text-center ${
+              destaque.tipo === 'SUBIU_RANKING'
+                ? 'justify-start pt-1'
+                : 'justify-center'
+            }`}
+          >
+            <p
+              className={`shrink-0 ${
+                preencher || precisaLayoutCompacto(destaque)
+                  ? 'text-2xl leading-none'
+                  : 'mb-1 text-3xl'
+              }`}
+              aria-hidden
+            >
               {config.emoji}
             </p>
-            <h2 className="max-w-[16rem] text-3xl font-black uppercase leading-none tracking-tight">
+            <h2
+              className={`max-w-[16rem] shrink-0 font-black uppercase tracking-tight ${
+                preencher || precisaLayoutCompacto(destaque)
+                  ? 'text-[1.25rem] leading-[1.05]'
+                  : 'text-3xl leading-none'
+              }`}
+            >
               {destaque.titulo}
             </h2>
-            <div className="mt-3 w-full">{renderConteudo(destaque, grupoId)}</div>
+            <div
+              className={`flex min-h-0 w-full flex-col ${
+                precisaLayoutCompacto(destaque)
+                  ? 'mt-1.5'
+                  : preencher
+                    ? 'mt-2'
+                    : 'mt-3'
+              }`}
+            >
+              {renderConteudo(destaque, preencher)}
+            </div>
           </div>
         )}
 
-        {rotuloRodada(destaque) && (
-          <p className="text-center text-[11px] text-white/70">{rotuloRodada(destaque)}</p>
-        )}
+        <RodapeDestaque destaque={destaque} compacto={preencher} />
       </div>
     </div>
   );
 }
 
-function renderConteudo(destaque: DestaqueItem, grupoId: string) {
+function renderConteudo(destaque: DestaqueItem, compacto: boolean) {
   switch (destaque.tipo) {
     case 'ACERTOU_EM_CHEIO':
       return <PlacaresAcerto dados={destaque.dados as unknown as DadosAcertouEmCheio} />;
     case 'UNICO_NA_MOSCA':
       return <Placar dados={destaque.dados as unknown as DadosUnicoNaMosca} />;
     case 'SUBIU_RANKING':
-      return <CardSubiuRanking dados={destaque.dados as unknown as DadosSubiuRanking} />;
+      return (
+        <CardSubiuRanking
+          dados={destaque.dados as unknown as DadosSubiuRanking}
+          compacto={compacto}
+        />
+      );
     case 'SEQUENCIA_RESULTADO':
-      return <CardSequenciaResultado dados={destaque.dados as unknown as DadosSequenciaResultado} />;
+      return (
+        <CardSequenciaResultado
+          dados={destaque.dados as unknown as DadosSequenciaResultado}
+          compacto={compacto}
+        />
+      );
     case 'NAO_PALPITOU':
       return null;
     case 'DOBROU_E_ACERTOU':
@@ -123,19 +183,59 @@ function renderConteudo(destaque: DestaqueItem, grupoId: string) {
   }
 }
 
-function Placar({ dados }: { readonly dados: JogoPlacar }) {
+function Placar({
+  dados,
+  compacto = false,
+}: {
+  readonly dados: JogoPlacar;
+  readonly compacto?: boolean;
+}) {
   return (
-    <div className="flex items-center justify-center gap-3">
-      <span className="shrink-0 text-sm font-semibold">{dados.timeCasa.sigla}</span>
-      <span className="text-4xl font-black tabular-nums">
+    <div className={`flex items-center justify-center ${compacto ? 'gap-2' : 'gap-3'}`}>
+      <span className={`shrink-0 font-semibold ${compacto ? 'text-xs' : 'text-sm'}`}>
+        {dados.timeCasa.sigla}
+      </span>
+      <span
+        className={`font-black tabular-nums ${compacto ? 'text-3xl leading-none' : 'text-4xl'}`}
+      >
         {dados.golsCasa} × {dados.golsFora}
       </span>
-      <span className="shrink-0 text-sm font-semibold">{dados.timeFora.sigla}</span>
+      <span className={`shrink-0 font-semibold ${compacto ? 'text-xs' : 'text-sm'}`}>
+        {dados.timeFora.sigla}
+      </span>
     </div>
   );
 }
 
 function PlacaresAcerto({ dados }: { readonly dados: DadosAcertouEmCheio }) {
+  const panelinha = dados.participantes?.length ? dados.participantes : null;
+  if (panelinha) {
+    const meio = Math.ceil(panelinha.length / 2);
+    const esquerda = panelinha.slice(0, meio);
+    const direita = panelinha.slice(meio);
+    return (
+      <div className="mx-auto w-full max-w-[280px] space-y-2">
+        <Placar dados={dados} compacto />
+        <div className="grid grid-cols-2 justify-items-center gap-x-3 gap-y-0.5 text-[11px] leading-snug text-white/85">
+          <ul className="w-full min-w-0 space-y-0.5 text-center">
+            {esquerda.map((pessoa) => (
+              <li key={pessoa.usuarioId} className="truncate">
+                {pessoa.nome}
+              </li>
+            ))}
+          </ul>
+          <ul className="w-full min-w-0 space-y-0.5 text-center">
+            {direita.map((pessoa) => (
+              <li key={pessoa.usuarioId} className="truncate">
+                {pessoa.nome}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
   const jogos = dados.jogos?.length ? dados.jogos : [dados];
   if (jogos.length === 1) return <Placar dados={jogos[0]} />;
 
@@ -157,22 +257,51 @@ function PlacaresAcerto({ dados }: { readonly dados: DadosAcertouEmCheio }) {
   );
 }
 
-function CardSubiuRanking({ dados }: { readonly dados: DadosSubiuRanking }) {
+function CardSubiuRanking({
+  dados,
+  compacto = false,
+}: {
+  readonly dados: DadosSubiuRanking;
+  readonly compacto?: boolean;
+}) {
+  const top5 = dados.top5.slice(0, 5);
+  const meio = Math.ceil(top5.length / 2);
+  const esquerda = top5.slice(0, meio);
+  const direita = top5.slice(meio);
+
   return (
-    <div>
-      <p className="text-5xl font-black leading-none">#{dados.posicaoNova}</p>
-      <p className="mt-1 text-xs text-white/70">
-        era #{dados.posicaoAnterior}
-      </p>
-      <div className="mx-auto mt-3 max-w-[220px] space-y-0.5 text-left">
-        {dados.top5.slice(0, 5).map((m) => (
-          <div key={m.posicao} className="flex justify-between text-[11px] text-white/80">
-            <span className="truncate">
-              #{m.posicao} {m.nome}
-            </span>
-            <span className="ml-2 shrink-0">{m.pontuacao} pts</span>
-          </div>
-        ))}
+    <div className="mx-auto w-full max-w-[300px] space-y-1.5">
+      <div>
+        <p
+          className={`font-black leading-none ${compacto ? 'text-3xl' : 'text-4xl'}`}
+        >
+          #{dados.posicaoNova}
+        </p>
+        <p className="mt-0.5 text-[11px] text-white/70">
+          era #{dados.posicaoAnterior}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs leading-snug text-white/85">
+        <ul className="min-w-0 space-y-1">
+          {esquerda.map((m) => (
+            <li key={m.posicao} className="flex min-w-0 items-baseline gap-1">
+              <span className="min-w-0 flex-1 truncate text-left">
+                #{m.posicao} {m.nome}
+              </span>
+              <span className="shrink-0 tabular-nums text-white/70">{m.pontuacao}</span>
+            </li>
+          ))}
+        </ul>
+        <ul className="min-w-0 space-y-1">
+          {direita.map((m) => (
+            <li key={m.posicao} className="flex min-w-0 items-baseline gap-1">
+              <span className="min-w-0 flex-1 truncate text-left">
+                #{m.posicao} {m.nome}
+              </span>
+              <span className="shrink-0 tabular-nums text-white/70">{m.pontuacao}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -192,99 +321,55 @@ function rotuloRodada(destaque: DestaqueItem): string | null {
   return destaque.rodada != null ? `Rodada ${destaque.rodada}` : null;
 }
 
-function CardSequenciaResultado({ dados }: { readonly dados: DadosSequenciaResultado }) {
-  return (
-    <div>
-      <p className="text-5xl font-black leading-none text-orange-300">{dados.quantidadeAcertos}</p>
-      <p className="mt-1 text-sm text-white/80">jogos seguidos pontuando</p>
-      {typeof dados.pontos === 'number' && (
-        <p className="mt-1 text-lg font-bold text-white">+{dados.pontos} pontos</p>
-      )}
-      {dados.recorde.ehNovoRecorde && (
-        <p className="mt-2 text-xs font-semibold text-yellow-300">Novo recorde</p>
-      )}
-    </div>
-  );
-}
-
-function CardNaoPalpitou({
+function RodapeDestaque({
   destaque,
-  grupoId,
-  emoji,
+  compacto,
 }: {
   readonly destaque: DestaqueItem;
-  readonly grupoId: string;
-  readonly emoji: string;
+  readonly compacto: boolean;
 }) {
-  const dados = destaque.dados as unknown as DadosNaoPalpitou;
-  const jogos = dados.jogosEsquecidos ?? [];
-  const meio = Math.ceil(jogos.length / 2);
-  const esquerda = jogos.slice(0, meio);
-  const direita = jogos.slice(meio);
-  const [jaEnviou, setJaEnviou] = useState(destaque.jaEnviouF);
-  const [contador, setContador] = useState(destaque.contadorFs);
-  const [enviando, setEnviando] = useState(false);
-
-  async function handleMandarF() {
-    if (jaEnviou || enviando) return;
-    setEnviando(true);
-    try {
-      const res = await mandarF(grupoId, destaque.id);
-      setContador(res.contadorFs);
-      setJaEnviou(true);
-    } catch {
-      // Mantém o estado original se a reação falhar.
-    } finally {
-      setEnviando(false);
-    }
-  }
+  const rodada = rotuloRodada(destaque);
+  const sequencia =
+    destaque.tipo === 'SEQUENCIA_RESULTADO'
+      ? (destaque.dados as unknown as DadosSequenciaResultado)
+      : null;
+  const pontos =
+    compacto && sequencia && typeof sequencia.pontos === 'number' ? sequencia.pontos : null;
+  const recorde = Boolean(compacto && sequencia?.recorde?.ehNovoRecorde);
+  if (!rodada && pontos == null && !recorde) return null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-2 text-center">
-      <p className="mb-1 text-3xl" aria-hidden>
-        {emoji}
-      </p>
-      <h2 className="max-w-[16rem] text-3xl font-black uppercase leading-none tracking-tight">
-        {destaque.titulo}
-      </h2>
-      <div className="mt-3 grid w-full grid-cols-2 gap-x-3">
-        <ListaLateral jogos={esquerda} alinhamento="left" />
-        <ListaLateral jogos={direita} alinhamento="right" />
-      </div>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          void handleMandarF();
-        }}
-        disabled={jaEnviou || enviando}
-        className="mt-3 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white disabled:bg-white/20"
-        data-interactive
-      >
-        {jaEnviou ? 'Você já mandou um F' : `Mandar um F (${contador})`}
-      </button>
+    <div className="shrink-0 space-y-0.5 pt-1 text-center [text-shadow:0_1px_6px_rgba(0,0,0,0.85)]">
+      {pontos != null && (
+        <p className="text-base font-bold leading-tight text-white">+{pontos} pontos</p>
+      )}
+      {recorde && <p className="text-xs font-semibold leading-tight text-yellow-300">Novo recorde</p>}
+      {rodada && <p className="text-[11px] leading-tight text-white/80">{rodada}</p>}
     </div>
   );
 }
 
-function ListaLateral({
-  jogos,
-  alinhamento,
+function CardSequenciaResultado({
+  dados,
+  compacto = false,
 }: {
-  readonly jogos: DadosNaoPalpitou['jogosEsquecidos'];
-  readonly alinhamento: 'left' | 'right';
+  readonly dados: DadosSequenciaResultado;
+  readonly compacto?: boolean;
 }) {
   return (
-    <div
-      className={`flex flex-col gap-0.5 text-xs leading-tight text-white/75 ${
-        alinhamento === 'right' ? 'items-end text-right' : 'items-start text-left'
-      }`}
-    >
-      {jogos.map((jogo) => (
-        <p key={jogo.jogoId} className="max-w-full truncate">
-          {jogo.timeCasa.sigla} {jogo.golsCasa ?? '?'} × {jogo.golsFora ?? '?'} {jogo.timeFora.sigla}
-        </p>
-      ))}
+    <div>
+      <p className={`font-black leading-none text-orange-300 ${compacto ? 'text-4xl' : 'text-5xl'}`}>
+        {dados.quantidadeAcertos}
+      </p>
+      <p className={`text-white/80 ${compacto ? 'mt-0.5 text-xs' : 'mt-1 text-sm'}`}>
+        jogos seguidos pontuando
+      </p>
+      {!compacto && typeof dados.pontos === 'number' && (
+        <p className="mt-1 text-lg font-bold text-white">+{dados.pontos} pontos</p>
+      )}
+      {!compacto && dados.recorde?.ehNovoRecorde && (
+        <p className="mt-2 text-xs font-semibold text-yellow-300">Novo recorde</p>
+      )}
     </div>
   );
 }

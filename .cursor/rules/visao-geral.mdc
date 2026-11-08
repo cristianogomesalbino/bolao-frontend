@@ -10,8 +10,14 @@ PWA mobile-first: Next.js 15 (App Router) + TS strict + Tailwind v4 + shadcn/ui 
 ## Pastas
 
 - `src/app/` — rotas (`(auth)`, `(protegido)`)
-- `src/components/` — `ui/`, features (`auth`, `home`, `palpites`, `jogos`, …)
+- `src/components/` — `ui/`, features (`auth`, `home`, `palpites`, `jogos`, `destaques`, …)
 - `src/services/`, `src/hooks/`, `src/types/`, `src/lib/`
+
+## Destaques (grupo)
+
+- `destaque-carousel` + `destaque-viewer` inline na página do grupo; filtro com até 2 botões de rodada (`rodadasDisponiveis`).
+- Cards em `destaque-card` / `destaque-card-nao-palpitou`; panelinha centralizada (sem avatar); `SUBIU_RANKING` com 🚀 e top 5 em 2 colunas.
+- Spec: `.kiro/specs/group-destaques/` (`requirements`, `design`, `tasks`).
 
 ## Dev
 

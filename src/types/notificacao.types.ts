@@ -6,7 +6,9 @@ export type TipoNotificacao =
   | 'DESCEU_POSICAO'
   | 'PALPITES_PENDENTES'
   | 'JOGO_LIBERADO'
-  | 'VENCEDOR_BOLAO';
+  | 'VENCEDOR_BOLAO'
+  | 'DESTAQUES_GRUPO'
+  | 'RECEBEU_F';
 
 export type StatusNotificacao = 'NAO_LIDA' | 'LIDA';
 
@@ -38,4 +40,6 @@ export interface PreferenciaNotificacao {
   desceuPosicao: boolean;
   palpitesPendentes: boolean;
   jogoLiberado: boolean;
+  destaquesGrupo: boolean;
+  recebeuF: boolean;
 }

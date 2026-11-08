@@ -228,6 +228,8 @@ function obterUrlNotificacao(notificacao: Notificacao): string | null {
     case 'RODADA_ENCERRADA':
     case 'SUBIU_POSICAO':
     case 'DESCEU_POSICAO':
+    case 'DESTAQUES_GRUPO':
+    case 'RECEBEU_F':
       return grupoId ? `/grupos/${grupoId}` : null;
     default:
       return null;

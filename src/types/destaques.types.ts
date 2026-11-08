@@ -59,6 +59,8 @@ export interface JogoPlacar {
 
 export interface DadosAcertouEmCheio extends JogoPlacar {
   jogos?: JogoPlacar[];
+  /** 3+ pessoas no mesmo placar (panelinha). */
+  participantes?: Array<{ usuarioId: string; nome: string }>;
 }
 
 export interface DadosUnicoNaMosca {
@@ -128,7 +130,7 @@ export const DESTAQUE_CONFIG: Record<
 > = {
   ACERTOU_EM_CHEIO: { emoji: '🎯', cor: '#22C55E', timerSegundos: 5 },
   UNICO_NA_MOSCA: { emoji: '🦄', cor: '#8B5CF6', timerSegundos: 6 },
-  SUBIU_RANKING: { emoji: '📈', cor: '#3B82F6', timerSegundos: 8 },
+  SUBIU_RANKING: { emoji: '🚀', cor: '#3B82F6', timerSegundos: 8 },
   SEQUENCIA_RESULTADO: { emoji: '🔥', cor: '#F97316', timerSegundos: 7 },
   NAO_PALPITOU: { emoji: '😴', cor: '#6B7280', timerSegundos: 5 },
   DOBROU_E_ACERTOU: { emoji: '💎', cor: '#F59E0B', timerSegundos: 6 },
