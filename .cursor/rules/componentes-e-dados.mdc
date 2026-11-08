@@ -1,0 +1,19 @@
+---
+description: Padrões de componentes, hooks, services, stores e React Query
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Componentes e dados
+
+- Arquivos kebab-case; componentes PascalCase; props `Readonly<PropsNome>`.
+- UI em `components/ui/`; feature em `components/[feature]/`; pages orquestram (~200 linhas).
+- Hooks: `use` + nome PT; um por arquivo; barrel `hooks/index.ts`.
+- Services: funções por módulo backend; tipar com `types/`; barrel `services/index.ts`.
+- Zustand: selectors individuais — não desestruturar o store inteiro.
+- Query keys: `['entidade', id, ...]`; mutations invalidam/atualizam cache; batch + `setQueryData`.
+- Listagens de feature nova: **sempre** Query (não `useEffect`+fetch); incluir `grupoId` na key; resetar filtro local ao trocar de grupo.
+- Não reimplementar no cliente agrupamento/dedupe que o BE já devolve consolidado.
+- Datas: `timeZone: 'America/Sao_Paulo'`.
+- APIs de terceiros só via backend (CORS).
+- Tailwind: tokens do tema (`text-primaria`, `bg-fundo`); mobile-first.

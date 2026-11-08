@@ -42,6 +42,8 @@ function iconeNotificacao(tipo: string): string {
     PALPITES_PENDENTES: '📝',
     JOGO_LIBERADO: '🆕',
     VENCEDOR_BOLAO: '🏆',
+    DESTAQUES_GRUPO: '✨',
+    RECEBEU_F: '🪦',
   };
   return icones[tipo] ?? '🔔';
 }
@@ -228,6 +230,8 @@ function obterUrlNotificacao(notificacao: Notificacao): string | null {
     case 'RODADA_ENCERRADA':
     case 'SUBIU_POSICAO':
     case 'DESCEU_POSICAO':
+    case 'DESTAQUES_GRUPO':
+    case 'RECEBEU_F':
       return grupoId ? `/grupos/${grupoId}` : null;
     default:
       return null;

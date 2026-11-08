@@ -61,6 +61,18 @@ const ITENS_PREFERENCIA: ItemPreferencia[] = [
     descricao: 'Quando um confronto é definido no mata-mata',
     icone: <Bell size={18} className="text-cyan-400" />,
   },
+  {
+    campo: 'destaquesGrupo',
+    titulo: 'Destaques do grupo',
+    descricao: 'Quando o grupo ganha destaques novos',
+    icone: <Bell size={18} className="text-violet-400" />,
+  },
+  {
+    campo: 'recebeuF',
+    titulo: 'Recebeu um F',
+    descricao: 'Quando alguém manda um F no seu destaque',
+    icone: <Bell size={18} className="text-orange-400" />,
+  },
 ];
 
 export default function PreferenciasNotificacaoPage() {

@@ -1,0 +1,14 @@
+---
+description: Design system — cores, cards glass e tema Copa
+globs: src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# Design system
+
+- Tokens em `src/app/globals.css` (`@theme`): `primaria` #16a34a, `fundo` #0B1020, `texto` #e2e8f0, `destaque`, `erro`, etc.
+- Fundo com profundidade (radial), não cor chapada.
+- Card base: `rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl …`
+- Home Brasileirão: borda/glow `primaria`; Copa: borda `#ffdf00` + glow.
+- Tema dinâmico: prop `temaCopa` / objeto `cores` — evitar ternários espalhados.
+- Skeleton: `animate-pulse` imitando layout real.

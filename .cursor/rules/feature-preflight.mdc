@@ -1,0 +1,44 @@
+---
+description: Pré-flight de feature FE — evita bugs/CRs recorrentes (lições destaques)
+alwaysApply: true
+---
+
+# Pré-flight de feature (frontend)
+
+Ao **criar ou expandir** feature, aplicar **antes** de declarar pronto. Fonte: CRs reais de destaques.
+
+## Dados e requests
+
+- Listagem/filtro via **TanStack Query** (`queryKey` com `grupoId` + params) — não `useEffect` + fetch solto.
+- Troca rápida de filtro/grupo: não deixar resposta antiga sobrescrever (key correta / cancelamento).
+- Reset de estado local ao mudar `grupoId` (filtro/rodada do grupo anterior não vaza).
+- Sem N requests na montagem (ex.: load → set filtro → load de novo).
+
+## Não regressão / domínio no lugar certo
+
+- Não remover card/seção existente no mesmo PR sem decisão explícita de produto.
+- Não duplicar no cliente regra que o BE já consolida (agrupar/dedupe/panelinha) — renderizar o payload.
+- Tipagem discriminada por `tipo` (não `Record<string, unknown>` + cast); fallback em arrays (`?? []`).
+
+## UI interativa / split
+
+- **Funcionalidade nova em página/componente antigo/sobrecarregado → extrair na mesma entrega** (componente, hook ou card por tipo). Não empilhar mais um bloco na página do grupo / card monólito.
+- Critérios: arquivo já ≥ ~200 linhas, muitos ramos por `tipo`/modo, ou o trecho novo estoura 250 / CC > 15.
+- Gesture/timer (long-press, hold): refs + `clearTimeout` em up/leave/unmount/`pointercancel`.
+- Arquivo ≤ 250 / componente ~200; card por tipo se o switch estourar.
+- `data-testid` em ações novas.
+
+## Push / Service Worker
+
+- Action no SW só se tiver **API real + auth** (token/`apiClient` path) e `response.ok`.
+- Sem Bearer/rewrite → abrir o app; não shippar action morta que “parece” funcionar.
+- Payload BE ↔ SW alinhado (`tipo`, ids); senão progressive enhancement documentado, não entregue.
+
+## Self-check (mental, ~1 min)
+
+1. Query key estável? troca de grupo limpa estado?
+2. Removi UI antiga sem querer?
+3. Estou reagrupando o que o BE já mandou pronto?
+4. SW/action tem auth e sucesso real?
+5. Empilhei feature nova em página/card gordo em vez de extrair?
+6. Teste Vitest do helper/agrupamento novo?
