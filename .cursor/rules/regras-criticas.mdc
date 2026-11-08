@@ -1,0 +1,20 @@
+---
+description: Regras críticas do frontend — NUNCA violar
+alwaysApply: true
+---
+
+# Regras críticas (frontend)
+
+- **Nunca commit/push na `main`** — tudo pela `develop` (ver `fluxo-git`).
+- **Sem `any`** — tipar com interfaces/`unknown` + narrowing.
+- **Arquivo ≤ 250 linhas** (componentes ~200, hooks ~150); ao editar legado grande, extrair ao menos 1 responsabilidade.
+- **Feature nova em componente/página antiga/gorda = extrair** — não inchá-la; novo fluxo em componente/hook próprio; a página só orquestra.
+- **Sem API nos componentes** — só via `src/services/` + `apiClient` (`src/lib/api-client.ts`).
+- **Tokens só no auth store** — nunca `localStorage` direto no componente.
+- **Formulários com Zod** + React Hook Form — sem validação manual solta.
+- **`'use client'`** em componentes com hooks/estado/eventos.
+- **Sem N requests** na carga — batch/endpoint consolidado; `staleTime` adequado (nunca `staleTime: 0` + refetch pesado no focus).
+- **Early returns**; no máximo 2 níveis de if; extrair helpers se repetir.
+- **Testes**: `data-testid` em elementos interativos (ver regra testabilidade) — nunca seletores por classe/ID.
+- **Erros de API em PT-BR** amigáveis; sem detalhes técnicos na UI.
+- Documentar feature relevante em `.cursor/rules/visao-geral.mdc` / README.
