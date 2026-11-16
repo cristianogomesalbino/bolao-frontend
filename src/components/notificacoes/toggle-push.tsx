@@ -7,6 +7,7 @@ import {
   inscreverNotificacoesPush,
   cancelarNotificacoesPush,
   verificarInscricaoPushAtiva,
+  testarNotificacaoLocal,
 } from '@/lib/push-notifications';
 
 export function TogglePush() {
@@ -15,6 +16,7 @@ export function TogglePush() {
   const [suportado, setSuportado] = useState(false);
   const [bloqueado, setBloqueado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
     const verificar = async () => {
@@ -39,8 +41,26 @@ export function TogglePush() {
     verificar();
   }, []);
 
+  async function testarLocal() {
+    setErro(null);
+    setInfo(null);
+    setCarregando(true);
+    const resultado = await testarNotificacaoLocal();
+    setCarregando(false);
+    if (resultado.ok) {
+      setInfo('Alerta local enviado — confira a notificação do sistema.');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      setBloqueado(true);
+      return;
+    }
+    setErro(resultado.motivo);
+  }
+
   async function alternar() {
     setErro(null);
+    setInfo(null);
     setCarregando(true);
 
     if (inscrito) {
@@ -57,10 +77,10 @@ export function TogglePush() {
       return;
     }
 
-    const sucesso = await inscreverNotificacoesPush();
+    const resultado = await inscreverNotificacoesPush();
     setCarregando(false);
 
-    if (sucesso) {
+    if (resultado.ok) {
       setInscrito(true);
       return;
     }
@@ -70,12 +90,7 @@ export function TogglePush() {
       return;
     }
 
-    const isHttps = globalThis.location?.protocol === 'https:';
-    setErro(
-      isHttps
-        ? 'Não foi possível ativar. Tente novamente.'
-        : 'Notificações push requerem HTTPS. Funcionará em produção.',
-    );
+    setErro(resultado.motivo);
   }
 
   if (!suportado) return null;
@@ -141,10 +156,24 @@ export function TogglePush() {
         </button>
       </div>
       {erro && (
-        <div className="flex items-center gap-2 px-4 pb-3 text-amber-400">
-          <AlertTriangle size={14} className="flex-shrink-0" />
-          <p className="text-[11px]">{erro}</p>
+        <div className="space-y-2 px-4 pb-3">
+          <div className="flex items-start gap-2 text-amber-400">
+            <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+            <p className="text-[11px] leading-relaxed">{erro}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void testarLocal()}
+            disabled={carregando}
+            className="text-[11px] font-medium text-primaria underline-offset-2 hover:underline disabled:opacity-50"
+            data-testid="btn-testar-notificacao-local"
+          >
+            Testar alerta local (sem FCM)
+          </button>
         </div>
+      )}
+      {info && !erro && (
+        <p className="px-4 pb-3 text-[11px] text-emerald-400">{info}</p>
       )}
     </div>
   );

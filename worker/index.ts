@@ -184,7 +184,7 @@ sw.addEventListener('push', (event: PushEvent) => {
         },
         ...(ehDestaqueNaoPalpitou && {
           actions: [
-            { action: 'mandar-f', title: '🪦 Mandar F' },
+            { action: 'mandar-f', title: '⏰ Acordar jogador' },
             { action: 'abrir', title: 'Ver Destaque' },
           ],
         }),
@@ -223,7 +223,7 @@ sw.addEventListener('notificationclick', (event: NotificationEvent) => {
     tipo?: string;
   };
 
-  // Mandar F: SW não tem JWT do auth store — abre o app no grupo (UI autenticada).
+  // Acordar jogador (action mandar-f): SW sem JWT — abre o app no grupo.
   if (
     event.action === 'mandar-f' &&
     notifData.grupoId

@@ -43,7 +43,7 @@ function iconeNotificacao(tipo: string): string {
     JOGO_LIBERADO: '🆕',
     VENCEDOR_BOLAO: '🏆',
     DESTAQUES_GRUPO: '✨',
-    RECEBEU_F: '🪦',
+    RECEBEU_F: '⏰',
   };
   return icones[tipo] ?? '🔔';
 }

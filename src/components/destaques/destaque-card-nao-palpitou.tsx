@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { mandarF } from '@/services/destaques.service';
+import { useAuthStore } from '@/stores/auth.store';
+import type { ErroApi } from '@/types/auth.types';
 import type { DadosNaoPalpitou, DestaqueItem } from '@/types/destaques.types';
 
 interface CardNaoPalpitouProps {
@@ -11,12 +13,27 @@ interface CardNaoPalpitouProps {
   readonly compacto?: boolean;
 }
 
+function ehErroApi(error: unknown): error is ErroApi {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    'mensagem' in error
+  );
+}
+
 export function CardNaoPalpitou({
   destaque,
   grupoId,
   emoji,
   compacto = false,
 }: CardNaoPalpitouProps) {
+  const usuarioId = useAuthStore((s) => s.usuario?.id);
+  const ehProprio = Boolean(
+    usuarioId && destaque.autor.usuarioId === usuarioId,
+  );
+  // Só mostra o CTA se sabemos quem está logado e não é o autor do esquecimento.
+  const mostrarBotaoAcordar = Boolean(usuarioId) && !ehProprio;
   const dados = destaque.dados as unknown as DadosNaoPalpitou;
   const jogos = dados.jogosEsquecidos ?? [];
   const meio = Math.ceil(jogos.length / 2);
@@ -27,16 +44,30 @@ export function CardNaoPalpitou({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  useEffect(() => {
+    setJaEnviou(destaque.jaEnviouF);
+    setContador(destaque.contadorFs);
+    setErro(null);
+  }, [destaque.id, destaque.jaEnviouF, destaque.contadorFs]);
+
   async function handleMandarF() {
-    if (jaEnviou || enviando) return;
+    if (ehProprio || jaEnviou || enviando) return;
     setEnviando(true);
     setErro(null);
     try {
       const res = await mandarF(grupoId, destaque.id);
       setContador(res.contadorFs);
       setJaEnviou(true);
-    } catch {
-      setErro('Não foi possível mandar o F');
+    } catch (error: unknown) {
+      if (ehErroApi(error) && error.statusCode === 409) {
+        setJaEnviou(true);
+        return;
+      }
+      setErro(
+        ehErroApi(error)
+          ? error.mensagem
+          : 'Não foi possível acordar o jogador',
+      );
     } finally {
       setEnviando(false);
     }
@@ -58,23 +89,30 @@ export function CardNaoPalpitou({
         <ListaLateral jogos={esquerda} alinhamento="left" />
         <ListaLateral jogos={direita} alinhamento="right" />
       </div>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          void handleMandarF();
-        }}
-        disabled={jaEnviou || enviando}
-        className="mt-3 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white disabled:bg-white/20"
-        data-interactive
-        data-testid="destaque-btn-mandar-f"
-      >
-        {jaEnviou ? 'Você já mandou um F' : `Mandar um F (${contador})`}
-      </button>
-      {erro && (
-        <p className="mt-2 text-xs text-white" data-testid="destaque-erro-mandar-f">
-          {erro}
-        </p>
+      {mostrarBotaoAcordar && (
+        <>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleMandarF();
+            }}
+            disabled={jaEnviou || enviando}
+            className="mt-3 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white disabled:bg-white/20"
+            data-interactive
+            data-testid="destaque-btn-mandar-f"
+          >
+            {jaEnviou ? 'Você já acordou' : `Acordar jogador (${contador})`}
+          </button>
+          {erro && (
+            <p
+              className="mt-2 text-xs text-white"
+              data-testid="destaque-erro-mandar-f"
+            >
+              {erro}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

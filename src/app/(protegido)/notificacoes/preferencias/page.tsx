@@ -69,8 +69,8 @@ const ITENS_PREFERENCIA: ItemPreferencia[] = [
   },
   {
     campo: 'recebeuF',
-    titulo: 'Recebeu um F',
-    descricao: 'Quando alguém manda um F no seu destaque',
+    titulo: 'Oi sumido / sumida',
+    descricao: 'Quando alguém sente sua falta nos palpites',
     icone: <Bell size={18} className="text-orange-400" />,
   },
 ];

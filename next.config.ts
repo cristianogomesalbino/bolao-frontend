@@ -3,7 +3,10 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  // Em dev o SW fica off (HMR). Para testar push local: ENABLE_PWA_DEV=true no .env
+  disable:
+    process.env.NODE_ENV === "development" &&
+    process.env.ENABLE_PWA_DEV !== "true",
   register: true,
   customWorkerSrc: "worker",
   workboxOptions: {
